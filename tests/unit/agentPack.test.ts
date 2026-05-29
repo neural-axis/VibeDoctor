@@ -15,7 +15,11 @@ describe("agent pack generator", () => {
 
     expect(result.created).toContain("AGENTS.md");
     expect(result.created).toContain(".agents/skills/vibedoctor-health-scan/SKILL.md");
+    expect(result.created).toContain(".agents/skills/vibedoctor-health-scan/agents/openai.yaml");
     expect(await fs.readFile(path.join(root, "AGENTS.md"), "utf8")).toContain("## VibeDoctor workflow");
+    expect(await fs.readFile(path.join(root, ".agents", "skills", "vibedoctor-health-scan", "SKILL.md"), "utf8")).toContain(
+      'description: "Run and interpret VibeDoctor health scans'
+    );
   });
 
   it("syncs compatibility shims for claude, copilot, and cursor", async () => {
@@ -25,7 +29,9 @@ describe("agent pack generator", () => {
     const result = await syncAgentPack(root, { targets: ["claude", "copilot", "cursor"] });
 
     expect(result.created).toContain(".claude/skills/vibedoctor-health-scan/SKILL.md");
+    expect(result.created).toContain(".claude/skills/vibedoctor-health-scan/agents/openai.yaml");
     expect(result.created).toContain(".github/copilot-instructions.md");
+    expect(result.created).toContain(".github/skills/vibedoctor-health-scan/agents/openai.yaml");
     expect(result.created).toContain(".cursor/mcp.json");
   });
 

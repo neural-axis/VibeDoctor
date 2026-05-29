@@ -95,13 +95,35 @@ async function writeManagedFiles(
   return mergeApplyResults(...results);
 }
 
+async function listFilesRecursive(root: string, currentDir: string): Promise<string[]> {
+  const entries = await fs.readdir(currentDir, { withFileTypes: true });
+  const files: string[] = [];
+
+  for (const entry of entries) {
+    const absolutePath = path.join(currentDir, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...(await listFilesRecursive(root, absolutePath)));
+      continue;
+    }
+
+    files.push(normalizeToPosix(path.relative(root, absolutePath)));
+  }
+
+  return files;
+}
+
 async function copyCanonicalSkills(root: string, destinationRoot: string, options: ApplyOptions = {}): Promise<AgentPackApplyResult> {
   const results: AgentPackApplyResult[] = [];
 
   for (const skill of AGENT_SKILLS) {
-    const sourcePath = toAbsolutePath(root, `.agents/skills/${skill.name}/SKILL.md`);
-    const content = await fs.readFile(sourcePath, "utf8");
-    results.push(await writeManagedFile(root, `${destinationRoot}/${skill.name}/SKILL.md`, content, options));
+    const sourceRoot = toAbsolutePath(root, `.agents/skills/${skill.name}`);
+    const files = await listFilesRecursive(sourceRoot, sourceRoot);
+
+    for (const file of files) {
+      const sourcePath = path.join(sourceRoot, ...file.split("/"));
+      const content = await fs.readFile(sourcePath, "utf8");
+      results.push(await writeManagedFile(root, `${destinationRoot}/${skill.name}/${file}`, content, options));
+    }
   }
 
   return mergeApplyResults(...results);
@@ -183,10 +205,16 @@ export async function generateCanonicalAgentPack(
   const files = [
     { path: "AGENTS.md", content: renderAgentsMd() },
     { path: ".vibedoctor/agent-policy.yml", content: renderAgentPolicy(defaultAgentPolicy) },
-    ...AGENT_SKILLS.map((skill) => ({
-      path: `.agents/skills/${skill.name}/SKILL.md`,
-      content: skill.content
-    }))
+    ...AGENT_SKILLS.flatMap((skill) => [
+      {
+        path: `.agents/skills/${skill.name}/SKILL.md`,
+        content: skill.content
+      },
+      {
+        path: `.agents/skills/${skill.name}/agents/openai.yaml`,
+        content: skill.openAiMetadata
+      }
+    ])
   ];
 
   return mergeApplyResults(

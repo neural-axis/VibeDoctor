@@ -2,16 +2,42 @@ export type SkillTemplate = {
   name: string;
   description: string;
   content: string;
+  openAiMetadata: string;
 };
+
+function quoteYamlString(value: string): string {
+  return JSON.stringify(value);
+}
+
+function toDisplayName(name: string): string {
+  return name
+    .split("-")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function createOpenAiMetadata(name: string, description: string): string {
+  return [
+    "interface:",
+    `  display_name: ${quoteYamlString(toDisplayName(name))}`,
+    `  short_description: ${quoteYamlString(description)}`,
+    `  default_prompt: ${quoteYamlString(`Use ${name} for this repository.`)}`,
+    "  brand_color: \"#2563EB\"",
+    "policy:",
+    "  allow_implicit_invocation: true",
+    ""
+  ].join("\n");
+}
 
 function createSkill(name: string, description: string, body: string): SkillTemplate {
   return {
     name,
     description,
+    openAiMetadata: createOpenAiMetadata(name, description),
     content: [
       "---",
       `name: ${name}`,
-      `description: ${description}`,
+      `description: ${quoteYamlString(description)}`,
       "---",
       "",
       body.trim(),
