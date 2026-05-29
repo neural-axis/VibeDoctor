@@ -1,0 +1,10 @@
+version: 1
+
+checks:
+  leftovers:
+    enabled: false
+  refactor_readiness:
+    enabled: true
+    min_file_lines: 40
+    min_complexity: 8
+    require_tests_before_refactor: true

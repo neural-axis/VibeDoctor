@@ -1,0 +1,28 @@
+Health: 71/100 ⚠️
+
+Blockers: 1
+Fix next: 3
+Leftovers: 1
+Dead code candidates: 1
+Refactor candidates: 1
+
+BLOCKERS
+1. Hardcoded secret in config (src/config.ts)
+
+FIX NEXT
+1. Hardcoded secret (src/config.ts)
+2. Dead chain candidate (src/legacy.ts)
+3. Ready for refactor (src/report_builder.ts)
+
+LEFTOVERS
+1. Legacy fallback path appears present (src/auth.ts)
+
+DEAD CHAINS
+1. src/legacy.ts look isolated from active entrypoints.
+
+SKIPPED TOOLS
+1. semgrep — Install Semgrep
+
+READY FOR AGENT
+Run:
+vibedoctor agent-plan

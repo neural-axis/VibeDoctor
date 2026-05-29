@@ -1,0 +1,11 @@
+version: 1
+
+checks:
+  leftovers:
+    enabled: true
+    scan_comments: true
+    scan_commented_code: true
+    scan_legacy_fallbacks: true
+    delete_automatically: false
+  refactor_readiness:
+    enabled: false

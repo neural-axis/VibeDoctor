@@ -1,0 +1,178 @@
+{
+  "score": 71,
+  "categoryScores": {
+    "security": 55,
+    "correctness": 100,
+    "dead_code": 92,
+    "leftovers": 98,
+    "maintainability": 100,
+    "dependencies": 100,
+    "tests": 100,
+    "efficiency": 100,
+    "refactor_readiness": 98
+  },
+  "findings": [
+    {
+      "id": "gitleaks:src/config.ts:1",
+      "source": "gitleaks",
+      "category": "security",
+      "severity": "critical",
+      "confidence": "high",
+      "title": "Hardcoded secret",
+      "message": "Hardcoded secret in config",
+      "file": "src/config.ts",
+      "startLine": 1,
+      "isNew": true,
+      "isAutofixable": false,
+      "safeToAutofix": false,
+      "tags": [
+        "security"
+      ],
+      "scoreImpact": 45
+    },
+    {
+      "id": "dead-chain:1",
+      "source": "custom-dead-chain",
+      "category": "dead_code",
+      "severity": "medium",
+      "confidence": "high",
+      "title": "Dead chain candidate",
+      "message": "src/legacy.ts look isolated from active entrypoints.",
+      "file": "src/legacy.ts",
+      "isNew": true,
+      "isAutofixable": false,
+      "safeToAutofix": false,
+      "tags": [
+        "dead-chain"
+      ],
+      "scoreImpact": 8
+    },
+    {
+      "id": "leftover:src/auth.ts:4",
+      "source": "custom-leftovers",
+      "category": "leftovers",
+      "severity": "low",
+      "confidence": "medium",
+      "title": "Legacy fallback path appears present",
+      "message": "if (LEGACY_AUTH_ENABLED) {",
+      "file": "src/auth.ts",
+      "startLine": 4,
+      "isNew": true,
+      "isAutofixable": false,
+      "safeToAutofix": false,
+      "tags": [
+        "leftovers",
+        "fallback-branch"
+      ],
+      "scoreImpact": 2
+    },
+    {
+      "id": "refactor:src/report_builder.ts",
+      "source": "custom-refactor",
+      "category": "refactor_readiness",
+      "severity": "low",
+      "confidence": "medium",
+      "title": "Ready for refactor",
+      "message": "src/report_builder.ts is large and tangled enough to split with moderate safety.",
+      "file": "src/report_builder.ts",
+      "isNew": true,
+      "isAutofixable": false,
+      "safeToAutofix": false,
+      "tags": [
+        "refactor",
+        "ready"
+      ],
+      "scoreImpact": 2
+    }
+  ],
+  "topFindings": [
+    {
+      "id": "gitleaks:src/config.ts:1",
+      "source": "gitleaks",
+      "category": "security",
+      "severity": "critical",
+      "confidence": "high",
+      "title": "Hardcoded secret",
+      "message": "Hardcoded secret in config",
+      "file": "src/config.ts",
+      "startLine": 1,
+      "isNew": true,
+      "isAutofixable": false,
+      "safeToAutofix": false,
+      "tags": [
+        "security"
+      ],
+      "scoreImpact": 45
+    }
+  ],
+  "toolStatuses": [
+    {
+      "id": "gitleaks",
+      "status": "ok"
+    }
+  ],
+  "skippedTools": [
+    {
+      "id": "semgrep",
+      "status": "skipped",
+      "installHint": "Install Semgrep"
+    }
+  ],
+  "agentPlan": {
+    "goal": "Raise health score from 71 to 85",
+    "target": "generic",
+    "workflow": [
+      "scan",
+      "plan",
+      "safe fix",
+      "edit carefully",
+      "verify",
+      "scan again",
+      "summarize"
+    ],
+    "rules": [
+      "Fix blockers before cleanup work.",
+      "Do not delete low-confidence dead code.",
+      "Do not refactor large files without tests.",
+      "Do not lower test, lint, security, or coverage thresholds."
+    ],
+    "allowedActions": [
+      "edit source files",
+      "add tests",
+      "run safe fixes"
+    ],
+    "forbiddenActions": [
+      "disable tests",
+      "lower thresholds",
+      "delete low-confidence dead code",
+      "upgrade dependencies",
+      "change public APIs without approval"
+    ],
+    "doNotTouch": [
+      "Do not assume semgrep was fully checked because the tool was skipped."
+    ],
+    "tasks": [
+      {
+        "id": "task-1",
+        "title": "Hardcoded secret",
+        "priority": 1,
+        "files": [
+          "src/config.ts"
+        ],
+        "instructions": [
+          "Hardcoded secret in config",
+          "Move the secret to an environment variable.",
+          "Do not change public behavior unless required."
+        ],
+        "verify": [
+          "npm test",
+          "vibedoctor scan --changed --report json"
+        ],
+        "doNotTouch": [
+          "Do not change public APIs without approval."
+        ],
+        "commands": []
+      }
+    ]
+  }
+}

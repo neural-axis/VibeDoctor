@@ -1,0 +1,7 @@
+version: 1
+
+checks:
+  leftovers:
+    enabled: false
+  refactor_readiness:
+    enabled: false

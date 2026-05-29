@@ -1,0 +1,54 @@
+{
+  "name": "vibedoctor",
+  "version": "0.1.0",
+  "description": "Health diagnosis and fix planning for JS, TS, Python, and mixed repositories.",
+  "type": "commonjs",
+  "bin": {
+    "vibedoctor": "dist/cli/index.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "packageManager": "npm@10.8.2",
+  "keywords": [
+    "code-health",
+    "cli",
+    "static-analysis",
+    "technical-debt",
+    "agent-tools"
+  ],
+  "scripts": {
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "build": "npm run clean && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "check": "npm run typecheck && npm test && npm run build",
+    "prepack": "npm run build",
+    "test": "vitest run",
+    "dev": "tsx src/cli/index.ts"
+  },
+  "license": "GPL-3.0-or-later",
+  "dependencies": {
+    "commander": "^14.0.0",
+    "minimatch": "^10.0.1",
+    "yaml": "^2.8.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.1",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}
