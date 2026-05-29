@@ -12,7 +12,7 @@ one finding model, scores the repo, and tells humans **and** coding agents exact
 what to fix next.
 
 ```bash
-npx vibedoctor scan
+npx @neural-axis/vibedoctor scan
 ```
 
 ```text
@@ -76,10 +76,19 @@ Missing tools are reported as skipped instead of treated as clean coverage.
 From the repository or package you want to inspect:
 
 ```bash
-npx vibedoctor init
-npx vibedoctor scan --quick
-npx vibedoctor scan --changed
+npx @neural-axis/vibedoctor init
+npx @neural-axis/vibedoctor scan --quick
+npx @neural-axis/vibedoctor scan --changed
 ```
+
+Prefer a shorter command? Install it once and call the `vibedoctor` binary directly:
+
+```bash
+npm install -g @neural-axis/vibedoctor
+vibedoctor scan
+```
+
+The remaining examples use the `vibedoctor` binary; prefix them with `npx @neural-axis/vibedoctor` if you skip the global install.
 
 For the strongest signal in monorepos, run VibeDoctor from the package or service root you are actively changing. Running from the monorepo root is supported, but package roots usually produce tighter dependency and test-tool signal.
 

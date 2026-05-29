@@ -1,8 +1,11 @@
 {
-  "name": "vibedoctor",
+  "name": "@neural-axis/vibedoctor",
   "version": "0.1.0",
   "description": "Health diagnosis and fix planning for JS, TS, Python, and mixed repositories.",
   "type": "commonjs",
+  "publishConfig": {
+    "access": "public"
+  },
   "bin": {
     "vibedoctor": "dist/cli/index.js"
   },
@@ -40,6 +43,15 @@
     "dev": "tsx src/cli/index.ts"
   },
   "license": "GPL-3.0-or-later",
+  "author": "neural-axis",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/neural-axis/VibeDoctor.git"
+  },
+  "homepage": "https://github.com/neural-axis/VibeDoctor#readme",
+  "bugs": {
+    "url": "https://github.com/neural-axis/VibeDoctor/issues"
+  },
   "dependencies": {
     "commander": "^14.0.0",
     "minimatch": "^10.0.1",
