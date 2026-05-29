@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Test and coverage output
+coverage/
+.nyc_output/
+
+# VibeDoctor generated artifacts
+.vibedoctor/report.json
+.vibedoctor/report.html
+.vibedoctor/agent-plan.md
+
+# Local environments
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Editor and OS noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
