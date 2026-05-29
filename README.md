@@ -77,6 +77,7 @@ From the repository or package you want to inspect:
 
 ```bash
 npx @neural-axis/vibedoctor init
+npx @neural-axis/vibedoctor setup
 npx @neural-axis/vibedoctor scan --quick
 npx @neural-axis/vibedoctor scan --changed
 ```
@@ -89,6 +90,10 @@ vibedoctor scan
 ```
 
 The remaining examples use the `vibedoctor` binary; prefix them with `npx @neural-axis/vibedoctor` if you skip the global install.
+
+Want the strongest first scan? Run `vibedoctor setup --apply`. VibeDoctor will
+install the essential project-local npm/Python tools it can install safely, and
+print exact manual steps for native tools such as Gitleaks and OSV-Scanner.
 
 For the strongest signal in monorepos, run VibeDoctor from the package or service root you are actively changing. Running from the monorepo root is supported, but package roots usually produce tighter dependency and test-tool signal.
 
@@ -103,6 +108,7 @@ After a scan, VibeDoctor writes:
 | Goal | Command |
 | --- | --- |
 | Initialize config | `vibedoctor init` |
+| Plan/install scanner tools | `vibedoctor setup` / `vibedoctor setup --apply` |
 | Fast local triage | `vibedoctor scan --quick` |
 | Review only changed files | `vibedoctor scan --changed` |
 | Full repository scan | `vibedoctor scan --full` |
@@ -128,6 +134,25 @@ baked in, so editing is optional. The most useful knobs:
 
 Use `vibedoctor baseline create` to snapshot existing debt, then fail builds only
 on *new* problems while you pay down the rest over time.
+
+## Tool Setup Philosophy
+
+VibeDoctor prefers tools already installed by the repository because that matches
+your real CI versions and config. It never treats a missing tool as a clean pass:
+missing tools are shown as skipped with install guidance.
+
+For a smoother first run, `vibedoctor setup` gives you the curated install plan.
+The essential set is the smallest group needed to make the main product promise
+work across common repos:
+
+- built-in detectors: leftovers, dead-chain candidates, and refactor readiness
+- JS/TS: TypeScript, Biome, and Knip
+- Python: Ruff, Pyright, and Vulture
+- security/dependencies: Gitleaks and OSV-Scanner
+
+`vibedoctor setup --apply` installs automatable package-manager tools. Native
+binaries stay explicit for now so the CLI does not silently download executables
+into developer or CI machines.
 
 ## Reports
 

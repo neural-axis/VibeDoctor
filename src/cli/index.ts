@@ -9,6 +9,7 @@ import { runInit } from "./commands/init";
 import { runMcpServer } from "../mcp/server";
 import { runReportCommand } from "./commands/report";
 import { runScanCommand } from "./commands/scan";
+import { runSetupCommand } from "./commands/setup";
 
 async function main(): Promise<void> {
   const program = new Command();
@@ -32,6 +33,17 @@ async function main(): Promise<void> {
     .option("--report <format>", "terminal|json|html|agent|agent-json", "terminal")
     .action(async (options) => {
       const result = await runScanCommand(process.cwd(), options);
+      process.stdout.write(result.output);
+      process.exitCode = result.exitCode;
+    });
+
+  program
+    .command("setup")
+    .description("Print or install the recommended external scanner tools")
+    .option("--apply", "Install automatable tools")
+    .option("--include <level>", "essential|recommended", "essential")
+    .action(async (options) => {
+      const result = await runSetupCommand(process.cwd(), options);
       process.stdout.write(result.output);
       process.exitCode = result.exitCode;
     });
