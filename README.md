@@ -12,7 +12,7 @@ one finding model, scores the repo, and tells humans **and** coding agents exact
 what to fix next.
 
 ```bash
-npx @neural-axis/vibedoctor scan
+npx @neuralaxis/vibedoctor scan
 ```
 
 ```text
@@ -76,20 +76,20 @@ Missing tools are reported as skipped instead of treated as clean coverage.
 From the repository or package you want to inspect:
 
 ```bash
-npx @neural-axis/vibedoctor init
-npx @neural-axis/vibedoctor setup
-npx @neural-axis/vibedoctor scan --quick
-npx @neural-axis/vibedoctor scan --changed
+npx @neuralaxis/vibedoctor init
+npx @neuralaxis/vibedoctor setup
+npx @neuralaxis/vibedoctor scan --quick
+npx @neuralaxis/vibedoctor scan --changed
 ```
 
 Prefer a shorter command? Install it once and call the `vibedoctor` binary directly:
 
 ```bash
-npm install -g @neural-axis/vibedoctor
+npm install -g @neuralaxis/vibedoctor
 vibedoctor scan
 ```
 
-The remaining examples use the `vibedoctor` binary; prefix them with `npx @neural-axis/vibedoctor` if you skip the global install.
+The remaining examples use the `vibedoctor` binary; prefix them with `npx @neuralaxis/vibedoctor` if you skip the global install.
 
 Want the strongest first scan? Run `vibedoctor setup --apply`. VibeDoctor will
 install the essential project-local npm/Python tools it can install safely, and

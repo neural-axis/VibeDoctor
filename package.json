@@ -1,5 +1,5 @@
 {
-  "name": "@neural-axis/vibedoctor",
+  "name": "@neuralaxis/vibedoctor",
   "version": "0.1.0",
   "description": "Health diagnosis and fix planning for JS, TS, Python, and mixed repositories.",
   "type": "commonjs",
@@ -43,7 +43,7 @@
     "dev": "tsx src/cli/index.ts"
   },
   "license": "GPL-3.0-or-later",
-  "author": "neural-axis",
+  "author": "neuralaxis",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/neural-axis/VibeDoctor.git"
