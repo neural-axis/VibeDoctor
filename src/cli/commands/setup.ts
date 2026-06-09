@@ -4,11 +4,12 @@ import { runCommand } from "../../core/toolRunner";
 import { detectProject, type PackageManager, type ProjectContext, type ProjectLanguage } from "../../core/projectDetector";
 import { pathExists } from "../../core/paths";
 
-export type SetupLevel = "essential" | "recommended";
+export type SetupPriority = "essential" | "recommended";
+export type SetupInclude = "essential" | "recommended" | "all" | "npm" | "python" | "manual" | "built-in";
 
 export type SetupOptions = {
   apply?: boolean;
-  include?: SetupLevel;
+  include?: SetupInclude;
 };
 
 type SetupTool = {
@@ -16,7 +17,7 @@ type SetupTool = {
   packageName?: string;
   executable?: string;
   ecosystem: "npm" | "python" | "manual" | "built-in";
-  priority: SetupLevel;
+  priority: SetupPriority;
   languages?: ProjectLanguage[];
   requiresLockfile?: boolean;
   reason: string;
@@ -33,6 +34,8 @@ export type SetupPlan = {
   skipped: SetupTool[];
   commands: CommandSpec[];
 };
+
+const VALID_SETUP_INCLUDES = new Set<SetupInclude>(["essential", "recommended", "all", "npm", "python", "manual", "built-in"]);
 
 const essentialTools: SetupTool[] = [
   {
@@ -263,9 +266,26 @@ function commandText(command: CommandSpec): string {
   return [command.cmd, ...command.args].join(" ");
 }
 
-export async function createSetupPlan(root: string, include: SetupLevel = "essential"): Promise<SetupPlan> {
+function resolveTools(include: SetupInclude): SetupTool[] {
+  if (include === "essential") {
+    return essentialTools;
+  }
+
+  if (include === "recommended") {
+    return recommendedTools;
+  }
+
+  const allTools = [...essentialTools, ...recommendedTools];
+  if (include === "all") {
+    return allTools;
+  }
+
+  return allTools.filter((tool) => tool.ecosystem === include);
+}
+
+export async function createSetupPlan(root: string, include: SetupInclude = "essential"): Promise<SetupPlan> {
   const project = await detectProject(root);
-  const tools = include === "recommended" ? [...essentialTools, ...recommendedTools] : essentialTools;
+  const tools = resolveTools(include);
   const relevantTools = tools.filter((tool) => appliesToProject(tool, project));
   const builtIn = relevantTools.filter((tool) => tool.ecosystem === "built-in");
   const externalTools = relevantTools.filter((tool) => tool.ecosystem !== "built-in");
@@ -321,7 +341,7 @@ function renderToolList(prefix: string, tools: SetupTool[]): string[] {
   return [prefix, ...tools.map((tool) => `- ${tool.id}: ${tool.reason}${tool.installHint ? ` ${tool.installHint}` : ""}`), ""];
 }
 
-function renderPlan(plan: SetupPlan, include: SetupLevel, results: ToolResult[] = []): string {
+function renderPlan(plan: SetupPlan, include: SetupInclude, results: ToolResult[] = []): string {
   const languages = activeLanguages(plan.project);
   const lines = ["VibeDoctor setup", "", `Detected languages: ${languages.length > 0 ? languages.join(", ") : "none"}`, `Package managers: ${plan.project.packageManagers.length > 0 ? plan.project.packageManagers.join(", ") : "none"}`, `Install set: ${include}`, ""];
 
@@ -349,14 +369,14 @@ function renderPlan(plan: SetupPlan, include: SetupLevel, results: ToolResult[] 
   if (plan.commands.length > 0 && results.length === 0) {
     lines.push("Run `vibedoctor setup --apply` to install the automatable tools.");
   } else if (plan.commands.length === 0 && plan.manual.length === 0 && plan.skipped.length === 0) {
-    lines.push("All relevant essential tools are already available.");
+    lines.push(`All relevant ${include} tools are already available.`);
   }
 
   return `${lines.join("\n")}\n`;
 }
 
 export async function runSetupCommand(root: string, options: SetupOptions = {}): Promise<{ output: string; exitCode: number }> {
-  const include = options.include === "recommended" ? "recommended" : "essential";
+  const include = VALID_SETUP_INCLUDES.has(options.include ?? "essential") ? (options.include ?? "essential") : "essential";
   const plan = await createSetupPlan(root, include);
 
   if (!options.apply) {

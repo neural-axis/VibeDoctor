@@ -39,9 +39,9 @@ async function main(): Promise<void> {
 
   program
     .command("setup")
-    .description("Print or install the recommended external scanner tools")
+    .description("Print or install scanner tools for the selected setup set")
     .option("--apply", "Install automatable tools")
-    .option("--include <level>", "essential|recommended", "essential")
+    .option("--include <level>", "essential|recommended|all|npm|python|manual|built-in", "essential")
     .action(async (options) => {
       const result = await runSetupCommand(process.cwd(), options);
       process.stdout.write(result.output);

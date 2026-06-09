@@ -38,4 +38,38 @@ describe("setup command", () => {
 
     expect(knownRecommended.has("jscpd")).toBe(true);
   });
+
+  it("adds both essential and recommended tools when all is requested", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "vibedoctor-setup-all-"));
+    await fs.mkdir(path.join(root, "src"), { recursive: true });
+    await fs.writeFile(path.join(root, "package.json"), "{}", "utf8");
+    await fs.writeFile(path.join(root, "src", "index.ts"), "export const value = 1;\n", "utf8");
+
+    const plan = await createSetupPlan(root, "all");
+    const toolIds = new Set([
+      ...plan.builtIn.map((tool) => tool.id),
+      ...plan.available.map((tool) => tool.id),
+      ...plan.manual.map((tool) => tool.id),
+      ...plan.skipped.map((tool) => tool.id)
+    ]);
+
+    expect(toolIds.has("custom-leftovers")).toBe(true);
+    expect(toolIds.has("jscpd")).toBe(true);
+  });
+
+  it("filters to python tooling for python include", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "vibedoctor-setup-python-"));
+    await fs.mkdir(path.join(root, "src"), { recursive: true });
+    await fs.writeFile(path.join(root, "pyproject.toml"), "[project]\nname='demo'\nversion='0.1.0'\n", "utf8");
+    await fs.writeFile(path.join(root, "src", "app.py"), "print('hello')\n", "utf8");
+
+    const plan = await createSetupPlan(root, "python");
+    const toolNames = new Set([...plan.pythonPackages, ...plan.available.map((tool) => tool.id), ...plan.skipped.map((tool) => tool.id)]);
+
+    expect(toolNames.has("ruff")).toBe(true);
+    expect(toolNames.has("radon")).toBe(true);
+    expect(plan.npmPackages).toEqual([]);
+    expect(plan.manual).toEqual([]);
+    expect(plan.builtIn).toEqual([]);
+  });
 });

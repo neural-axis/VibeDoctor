@@ -142,8 +142,8 @@ your real CI versions and config. It never treats a missing tool as a clean pass
 missing tools are shown as skipped with install guidance.
 
 For a smoother first run, `vibedoctor setup` gives you the curated install plan.
-The essential set is the smallest group needed to make the main product promise
-work across common repos:
+The default `essential` set is the smallest group needed to make the main product
+promise work across common repos:
 
 - built-in detectors: leftovers, dead-chain candidates, and refactor readiness
 - JS/TS: TypeScript, Biome, and Knip
@@ -153,6 +153,15 @@ work across common repos:
 `vibedoctor setup --apply` installs automatable package-manager tools. Native
 binaries stay explicit for now so the CLI does not silently download executables
 into developer or CI machines.
+
+Additional setup scopes are available when you want broader or narrower plans:
+
+- `vibedoctor setup --include recommended` for recommended-only extras
+- `vibedoctor setup --include all` for the combined essential + recommended set
+- `vibedoctor setup --include npm` for JS/TS package installs only
+- `vibedoctor setup --include python` for Python package installs only
+- `vibedoctor setup --include manual` for native/manual binaries only
+- `vibedoctor setup --include built-in` for VibeDoctor's built-in detectors only
 
 ## Reports
 
