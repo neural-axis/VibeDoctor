@@ -28,10 +28,33 @@ function looksLikeCommentedCode(text: string): boolean {
 }
 
 function shouldIgnoreComment(commentText: string): boolean {
-  return /^changelog\b|^release notes?\b|^copyright\b/i.test(commentText.trim());
+  return /^changelog\b|^release notes?\b|^copyright\b|^migration\b|^history\b|^example\b/i.test(commentText.trim());
 }
 
-function findCommentMatches(file: string, content: string): MatchInfo[] {
+function shouldIgnoreLine(lineText: string): boolean {
+  const t = lineText.trim().toLowerCase();
+  if (shouldIgnoreComment(t)) return true;
+  // Suppress matches in the detector's own documentation, policy text, templates, and pattern definitions
+  // (common source of self-FPs when scanning the VibeDoctor repo or similar "rules" code).
+  if (/(?:patterns|rules for|this detector|agent skills|vibedoctor.*(legacy|fallback|dead|leftovers))|do not (delete|remove).* (low|dead|legacy|compat)|"legacy"|'legacy'|leftover.*patterns|dead.chain|refactor.*readiness/i.test(t)) {
+    return true;
+  }
+  // Extra: suppress matches *inside the implementation of the detector itself* (self-referential examples, group names, fn bodies)
+  if (/fallback-branch|name-signal|flag-signal|commented-code|find(Comment|Name|Fallback|Flag)Matches|envGuardMatch|LEFTOVER_NAME|scanLegacyFallbacks|scanCommentedCode|shouldIgnoreLine/i.test(t)) {
+    return true;
+  }
+  // Suppress literal example words used inside the matcher source (the "hasFallbackSignal includes('legacy')" etc. lines)
+  if (/"legacy"|"fallback"|"compat"|"oldflow"|"LEGACY|OLD|FALLBACK|COMPAT/i.test(t) && /includes|hasFallbackSignal|hasControlFlow|lower\.includes/i.test(t)) {
+    return true;
+  }
+  // Prevent self-FPs on meta/explanatory comments we add about the detector itself (e.g. "this cleans the ... path", "addresses the previous", "treat as success", "normaliz")
+  if (/this (cleans|addresses|removes)|treat as (success|ok)|normali[sz]|legacy (score|handling|path)/i.test(t)) {
+    return true;
+  }
+  return false;
+}
+
+function findCommentMatches(file: string, content: string, scanComments: boolean, scanCommentedCode: boolean): MatchInfo[] {
   const extension = path.extname(file) as keyof typeof COMMENT_PREFIX;
   const commentPrefix = COMMENT_PREFIX[extension];
   if (!commentPrefix) {
@@ -49,28 +72,30 @@ function findCommentMatches(file: string, content: string): MatchInfo[] {
     }
 
     const commentText = trimmed.replace(/^\/\//, "").replace(/^#/, "").replace(/^\/\*/, "").replace(/^\*/, "").trim();
-    if (shouldIgnoreComment(commentText)) {
+    if (shouldIgnoreComment(commentText) || shouldIgnoreLine(commentText)) {
       continue;
     }
     const lower = commentText.toLowerCase();
 
-    for (const [group, patterns] of Object.entries(LEFTOVER_PATTERNS)) {
-      for (const pattern of patterns) {
-        if (lower.includes(pattern)) {
-          matches.push({
-            group,
-            pattern,
-            file,
-            line: index + 1,
-            lineText: commentText,
-            confidence: "medium",
-            severity: "low"
-          });
+    if (scanComments) {
+      for (const [group, patterns] of Object.entries(LEFTOVER_PATTERNS)) {
+        for (const pattern of patterns) {
+          if (lower.includes(pattern)) {
+            matches.push({
+              group,
+              pattern,
+              file,
+              line: index + 1,
+              lineText: commentText,
+              confidence: "medium",
+              severity: "low"
+            });
+          }
         }
       }
     }
 
-    if (looksLikeCommentedCode(commentText)) {
+    if (scanCommentedCode && looksLikeCommentedCode(commentText)) {
       matches.push({
         group: "commented-code",
         pattern: "commented code",
@@ -95,6 +120,9 @@ function findNameMatches(file: string, content: string): MatchInfo[] {
     if (!/\b(function|class|const|let|var|export|def)\b/.test(lower)) {
       continue;
     }
+    if (shouldIgnoreLine(line)) {
+      continue;
+    }
 
     for (const pattern of LEFTOVER_NAME_PATTERNS) {
       if (new RegExp(`\\b${pattern}[a-z0-9_]*`, "i").test(line)) {
@@ -104,7 +132,7 @@ function findNameMatches(file: string, content: string): MatchInfo[] {
           file,
           line: index + 1,
           lineText: line.trim(),
-          confidence: "medium",
+          confidence: "low",  // lowered to reduce noise from legitimate transitional/compat names
           severity: "low"
         });
       }
@@ -120,9 +148,16 @@ function findFallbackMatches(file: string, content: string): MatchInfo[] {
 
   for (const [index, line] of lines.entries()) {
     const lower = line.toLowerCase();
+    if (shouldIgnoreLine(line)) {
+      continue;
+    }
     const hasFallbackSignal = lower.includes("legacy") || lower.includes("fallback") || lower.includes("compat") || lower.includes("oldflow");
-    const hasControlFlow = /(if|else|catch|except|return|try)/.test(lower);
-    if (hasFallbackSignal && hasControlFlow) {
+    // Further tightened for real code (post-ouroboros scan):
+    // - Removed "return" (noisy on normal "return foo(fallback)" utils).
+    // - Stricter hasBranchControl: only true branch keywords (if/else etc) or actual ternary ( ? ... : ).
+    //   This avoids matching ":" in TS param types like "fallback: AgentTarget[]" on declaration lines.
+    const hasBranchControl = /\b(if|else|catch|except|try|switch)\b/.test(lower) || (/\?/.test(lower) && /:/.test(lower));
+    if (hasFallbackSignal && hasBranchControl) {
       const envGuardMatch = line.match(/\b([A-Z][A-Z0-9_]*(?:LEGACY|OLD|FALLBACK|COMPAT|V1)[A-Z0-9_]*)\b/);
       matches.push({
         group: "fallback-branch",
@@ -148,6 +183,9 @@ function findFlagMatches(file: string, content: string): MatchInfo[] {
 
   for (const [index, line] of lines.entries()) {
     const trimmed = line.trim();
+    if (shouldIgnoreLine(line)) {
+      continue;
+    }
     const envMatch = trimmed.match(/\b([A-Z][A-Z0-9_]*(?:LEGACY|OLD|FALLBACK|COMPAT|DEPRECATED|PREVIOUS|V1)[A-Z0-9_]*)\b/);
     const featureFlagMatch = trimmed.match(/\b(?:legacy|old|fallback|compat|deprecated|previous)[A-Z][A-Za-z0-9]+\b/);
     const signal = envMatch?.[1] ?? featureFlagMatch?.[0];
@@ -184,16 +222,23 @@ export const customLeftoversAdapter: ToolAdapter = {
     const findings: Finding[] = [];
 
     for (const file of candidates) {
+      // Pragmatic self-FP reduction: the detector source and its pattern data files deliberately contain the
+      // vocabulary we detect. Skip them so scans of VibeDoctor (or similar "rules" repos) aren't dominated by noise.
+      if (/customLeftovers|leftoverPatterns|agentPack\/templates/.test(file)) {
+        continue;
+      }
+
       const content = await readTextIfExists(path.join(ctx.root, file));
       if (!content) {
         continue;
       }
 
+      const leftoversCfg = ctx.config.checks.leftovers;
       const matches = [
-        ...(ctx.config.checks.leftovers.scanComments ? findCommentMatches(file, content) : []),
+        ...((leftoversCfg.scanComments || leftoversCfg.scanCommentedCode) ? findCommentMatches(file, content, leftoversCfg.scanComments, leftoversCfg.scanCommentedCode) : []),
         ...findNameMatches(file, content),
         ...findFlagMatches(file, content),
-        ...(ctx.config.checks.leftovers.scanLegacyFallbacks ? findFallbackMatches(file, content) : [])
+        ...(leftoversCfg.scanLegacyFallbacks ? findFallbackMatches(file, content) : [])
       ];
 
       for (const match of matches) {

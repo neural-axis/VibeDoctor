@@ -35,9 +35,9 @@ function formatApplyResult(title: string, result: AgentPackApplyResult, includeN
   return `${lines.join("\n").trimEnd()}\n`;
 }
 
-function resolveTargets(options: { target?: string; targets?: string }, fallback: AgentTarget[] = ["codex"]): AgentTarget[] {
+function resolveTargets(options: { target?: string; targets?: string }, defaultTargets: AgentTarget[] = ["codex"]): AgentTarget[] {
   const merged = options.target ? options.target : options.targets;
-  return parseAgentTargets(merged, fallback);
+  return parseAgentTargets(merged, defaultTargets);
 }
 
 export async function runAgentInitCommand(

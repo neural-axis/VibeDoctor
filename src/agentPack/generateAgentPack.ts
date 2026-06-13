@@ -176,9 +176,9 @@ export async function loadAgentPackManifest(root: string): Promise<AgentPackMani
   };
 }
 
-export function parseAgentTargets(value: string | undefined, fallback: AgentTarget[] = ["codex"]): AgentTarget[] {
+export function parseAgentTargets(value: string | undefined, defaultTargets: AgentTarget[] = ["codex"]): AgentTarget[] {
   if (!value) {
-    return uniqueTargets(fallback);
+    return uniqueTargets(defaultTargets);
   }
 
   const parts = value

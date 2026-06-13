@@ -50,7 +50,9 @@ describe("setup command", () => {
       ...plan.builtIn.map((tool) => tool.id),
       ...plan.available.map((tool) => tool.id),
       ...plan.manual.map((tool) => tool.id),
-      ...plan.skipped.map((tool) => tool.id)
+      ...plan.skipped.map((tool) => tool.id),
+      ...plan.npmPackages,
+      ...plan.pythonPackages
     ]);
 
     expect(toolIds.has("custom-leftovers")).toBe(true);

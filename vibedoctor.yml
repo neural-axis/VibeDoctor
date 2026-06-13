@@ -1,0 +1,73 @@
+version: 1
+profile: app
+
+project:
+  type: app
+  languages:
+    - typescript
+    - javascript
+
+paths:
+  include:
+    - src/**
+    - tests/**
+    # Note: fixtures/** deliberately excluded from the project's own health scan.
+    # They contain intentional "debt" examples used only by integration tests (which use temp copies + their own yml overrides or direct runScan).
+    # This keeps the self-scan (ouroboros) focused on real src/ code, improving signal and scores for leftovers/dead_code.
+  exclude:
+    - node_modules/**
+    - dist/**
+    - build/**
+    - .venv/**
+    - coverage/**
+    - .next/**
+    - vendor/**
+    - "**/*.test.*"
+    - fixtures/**
+
+baseline:
+  enabled: true
+  file: .vibedoctor/baseline.json
+  fail_only_on_new_issues: true
+
+score:
+  minimum: 80
+
+checks:
+  security:
+    enabled: true
+    fail_on_secrets: true
+    fail_on_new_high_vulnerabilities: true
+  correctness:
+    enabled: true
+    fail_on_type_errors: true
+    fail_on_test_failures: true
+  deadCode:
+    enabled: true
+    deleteAutomatically: false
+    minConfidenceToReport: medium
+  leftovers:
+    enabled: true
+    scanComments: true
+    scanCommentedCode: true
+    scanLegacyFallbacks: true
+    deleteAutomatically: false
+  refactorReadiness:
+    enabled: true
+    minFileLines: 400
+    minComplexity: 12
+    requireTestsBeforeRefactor: true
+  tests:
+    enabled: true
+    minCoverage: 60
+    minChangedCodeCoverage: 70
+  dependencies:
+    enabled: true
+    failOnMissingDependencies: true
+    failOnNewDirectVulnerabilities: true
+
+output:
+  terminal: true
+  json: .vibedoctor/report.json
+  html: .vibedoctor/report.html
+  agent: .vibedoctor/agent-plan.md

@@ -44,7 +44,10 @@ export function buildScore(findings: Finding[]): ScoreBreakdown {
   const penalties = { ...defaultPenalties };
 
   for (const finding of findings) {
-    penalties[finding.category] += finding.scoreImpact || scoreFinding(finding);
+    // scoreImpact was historically always set to 0 by every adapter/custom (see 20+ sites).
+    // It only affected dedupe max() in practice. Use the computed scoreFinding for penalties
+    // (severity, confidence, newness, autofix, test-file weight). This removes the legacy scoreImpact handling.
+    penalties[finding.category] += scoreFinding(finding);
   }
 
   const categories = { ...defaultCategoryScore };

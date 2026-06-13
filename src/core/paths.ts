@@ -4,13 +4,18 @@ import { Minimatch } from "minimatch";
 
 export const DEFAULT_EXCLUDES = [
   "node_modules/**",
+  "**/node_modules/**",
   "dist/**",
+  "**/dist/**",
   "build/**",
   ".venv/**",
+  "**/.venv/**",
   "coverage/**",
   ".next/**",
   "vendor/**",
-  ".git/**"
+  ".git/**",
+  "**/__pycache__/**",
+  "**/*.egg-info/**"
 ];
 
 export async function pathExists(targetPath: string): Promise<boolean> {
@@ -52,9 +57,30 @@ async function walkDirectory(root: string, currentDir: string, files: string[], 
   }
 }
 
+async function readGitignoreExcludes(root: string): Promise<string[]> {
+  const gitignorePath = path.join(root, '.gitignore');
+  if (!(await pathExists(gitignorePath))) return [];
+  try {
+    const content = await fs.readFile(gitignorePath, 'utf8');
+    return content
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line && !line.startsWith('#') && !line.startsWith('!'))
+      .map((line) => {
+        let p = line.replace(/^\//, '');
+        if (p.endsWith('/')) p += '**';
+        return p;
+      });
+  } catch {
+    return [];
+  }
+}
+
 export async function listProjectFiles(root: string, excludePatterns: string[] = DEFAULT_EXCLUDES): Promise<string[]> {
+  const gitExcludes = await readGitignoreExcludes(root);
+  const combined = [...excludePatterns, ...gitExcludes];
   const items: string[] = [];
-  await walkDirectory(root, root, items, excludePatterns.map((pattern) => new Minimatch(pattern, { dot: true })));
+  await walkDirectory(root, root, items, combined.map((pattern) => new Minimatch(pattern, { dot: true })));
   return items;
 }
 
