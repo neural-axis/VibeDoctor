@@ -21,7 +21,7 @@ checks:
 `;
     await fs.writeFile(path.join(root, "vibedoctor.yml"), yml, "utf8");
 
-    const scan = await runScan(root, "default");
+    const scan = await runScan(root, "quick");
 
     const hasCommented = scan.leftovers.some((f) => f.title === "Commented-out code");
     const hasLegacyFlag = scan.leftovers.some((f) => f.title === "Legacy flag or env toggle");

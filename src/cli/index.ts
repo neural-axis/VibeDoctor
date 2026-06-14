@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 import { Command } from "commander";
+import fs from "node:fs";
+import path from "node:path";
 import { runAgentDoctorCommand, runAgentInitCommand, runAgentPackCommand, runAgentSyncCommand } from "./commands/agent";
 import { runAgentPlanCommand } from "./commands/agentPlan";
 import { runBaselineCreateCommand } from "./commands/baseline";
@@ -11,16 +13,32 @@ import { runReportCommand } from "./commands/report";
 import { runScanCommand } from "./commands/scan";
 import { runSetupCommand } from "./commands/setup";
 
+function getVersion(): string {
+  try {
+    // After `npm version patch` + publish, package.json is shipped (see "files").
+    // When executed from dist/cli/index.js (in the installed package), it lives at ../../package.json.
+    const pkgPath = path.resolve(__dirname, "..", "..", "package.json");
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
+    if (pkg && typeof pkg.version === "string") {
+      return pkg.version;
+    }
+  } catch {
+    // fall through to hardcoded fallback
+  }
+  return "0.1.0";
+}
+
 async function main(): Promise<void> {
   const program = new Command();
 
-  program.name("vibedoctor").description("Brutally simple repo health diagnosis.").version("0.1.0");
+  program.name("vibedoctor").description("Brutally simple repo health diagnosis.").version(getVersion());
 
   program
     .command("init")
     .description("Create vibedoctor.yml and .vibedoctor baseline scaffolding")
     .action(async () => {
       process.stdout.write(`Created ${await runInit(process.cwd())}\n`);
+      process.exit(0);
     });
 
   program
@@ -34,18 +52,21 @@ async function main(): Promise<void> {
     .action(async (options) => {
       const result = await runScanCommand(process.cwd(), options);
       process.stdout.write(result.output);
-      process.exitCode = result.exitCode;
+      // Force exit: some child processes / native tool wrappers (especially on Windows)
+      // can leave event-loop handles open even after 'close'. Explicit exit guarantees
+      // the CLI terminates promptly for terminals and CI after printing the report.
+      process.exit(result.exitCode);
     });
 
   program
     .command("setup")
     .description("Print or install scanner tools for the selected setup set")
     .option("--apply", "Install automatable tools")
-    .option("--include <level>", "essential|recommended|all|npm|python|manual|built-in", "essential")
+    .option("--include <level>", "essential|recommended|all|npm|python|manual|built-in  (default: recommended)", "recommended")
     .action(async (options) => {
       const result = await runSetupCommand(process.cwd(), options);
       process.stdout.write(result.output);
-      process.exitCode = result.exitCode;
+      process.exit(result.exitCode);
     });
 
   program
@@ -54,6 +75,7 @@ async function main(): Promise<void> {
     .option("--safe", "Only allow safe fixes", true)
     .action(async () => {
       process.stdout.write(await runSafeFixCommand(process.cwd()));
+      process.exit(0);
     });
 
   program
@@ -68,6 +90,7 @@ async function main(): Promise<void> {
     .action(async (options) => {
       const format = options.full ? "full" : options.html ? "html" : options.markdown ? "markdown" : options.agent ? "agent" : options.sarif ? "sarif" : "json";
       process.stdout.write(await runReportCommand(process.cwd(), format));
+      process.exit(0);
     });
 
   const agent = program.command("agent").description("Manage the VibeDoctor agent pack");
@@ -79,6 +102,7 @@ async function main(): Promise<void> {
     .option("--force", "Overwrite generated files")
     .action(async (options) => {
       process.stdout.write(await runAgentInitCommand(process.cwd(), options));
+      process.exit(0);
     });
 
   agent
@@ -89,6 +113,7 @@ async function main(): Promise<void> {
     .option("--force", "Overwrite generated files")
     .action(async (options) => {
       process.stdout.write(await runAgentPackCommand(process.cwd(), options));
+      process.exit(0);
     });
 
   agent
@@ -99,6 +124,7 @@ async function main(): Promise<void> {
     .option("--force", "Overwrite generated files")
     .action(async (options) => {
       process.stdout.write(await runAgentSyncCommand(process.cwd(), options));
+      process.exit(0);
     });
 
   agent
@@ -109,7 +135,7 @@ async function main(): Promise<void> {
     .action(async (options) => {
       const result = await runAgentDoctorCommand(process.cwd(), options);
       process.stdout.write(result.output);
-      process.exitCode = result.exitCode;
+      process.exit(result.exitCode);
     });
 
   const baseline = program.command("baseline").description("Manage baselines");
@@ -118,6 +144,7 @@ async function main(): Promise<void> {
     .description("Create a baseline file from the current findings")
     .action(async () => {
       process.stdout.write(await runBaselineCreateCommand(process.cwd()));
+      process.exit(0);
     });
 
   program
@@ -127,6 +154,7 @@ async function main(): Promise<void> {
     .option("--for <target>", "codex|copilot|claude|cursor")
     .action(async (options) => {
       process.stdout.write(await runAgentPlanCommand(process.cwd(), options.format, options.for));
+      process.exit(0);
     });
 
   program
@@ -136,6 +164,7 @@ async function main(): Promise<void> {
     .option("--format <format>", "text|json", "text")
     .action(async (findingId, options) => {
       process.stdout.write(await runExplainCommand(process.cwd(), findingId, options.format));
+      process.exit(0);
     });
 
   program
@@ -144,7 +173,7 @@ async function main(): Promise<void> {
     .action(async () => {
       const result = await runScanCommand(process.cwd(), { changed: true });
       process.stdout.write(result.output);
-      process.exitCode = result.exitCode;
+      process.exit(result.exitCode);
     });
 
   program
@@ -160,5 +189,5 @@ async function main(): Promise<void> {
 main().catch((error: unknown) => {
   const message = error instanceof Error ? error.stack ?? error.message : String(error);
   process.stderr.write(`${message}\n`);
-  process.exitCode = 1;
+  process.exit(1);
 });

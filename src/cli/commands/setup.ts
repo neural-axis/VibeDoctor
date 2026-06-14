@@ -167,6 +167,14 @@ const recommendedTools: SetupTool[] = [
     reason: "Python dependency hygiene signal."
   },
   {
+    id: "lizard",
+    executable: "lizard",
+    ecosystem: "manual",
+    priority: "recommended",
+    reason: "Function-level complexity and code size hotspots (great for spotting refactor candidates).",
+    installHint: "Install Lizard with: pipx install lizard, uv tool install lizard, or your OS package manager."
+  },
+  {
     id: "semgrep",
     executable: "semgrep",
     ecosystem: "manual",
@@ -271,19 +279,17 @@ function resolveTools(include: SetupInclude): SetupTool[] {
     return essentialTools;
   }
 
-  if (include === "recommended") {
-    return recommendedTools;
+  const combined = [...essentialTools, ...recommendedTools];
+  if (include === "recommended" || include === "all") {
+    // "recommended" is the sensible default experience (essential + high-value extras).
+    // "all" currently resolves to the same set (add future extended tools here if needed).
+    return combined;
   }
 
-  const allTools = [...essentialTools, ...recommendedTools];
-  if (include === "all") {
-    return allTools;
-  }
-
-  return allTools.filter((tool) => tool.ecosystem === include);
+  return combined.filter((tool) => tool.ecosystem === include);
 }
 
-export async function createSetupPlan(root: string, include: SetupInclude = "essential"): Promise<SetupPlan> {
+export async function createSetupPlan(root: string, include: SetupInclude = "recommended"): Promise<SetupPlan> {
   const project = await detectProject(root);
   const tools = resolveTools(include);
   const relevantTools = tools.filter((tool) => appliesToProject(tool, project));
@@ -372,11 +378,31 @@ function renderPlan(plan: SetupPlan, include: SetupInclude, results: ToolResult[
     lines.push(`All relevant ${include} tools are already available.`);
   }
 
+  // Always surface guidance + suggestions for users who may not know what else exists
+  if (include !== "all") {
+    lines.push("");
+    lines.push("Want richer analysis or not sure what else to add?");
+    if (include === "essential") {
+      lines.push("  The default `vibedoctor setup` (recommended) already adds jscpd, coverage, radon, deptry, lizard, and semgrep on top of the core essentials.");
+      lines.push("  Try `vibedoctor setup --include all` (or just `setup --apply` with no flag) for the full curated set.");
+    } else {
+      lines.push("  `vibedoctor setup` / `--include recommended` (the default) already includes the best balance for most projects.");
+      lines.push("  `vibedoctor setup --include all` currently matches recommended (more extended tools may be added here in the future).");
+    }
+    lines.push("");
+    lines.push("Still want more? Common high-value additions and next steps:");
+    lines.push("  - Configure coverage reporting in your test framework (Jest/Vitest/Coverage.py) — VibeDoctor reads the reports automatically");
+    lines.push("  - Manually install lizard or semgrep (shown above with one-line hints) for deeper complexity + rule-based checks");
+    lines.push("  - Add jscpd (npm) if you want duplication heatmaps for large refactors");
+    lines.push("");
+    lines.push("Tip: Re-run `vibedoctor scan --quick` (or `scan --full`) after changes to see updated health + findings.");
+  }
+
   return `${lines.join("\n")}\n`;
 }
 
 export async function runSetupCommand(root: string, options: SetupOptions = {}): Promise<{ output: string; exitCode: number }> {
-  const include = VALID_SETUP_INCLUDES.has(options.include ?? "essential") ? (options.include ?? "essential") : "essential";
+  const include = VALID_SETUP_INCLUDES.has(options.include ?? "recommended") ? (options.include ?? "recommended") : "recommended";
   const plan = await createSetupPlan(root, include);
 
   if (!options.apply) {

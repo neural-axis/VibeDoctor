@@ -90,12 +90,30 @@ export async function runCommand(spec: CommandSpec, installHint?: string): Promi
       stderr += chunk.toString();
     });
 
+    function cleanup() {
+      try {
+        if (timeoutHandle) {
+          clearTimeout(timeoutHandle);
+          timeoutHandle = undefined;
+        }
+        child.stdout?.removeAllListeners("data");
+        child.stderr?.removeAllListeners("data");
+        child.removeAllListeners();
+        // Release stdio handles so they don't keep the event loop referenced on some platforms
+        child.stdout?.destroy();
+        child.stderr?.destroy();
+      } catch {
+        // best effort
+      }
+    }
+
     child.on("error", (error) => {
       if (settled) {
         return;
       }
 
       settled = true;
+      cleanup();
       resolve({
         command: [spec.cmd, ...spec.args].join(" "),
         stdout,
@@ -113,9 +131,7 @@ export async function runCommand(spec: CommandSpec, installHint?: string): Promi
       }
 
       settled = true;
-      if (timeoutHandle) {
-        clearTimeout(timeoutHandle);
-      }
+      cleanup();
 
       resolve({
         command: [spec.cmd, ...spec.args].join(" "),
@@ -140,7 +156,11 @@ export async function runCommand(spec: CommandSpec, installHint?: string): Promi
         }
 
         settled = true;
-        child.kill("SIGTERM");
+        const killSignal = process.platform === "win32" ? undefined : "SIGTERM";
+        try {
+          child.kill(killSignal);
+        } catch {}
+        cleanup();
         resolve({
           command: [spec.cmd, ...spec.args].join(" "),
           stdout,

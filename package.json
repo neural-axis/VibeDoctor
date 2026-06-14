@@ -20,7 +20,8 @@
   "files": [
     "dist",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "package.json"
   ],
   "engines": {
     "node": ">=18"
@@ -40,6 +41,7 @@
     "check": "npm run typecheck && npm test && npm run build && (npm run health || echo 'Health scan completed (non-fatal in this gate)')",
     "prepack": "npm run build",
     "test": "vitest run",
+    "prepublishOnly": "npm run build && npm test",
     "dev": "tsx src/cli/index.ts",
     "health": "tsx src/cli/index.ts scan --quick --report terminal"
   },

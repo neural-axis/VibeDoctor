@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { createSetupPlan, runSetupCommand } from "../../src/cli/commands/setup";
 
 describe("setup command", () => {
-  it("renders an essential setup plan without installing tools", async () => {
+  it("renders a recommended (default) setup plan without installing tools", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "vibedoctor-setup-ts-"));
     await fs.mkdir(path.join(root, "src"), { recursive: true });
     await fs.writeFile(path.join(root, "package.json"), JSON.stringify({ scripts: { test: "vitest run" } }), "utf8");
@@ -19,6 +19,9 @@ describe("setup command", () => {
     expect(result.output).toContain("Already built in");
     expect(result.output).toContain("custom-leftovers");
     expect(result.output).toContain("gitleaks");
+    // Default is now the broader recommended set (essentials + recommended extras)
+    expect(result.output).toContain("Install set: recommended");
+    expect(result.output.toLowerCase()).toContain("jscpd");
   });
 
   it("adds recommended tools when requested", async () => {

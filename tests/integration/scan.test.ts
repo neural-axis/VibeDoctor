@@ -7,7 +7,7 @@ import { createTempFixtureCopy } from "../helpers";
 describe("scan pipeline", () => {
   it("finds leftover markers and produces a short terminal report", async () => {
     const root = await createTempFixtureCopy("leftovers");
-    const scan = await runScan(root, "default");
+    const scan = await runScan(root, "quick");
 
     expect(scan.leftovers.length).toBeGreaterThan(0);
     expect(renderTerminalReport(scan)).toContain("LEFTOVERS");

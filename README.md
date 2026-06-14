@@ -92,8 +92,9 @@ vibedoctor scan
 The remaining examples use the `vibedoctor` binary; prefix them with `npx @neuralaxis/vibedoctor` if you skip the global install.
 
 Want the strongest first scan? Run `vibedoctor setup --apply`. VibeDoctor will
-install the essential project-local npm/Python tools it can install safely, and
-print exact manual steps for native tools such as Gitleaks and OSV-Scanner.
+install the recommended project-local npm/Python tools (core essentials + high-value
+extras like duplication, coverage, and complexity) it can install safely, and
+print exact manual steps for native tools such as Gitleaks, OSV-Scanner, Semgrep, and Lizard.
 
 For the strongest signal in monorepos, run VibeDoctor from the package or service root you are actively changing. Running from the monorepo root is supported, but package roots usually produce tighter dependency and test-tool signal.
 
@@ -141,27 +142,36 @@ VibeDoctor prefers tools already installed by the repository because that matche
 your real CI versions and config. It never treats a missing tool as a clean pass:
 missing tools are shown as skipped with install guidance.
 
-For a smoother first run, `vibedoctor setup` gives you the curated install plan.
-The default `essential` set is the smallest group needed to make the main product
-promise work across common repos:
+For a smoother first run, `vibedoctor setup` (or `setup --apply`) gives you the
+curated recommended install plan out of the box. Many users don't know which
+extra packages will give the best signal, so the default now includes the
+essentials plus high-value "recommended" tools:
 
 - built-in detectors: leftovers, dead-chain candidates, and refactor readiness
-- JS/TS: TypeScript, Biome, and Knip
-- Python: Ruff, Pyright, and Vulture
+- JS/TS: TypeScript, Biome, Knip
+- Python: Ruff, Pyright, Vulture
 - security/dependencies: Gitleaks and OSV-Scanner
+- **Recommended extras (included by default)**: jscpd (duplication), coverage.py,
+  radon (complexity), deptry (dependency hygiene), semgrep (rules), and lizard
+  (function-level complexity hotspots)
 
-`vibedoctor setup --apply` installs automatable package-manager tools. Native
-binaries stay explicit for now so the CLI does not silently download executables
-into developer or CI machines.
+`vibedoctor setup --apply` installs the automatable package-manager tools (npm/pip/uv/poetry/etc).
+Native binaries (Gitleaks, OSV-Scanner, Semgrep, Lizard, ...) are listed with
+clear one-line install hints instead of being downloaded automatically.
 
-Additional setup scopes are available when you want broader or narrower plans:
+If you want the absolute minimal core only, or to target just one ecosystem:
 
-- `vibedoctor setup --include recommended` for recommended-only extras
-- `vibedoctor setup --include all` for the combined essential + recommended set
-- `vibedoctor setup --include npm` for JS/TS package installs only
-- `vibedoctor setup --include python` for Python package installs only
-- `vibedoctor setup --include manual` for native/manual binaries only
-- `vibedoctor setup --include built-in` for VibeDoctor's built-in detectors only
+- `vibedoctor setup --include essential` — smallest core set only
+- `vibedoctor setup --include all` — recommended set plus any extended tools
+- `vibedoctor setup --include npm` — JS/TS package installs only
+- `vibedoctor setup --include python` — Python package installs only
+- `vibedoctor setup --include manual` — native/manual binaries only (hints)
+- `vibedoctor setup --include built-in` — VibeDoctor's built-in detectors only
+
+After setup (or any manual installs), re-run `vibedoctor scan --quick` or
+`scan --full` to see the richer findings and a stronger health score. The setup
+command itself always prints suggestions for additional tools you may not have
+thought of.
 
 ## Reports
 
