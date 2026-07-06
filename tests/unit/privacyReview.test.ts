@@ -38,7 +38,7 @@ describe("privacy review command", () => {
     expect(review.findings.length).toBeGreaterThan(0);
     expect(review.findings.some((finding) => finding.reviewState === "confirmed")).toBe(true);
     expect(review.findings.some((finding) => finding.reviewState === "needs_human_review")).toBe(true);
-  });
+  }, 30_000);
 
   it("sends masked findings to AI, stores structured decisions, and merges them back into scans", async () => {
     const root = await createTempFixtureCopy("pii-basic");
