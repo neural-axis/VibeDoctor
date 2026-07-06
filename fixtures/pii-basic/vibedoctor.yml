@@ -1,0 +1,44 @@
+version: 1
+
+paths:
+  include:
+    - data/**
+    - logs/**
+    - src/**
+  exclude:
+    - node_modules/**
+    - dist/**
+
+baseline:
+  enabled: false
+
+checks:
+  security:
+    enabled: false
+  correctness:
+    enabled: false
+  deadCode:
+    enabled: false
+  leftovers:
+    enabled: false
+  refactorReadiness:
+    enabled: false
+  tests:
+    enabled: false
+  dependencies:
+    enabled: false
+  privacy:
+    enabled: true
+    minConfidenceToReport: medium
+    maskExamples: true
+    maxFileBytes: 1048576
+    failOnRegulatedIdentifiers: false
+    failOnSensitiveAttributes: false
+    ai:
+      enabled: false
+      apiKeyEnv: VIBEDOCTOR_AI_API_KEY
+      baseUrlEnv: VIBEDOCTOR_AI_BASE_URL
+      modelEnv: VIBEDOCTOR_AI_MODEL
+      includeRawValues: false
+    presidio:
+      enabled: false

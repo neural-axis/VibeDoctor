@@ -15,6 +15,7 @@ const defaultCategoryScore: Record<FindingCategory, number> = {
   maintainability: 100,
   dependencies: 100,
   tests: 100,
+  privacy: 100,
   efficiency: 100,
   refactor_readiness: 100
 };
@@ -27,11 +28,16 @@ const defaultPenalties: Record<FindingCategory, number> = {
   maintainability: 0,
   dependencies: 0,
   tests: 0,
+  privacy: 0,
   efficiency: 0,
   refactor_readiness: 0
 };
 
 export function scoreFinding(finding: Finding): number {
+  if (finding.category === "privacy" && finding.evidence?.reviewState === "false_positive") {
+    return 0;
+  }
+
   const issueMultiplier = finding.isNew ? 1.5 : 0.3;
   const confidence = confidenceMultiplier[finding.confidence];
   const autofix = finding.safeToAutofix ? 0.5 : 1;
@@ -60,6 +66,7 @@ export function buildScore(findings: Finding[]): ScoreBreakdown {
       categories.correctness * categoryWeights.correctness +
       categories.tests * categoryWeights.tests +
       categories.dependencies * categoryWeights.dependencies +
+      categories.privacy * categoryWeights.privacy +
       categories.maintainability * categoryWeights.maintainability +
       categories.dead_code * categoryWeights.dead_code +
       categories.leftovers * categoryWeights.leftovers +

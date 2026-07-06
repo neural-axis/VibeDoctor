@@ -17,6 +17,17 @@ type JscpdOutput = {
   duplicates?: JscpdClone[];
 };
 
+export function buildJscpdArgs(outputDir: string, excludePatterns: string[]): string[] {
+  const args = [".", "--reporters", "json", "--output", outputDir, "--silent", "--min-lines", "30"];
+  const ignored = excludePatterns.map((pattern) => pattern.trim()).filter(Boolean);
+
+  if (ignored.length > 0) {
+    args.push("--ignore", ignored.join(","));
+  }
+
+  return args;
+}
+
 export const jscpdAdapter: ToolAdapter = {
   id: "jscpd",
   category: "maintainability",
@@ -29,7 +40,7 @@ export const jscpdAdapter: ToolAdapter = {
     const status = await runCommand(
       {
         cmd: "jscpd",
-        args: [".", "--reporters", "json", "--output", outputDir],
+        args: buildJscpdArgs(outputDir, ctx.config.paths.exclude),
         cwd: ctx.root,
         timeoutMs: 120_000
       },

@@ -80,6 +80,7 @@ function makeScan(): ScanOutput {
         maintainability: 100,
         dependencies: 100,
         tests: 100,
+        privacy: 100,
         efficiency: 100,
         refactor_readiness: 98
       },
@@ -91,6 +92,7 @@ function makeScan(): ScanOutput {
         maintainability: 0,
         dependencies: 0,
         tests: 0,
+        privacy: 0,
         efficiency: 0,
         refactor_readiness: 2
       }
@@ -99,6 +101,7 @@ function makeScan(): ScanOutput {
     topFindings: [findings[0]],
     blockers: [findings[0]],
     fixNext: [findings[0], findings[1], findings[3]],
+    privacyFindings: [],
     leftovers: [findings[2]],
     deadCodeCandidates: [findings[1]],
     refactorCandidates: [findings[3]],

@@ -32,10 +32,11 @@ Always fix in this order:
 2. failing tests
 3. type errors
 4. dependency vulnerabilities
-5. high-confidence dead code
-6. leftovers and legacy baggage
-7. refactor-readiness items
-8. efficiency suggestions
+5. Privacy Review findings with regulated identifiers or sensitive attributes
+6. high-confidence dead code
+7. leftovers and legacy baggage
+8. refactor-readiness items
+9. efficiency suggestions
 
 ## Safety rules
 
@@ -44,6 +45,7 @@ Always fix in this order:
 - Do not refactor large files without tests.
 - Do not change public APIs during cleanup unless the task explicitly asks.
 - Do not lower test, lint, security, or coverage thresholds.
+- Do not send raw personal data to an AI service unless repository config and the user explicitly allow it.
 - Do not silence VibeDoctor findings without explaining why.
 - Respect .vibedoctor/agent-policy.yml when it exists.
 
@@ -76,7 +78,7 @@ Prefer:
 - \`vibedoctor fix --safe\` for safe cleanup
 - \`vibedoctor agent-plan --format markdown\` when planning multiple fixes
 
-Do not delete dead code, remove compatibility paths, or refactor large files unless VibeDoctor evidence and tests support it.
+Do not delete dead code, remove compatibility paths, refactor large files, or send raw personal data to AI unless VibeDoctor evidence, repository policy, and user approval support it.
 `;
 }
 
@@ -103,6 +105,7 @@ For pull requests, summarize:
 - remaining VibeDoctor findings
 
 Do not remove dead code, legacy fallbacks, compatibility shims, or large blocks of comments unless VibeDoctor marks them as high-confidence cleanup candidates and references are verified.
+Do not send raw personal data to external AI review unless the user explicitly approves and repository policy allows it.
 `;
 }
 

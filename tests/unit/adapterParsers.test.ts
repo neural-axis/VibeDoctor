@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { gitleaksAdapter } from "../../src/adapters/gitleaks";
+import { buildJscpdArgs } from "../../src/adapters/jscpd";
 import { tscAdapter } from "../../src/adapters/tsc";
 import { vultureAdapter } from "../../src/adapters/vulture";
 import type { ToolAdapterContext } from "../../src/adapters/shared";
@@ -77,5 +78,14 @@ describe("adapter parsing", () => {
     expect(findings[0].title).toContain("Review package initializer");
     expect(findings[0].tags).toContain("review-only");
     expect(findings[0].safeToAutofix).toBe(false);
+  });
+
+  it("passes configured excludes through to jscpd", () => {
+    const args = buildJscpdArgs("out", [".agents/**", "ops/**", "**/*.test.*", "**/__tests__/**"]);
+
+    expect(args).toContain("--min-lines");
+    expect(args).toContain("30");
+    expect(args).toContain("--ignore");
+    expect(args).toContain(".agents/**,ops/**,**/*.test.*,**/__tests__/**");
   });
 });

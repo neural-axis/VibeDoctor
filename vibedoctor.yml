@@ -22,7 +22,17 @@ paths:
     - coverage/**
     - .next/**
     - vendor/**
+    - .agents/**
+    - ops/**
+    - scripts/**
+    - db/**
+    - test/**
+    - tests/**
+    - "**/test/**"
+    - "**/tests/**"
     - "**/*.test.*"
+    - "**/*.spec.*"
+    - "**/__tests__/**"
     - fixtures/**
 
 baseline:
@@ -65,9 +75,25 @@ checks:
     enabled: true
     failOnMissingDependencies: true
     failOnNewDirectVulnerabilities: true
+  privacy:
+    enabled: true
+    minConfidenceToReport: medium
+    maskExamples: true
+    maxFileBytes: 1048576
+    failOnRegulatedIdentifiers: false
+    failOnSensitiveAttributes: false
+    ai:
+      enabled: false
+      apiKeyEnv: VIBEDOCTOR_AI_API_KEY
+      baseUrlEnv: VIBEDOCTOR_AI_BASE_URL
+      modelEnv: VIBEDOCTOR_AI_MODEL
+      includeRawValues: false
+    presidio:
+      enabled: false
 
 output:
   terminal: true
   json: .vibedoctor/report.json
   html: .vibedoctor/report.html
   agent: .vibedoctor/agent-plan.md
+  privacyReview: .vibedoctor/privacy-review.json

@@ -136,6 +136,57 @@ Report:
 `
   ),
   createSkill(
+    "vibedoctor-privacy-review",
+    "Review VibeDoctor Privacy Review findings with masked evidence, deterministic scan output, and optional API-key adjudication. Use when asked to find PII, review personal data exposure, inspect shift-report data risk, or validate Privacy Review findings.",
+    `
+# VibeDoctor Privacy Review
+
+Use this skill for personal-data and PII discovery findings.
+
+## Default workflow
+
+1. Run the deterministic privacy scan:
+
+\`\`\`bash
+vibedoctor scan --category privacy --report json
+\`\`\`
+
+2. Read \`.vibedoctor/report.json\`, focusing on \`privacyFindings\`.
+
+3. Group findings into:
+   - confirmed regulated identifiers
+   - likely personal data
+   - combination-risk fields
+   - false positives or needs human review
+
+4. Use masked evidence only. Do not request raw values unless the user explicitly asks and the repository policy allows it.
+
+## Optional API-key review
+
+Only run this command when \`checks.privacy.ai.enabled\` is true and the required env vars are configured:
+
+\`\`\`bash
+vibedoctor privacy-review --refresh --format markdown
+\`\`\`
+
+## Review rules
+
+- Keep secrets separate from PII; Gitleaks findings are handled by the security workflow.
+- Treat medium-confidence Privacy Review findings as review candidates, not automatic truth.
+- For regulated identifiers or sensitive attributes, recommend removal, anonymization, or controlled test fixtures.
+- For combination risk, explain which fields create the re-identification risk together.
+
+## Output
+
+Return:
+- confirmed PII findings
+- likely false positives
+- evidence used
+- recommended action
+- whether API-key review was used
+`
+  ),
+  createSkill(
     "vibedoctor-dead-code-cleanup",
     "Review and clean high-confidence dead code chains, unused exports, unused files, unused dependencies, commented-out code, legacy fallbacks, and AI-created leftovers found by VibeDoctor. Use when asked to remove dead code, clean leftovers, reduce legacy baggage, or simplify AI-generated code.",
     `

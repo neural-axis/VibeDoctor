@@ -27,6 +27,7 @@ export const categoryWeights = {
   correctness: 0.18,
   tests: 0.15,
   dependencies: 0.13,
+  privacy: 0,
   maintainability: 0.12,
   dead_code: 0.08,
   leftovers: 0.06,

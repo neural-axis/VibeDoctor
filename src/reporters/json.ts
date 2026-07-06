@@ -1,4 +1,3 @@
-import os from "node:os";
 import type { ScanOutput } from "../core/engine";
 
 export function renderJsonReport(scan: ScanOutput): string {
@@ -8,11 +7,13 @@ export function renderJsonReport(scan: ScanOutput): string {
       categoryScores: scan.score.categories,
       findings: scan.findings,
       topFindings: scan.topFindings,
+      privacyFindings: scan.privacyFindings,
+      privacyReview: scan.privacyReview,
       toolStatuses: scan.toolStatuses,
       skippedTools: scan.skippedTools,
       agentPlan: scan.agentPlan
     },
     null,
     2
-  ).replace(/\n/g, os.EOL) + os.EOL;
+  ) + "\n";
 }

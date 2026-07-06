@@ -136,6 +136,14 @@ async function readPackageMetadata(
   return { testCommands, frameworkHints };
 }
 
+function isFrameworkEntryFile(file: string): boolean {
+  return (
+    /^(?:src\/)?app\/(?:.+\/)?(?:page|layout|route|loading|error|global-error|not-found|default|template)\.(ts|tsx|js|jsx)$/.test(file) ||
+    /^(?:src\/)?pages\/(?:.+)\.(ts|tsx|js|jsx)$/.test(file) ||
+    /^(?:src\/)?(?:middleware|instrumentation)\.(ts|js)$/.test(file)
+  );
+}
+
 export async function detectProject(root: string): Promise<ProjectContext> {
   const projectFiles = await listProjectFiles(root);
   const fileSet = new Set(projectFiles);
@@ -183,7 +191,7 @@ export async function detectProject(root: string): Promise<ProjectContext> {
 
   const toolPairs = await Promise.all(KNOWN_TOOLS.map(async (tool) => [tool, await commandExists(tool, root)] as const));
   const entryFiles = projectFiles.filter((file) =>
-    /(^|\/)(main|index|app|server|cli)\.(ts|tsx|js|jsx|py)$/.test(file) || file === "package.json"
+    /(^|\/)(main|index|app|server|cli)\.(ts|tsx|js|jsx|py)$/.test(file) || isFrameworkEntryFile(file) || file === "package.json"
   );
 
   return {

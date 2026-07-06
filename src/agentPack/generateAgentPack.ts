@@ -13,8 +13,11 @@ import {
 } from "./templates";
 
 export const AGENT_TARGETS = ["codex", "copilot", "claude", "cursor"] as const;
+export const AGENT_PLUGIN_TARGETS = ["codex", "claude"] as const;
+const VIBEDOCTOR_PLUGIN_VERSION = "0.1.1";
 
 export type AgentTarget = (typeof AGENT_TARGETS)[number];
+export type AgentPluginTarget = (typeof AGENT_PLUGIN_TARGETS)[number];
 
 export type AgentPackManifest = {
   version: number;
@@ -60,6 +63,10 @@ function normalizeRelativePath(relativePath: string): string {
 }
 
 function uniqueTargets(targets: AgentTarget[]): AgentTarget[] {
+  return Array.from(new Set(targets));
+}
+
+function uniquePluginTargets(targets: AgentPluginTarget[]): AgentPluginTarget[] {
   return Array.from(new Set(targets));
 }
 
@@ -155,6 +162,61 @@ function renderManifest(targets: AgentTarget[]): string {
   return `${JSON.stringify(buildManifest(targets), null, 2)}\n`;
 }
 
+function renderCodexPluginManifest(): string {
+  return `${JSON.stringify(
+    {
+      name: "vibedoctor",
+      version: VIBEDOCTOR_PLUGIN_VERSION,
+      description: "Code-health, privacy review, and repair skills for VibeDoctor.",
+      author: {
+        name: "neuralaxis",
+        url: "https://github.com/neural-axis"
+      },
+      homepage: "https://github.com/neural-axis/VibeDoctor#readme",
+      repository: "https://github.com/neural-axis/VibeDoctor",
+      license: "GPL-3.0-or-later",
+      keywords: ["code-health", "static-analysis", "privacy-review", "agent-tools"],
+      skills: "./skills/",
+      interface: {
+        displayName: "VibeDoctor",
+        shortDescription: "Code-health skills for coding agents",
+        longDescription:
+          "Run VibeDoctor scans, review Privacy Review findings, plan safe fixes, and diagnose CI or pull request health from reusable agent skills.",
+        developerName: "neuralaxis",
+        category: "Developer Tools",
+        capabilities: ["Read", "Write"],
+        websiteURL: "https://github.com/neural-axis/VibeDoctor",
+        defaultPrompt: [
+          "Use VibeDoctor to scan this repository.",
+          "Use VibeDoctor to review privacy findings.",
+          "Use VibeDoctor to repair this CI failure."
+        ],
+        brandColor: "#2563EB"
+      }
+    },
+    null,
+    2
+  )}\n`;
+}
+
+function renderClaudePluginManifest(): string {
+  return `${JSON.stringify(
+    {
+      name: "vibedoctor",
+      description: "Code-health, privacy review, and repair skills for VibeDoctor.",
+      version: VIBEDOCTOR_PLUGIN_VERSION,
+      author: {
+        name: "neuralaxis"
+      },
+      homepage: "https://github.com/neural-axis/VibeDoctor#readme",
+      repository: "https://github.com/neural-axis/VibeDoctor",
+      license: "GPL-3.0-or-later"
+    },
+    null,
+    2
+  )}\n`;
+}
+
 export async function loadAgentPackManifest(root: string): Promise<AgentPackManifest | undefined> {
   const manifestPath = toAbsolutePath(root, ".vibedoctor/agent-pack.json");
   if (!(await pathExists(manifestPath))) {
@@ -196,6 +258,58 @@ export function parseAgentTargets(value: string | undefined, defaultTargets: Age
   }
 
   return uniqueTargets(parts as AgentTarget[]);
+}
+
+export function parseAgentPluginTargets(
+  value: string | undefined,
+  defaultTargets: AgentPluginTarget[] = [...AGENT_PLUGIN_TARGETS]
+): AgentPluginTarget[] {
+  if (!value) {
+    return uniquePluginTargets(defaultTargets);
+  }
+
+  const parts = value
+    .split(",")
+    .map((item) => item.trim().toLowerCase())
+    .filter(Boolean);
+
+  if (parts.includes("all")) {
+    return [...AGENT_PLUGIN_TARGETS];
+  }
+
+  const invalid = parts.filter((target) => !AGENT_PLUGIN_TARGETS.includes(target as AgentPluginTarget));
+  if (invalid.length > 0) {
+    throw new Error(`Unsupported agent plugin target(s): ${invalid.join(", ")}`);
+  }
+
+  return uniquePluginTargets(parts as AgentPluginTarget[]);
+}
+
+export async function generateAgentPluginBundle(
+  root: string,
+  options: { targets: AgentPluginTarget[]; force?: boolean }
+): Promise<AgentPackApplyResult> {
+  const targets = uniquePluginTargets(options.targets);
+  const files: Array<{ path: string; content: string }> = AGENT_SKILLS.map((skill) => ({
+    path: `plugins/vibedoctor/skills/${skill.name}/SKILL.md`,
+    content: skill.content
+  }));
+
+  if (targets.includes("codex")) {
+    files.push({
+      path: "plugins/vibedoctor/.codex-plugin/plugin.json",
+      content: renderCodexPluginManifest()
+    });
+  }
+
+  if (targets.includes("claude")) {
+    files.push({
+      path: "plugins/vibedoctor/.claude-plugin/plugin.json",
+      content: renderClaudePluginManifest()
+    });
+  }
+
+  return writeManagedFiles(root, files, { force: options.force });
 }
 
 export async function generateCanonicalAgentPack(

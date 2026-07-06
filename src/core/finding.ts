@@ -18,6 +18,10 @@ export const FINDING_SOURCES = [
   "coverage.py",
   "vitest",
   "jest",
+  "privacy-detector",
+  "presidio",
+  "privacy-ai-review",
+  "telemetry-detector",
   "custom-leftovers",
   "custom-refactor",
   "custom-dead-chain"
@@ -31,6 +35,7 @@ export const FINDING_CATEGORIES = [
   "maintainability",
   "dependencies",
   "tests",
+  "privacy",
   "efficiency",
   "refactor_readiness"
 ] as const;
@@ -61,6 +66,20 @@ export type Finding = {
     snippet?: string;
     toolRawId?: string;
     matchedPattern?: string;
+    detector?: string;
+    entityType?: string;
+    sensitivity?: string;
+    maskedValue?: string;
+    fieldPath?: string;
+    detectionPath?: string;
+    confidenceScore?: number;
+    coverageConfidence?: number;
+    reviewState?: "confirmed" | "likely" | "false_positive" | "needs_human_review";
+    reviewedAt?: string;
+    reviewedBy?: string;
+    rationale?: string;
+    recommendedAction?: string;
+    reasons?: string[];
   };
   scoreImpact: number;
 };

@@ -57,6 +57,12 @@ const essentialTools: SetupTool[] = [
     reason: "Finds large or complex files that need tests before refactor work."
   },
   {
+    id: "privacy-detector",
+    ecosystem: "built-in",
+    priority: "essential",
+    reason: "Finds personal-data and Privacy Review signals without sending data to an external service."
+  },
+  {
     id: "tsc",
     packageName: "typescript",
     executable: "tsc",
@@ -181,6 +187,13 @@ const recommendedTools: SetupTool[] = [
     priority: "recommended",
     reason: "Additional security and correctness rules.",
     installHint: "Install Semgrep with: pipx install semgrep, uv tool install semgrep, or your OS package manager."
+  },
+  {
+    id: "presidio",
+    ecosystem: "manual",
+    priority: "recommended",
+    reason: "Optional external scanner for Privacy Review when checks.privacy.presidio.enabled is true.",
+    installHint: "Install in the project Python environment with: python -m pip install presidio-analyzer"
   }
 ];
 

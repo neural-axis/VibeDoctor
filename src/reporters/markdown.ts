@@ -7,6 +7,7 @@ export function renderMarkdownReport(scan: ScanOutput): string {
   lines.push("## Summary");
   lines.push(`- Blockers: ${scan.blockers.length}`);
   lines.push(`- Fix next: ${scan.fixNext.length}`);
+  lines.push(`- Privacy Review findings: ${scan.privacyFindings.length}`);
   lines.push(`- Leftovers: ${scan.leftovers.length}`);
   lines.push(`- Dead code candidates: ${scan.deadCodeCandidates.length}`);
   lines.push(`- Refactor candidates: ${scan.refactorCandidates.length}`);
@@ -20,6 +21,17 @@ export function renderMarkdownReport(scan: ScanOutput): string {
 
   lines.push("", "## Fix next");
   scan.fixNext.forEach((finding) => lines.push(`- ${finding.title}${finding.file ? ` — \`${finding.file}\`` : ""}`));
+
+  if (scan.privacyFindings.length > 0) {
+    lines.push("", "## Privacy Review findings");
+    scan.privacyFindings
+      .slice(0, 10)
+      .forEach((finding) =>
+        lines.push(
+          `- ${finding.title}${finding.file ? ` — \`${finding.file}${finding.startLine ? `:${finding.startLine}` : ""}\`` : ""}: ${finding.evidence?.maskedValue ?? finding.evidence?.entityType ?? finding.message}`
+        )
+      );
+  }
 
   if (scan.deadCodeCandidates.length > 0) {
     lines.push("", "## Dead chains and dead code");

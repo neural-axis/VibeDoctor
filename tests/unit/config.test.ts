@@ -24,4 +24,19 @@ describe("loadConfig", () => {
     const { config } = await loadConfig(root);
     expect(config.checks.leftovers.enabled).toBe(false);
   });
+
+  it("normalizes privacy settings from yaml", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "vibedoctor-privacy-config-"));
+    await fs.writeFile(
+      path.join(root, "vibedoctor.yml"),
+      "version: 1\nchecks:\n  privacy:\n    min_confidence_to_report: high\n    fail_on_regulated_identifiers: true\n    ai:\n      enabled: true\n      model_env: CUSTOM_MODEL_ENV\n",
+      "utf8"
+    );
+
+    const { config } = await loadConfig(root);
+    expect(config.checks.privacy.minConfidenceToReport).toBe("high");
+    expect(config.checks.privacy.failOnRegulatedIdentifiers).toBe(true);
+    expect(config.checks.privacy.ai.enabled).toBe(true);
+    expect(config.checks.privacy.ai.modelEnv).toBe("CUSTOM_MODEL_ENV");
+  });
 });

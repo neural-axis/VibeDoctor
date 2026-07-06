@@ -55,6 +55,7 @@ export function renderHtmlReport(scan: ScanOutput): string {
   <div class="summary">
     <span class="pill">Blockers: ${scan.blockers.length}</span>
     <span class="pill">Fix next: ${scan.fixNext.length}</span>
+    <span class="pill">Privacy Review: ${scan.privacyFindings.length}</span>
     <span class="pill">Leftovers: ${scan.leftovers.length}</span>
     <span class="pill">Dead chains: ${scan.deadCodeCandidates.length}</span>
     <span class="pill">Refactor: ${scan.refactorCandidates.length}</span>
@@ -63,6 +64,7 @@ export function renderHtmlReport(scan: ScanOutput): string {
   <div class="section">
     ${renderFindingList(scan.blockers, "BLOCKERS")}
     ${renderFindingList(scan.fixNext, "FIX NEXT")}
+    ${renderFindingList(scan.privacyFindings.slice(0, 10), "PRIVACY REVIEW FINDINGS")}
     ${renderFindingList(scan.leftovers, "LEFTOVERS")}
     ${renderFindingList(scan.deadCodeCandidates, "DEAD CHAINS")}
     ${renderFindingList(scan.refactorCandidates, "REFACTOR CANDIDATES")}

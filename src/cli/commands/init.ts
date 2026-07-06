@@ -32,6 +32,14 @@ paths:
     - coverage/**
     - .next/**
     - vendor/**
+    - .agents/**
+    - test/**
+    - tests/**
+    - "**/test/**"
+    - "**/tests/**"
+    - "**/*.test.*"
+    - "**/*.spec.*"
+    - "**/__tests__/**"
 
 baseline:
   enabled: true
@@ -80,11 +88,28 @@ checks:
     fail_on_missing_dependencies: true
     fail_on_new_direct_vulnerabilities: true
 
+  privacy:
+    enabled: true
+    min_confidence_to_report: medium
+    mask_examples: true
+    max_file_bytes: 1048576
+    fail_on_regulated_identifiers: false
+    fail_on_sensitive_attributes: false
+    ai:
+      enabled: false
+      api_key_env: VIBEDOCTOR_AI_API_KEY
+      base_url_env: VIBEDOCTOR_AI_BASE_URL
+      model_env: VIBEDOCTOR_AI_MODEL
+      include_raw_values: false
+    presidio:
+      enabled: false
+
 output:
   terminal: true
   json: .vibedoctor/report.json
   html: .vibedoctor/report.html
   agent: .vibedoctor/agent-plan.md
+  privacy_review: .vibedoctor/privacy-review.json
 `;
 }
 

@@ -57,4 +57,16 @@ describe("detectProject", () => {
 
     expect(project.toolsAvailable.ruff).toBe(true);
   });
+
+  it("detects Next.js src/app route files as entrypoints", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "vibedoctor-detect-next-"));
+    await fs.mkdir(path.join(root, "src", "app", "results"), { recursive: true });
+    await fs.writeFile(path.join(root, "package.json"), JSON.stringify({ dependencies: { next: "15.0.0" } }), "utf8");
+    await fs.writeFile(path.join(root, "src", "app", "results", "page.tsx"), "export default function Page() { return null; }\n", "utf8");
+
+    const project = await detectProject(root);
+
+    expect(project.frameworkHints).toContain("nextjs");
+    expect(project.entryFiles).toContain("src/app/results/page.tsx");
+  });
 });

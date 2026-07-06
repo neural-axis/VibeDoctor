@@ -12,6 +12,7 @@ coverage/
 .vibedoctor/report.json
 .vibedoctor/report.html
 .vibedoctor/agent-plan.md
+.vibedoctor/privacy-review.json
 
 # Local environments
 .env
@@ -32,3 +33,9 @@ pnpm-debug.log*
 Thumbs.db
 .idea/
 .vscode/
+
+# Generated plugins
+plugins/
+
+# Local release demo workspace
+release-video/

@@ -24,7 +24,16 @@ const COMMENT_PREFIX = {
 } as const;
 
 function looksLikeCommentedCode(text: string): boolean {
-  return /\b(const|let|var|function|class|return|def|import|from)\b/.test(text);
+  const trimmed = text.trim();
+  return (
+    /^(?:export\s+)?(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*=/.test(trimmed) ||
+    /^(?:export\s+)?(?:async\s+)?function\s+[A-Za-z_$][\w$]*\s*\(/.test(trimmed) ||
+    /^class\s+[A-Za-z_$][\w$]*/.test(trimmed) ||
+    /^def\s+[A-Za-z_][\w]*\s*\(/.test(trimmed) ||
+    /^return\b.+/.test(trimmed) ||
+    /^import\s+.+(?:from\s+)?["'`][^"'`]+["'`]/.test(trimmed) ||
+    /^from\s+[\w.]+\s+import\s+/.test(trimmed)
+  );
 }
 
 function shouldIgnoreComment(commentText: string): boolean {
@@ -54,6 +63,14 @@ function shouldIgnoreLine(lineText: string): boolean {
   return false;
 }
 
+function isActionableCommentMatch(group: string, pattern: string, lowerComment: string): boolean {
+  if (group === "fallback" && pattern === "fallback") {
+    return /\b(todo|fixme|remove later|temporary|legacy|deprecated|old implementation|previous implementation)\b/.test(lowerComment);
+  }
+
+  return true;
+}
+
 function findCommentMatches(file: string, content: string, scanComments: boolean, scanCommentedCode: boolean): MatchInfo[] {
   const extension = path.extname(file) as keyof typeof COMMENT_PREFIX;
   const commentPrefix = COMMENT_PREFIX[extension];
@@ -70,6 +87,9 @@ function findCommentMatches(file: string, content: string, scanComments: boolean
     if (!isComment) {
       continue;
     }
+    if (trimmed.startsWith("/**") || trimmed.startsWith("*")) {
+      continue;
+    }
 
     const commentText = trimmed.replace(/^\/\//, "").replace(/^#/, "").replace(/^\/\*/, "").replace(/^\*/, "").trim();
     if (shouldIgnoreComment(commentText) || shouldIgnoreLine(commentText)) {
@@ -80,7 +100,7 @@ function findCommentMatches(file: string, content: string, scanComments: boolean
     if (scanComments) {
       for (const [group, patterns] of Object.entries(LEFTOVER_PATTERNS)) {
         for (const pattern of patterns) {
-          if (lower.includes(pattern)) {
+          if (lower.includes(pattern) && isActionableCommentMatch(group, pattern, lower)) {
             matches.push({
               group,
               pattern,
@@ -116,8 +136,9 @@ function findNameMatches(file: string, content: string): MatchInfo[] {
   const matches: MatchInfo[] = [];
 
   for (const [index, line] of lines.entries()) {
-    const lower = line.toLowerCase();
-    if (!/\b(function|class|const|let|var|export|def)\b/.test(lower)) {
+    const declaration = line.match(/^\s*(?:export\s+)?(?:async\s+)?(?:function|class|const|let|var|def)\s+([A-Za-z_$][\w$]*)/);
+    const name = declaration?.[1];
+    if (!name) {
       continue;
     }
     if (shouldIgnoreLine(line)) {
@@ -125,7 +146,10 @@ function findNameMatches(file: string, content: string): MatchInfo[] {
     }
 
     for (const pattern of LEFTOVER_NAME_PATTERNS) {
-      if (new RegExp(`\\b${pattern}[a-z0-9_]*`, "i").test(line)) {
+      if (pattern !== "deprecated") {
+        continue;
+      }
+      if (new RegExp(`^(?:${pattern})[A-Z_]`, "i").test(name)) {
         matches.push({
           group: "name-signal",
           pattern,
@@ -151,14 +175,14 @@ function findFallbackMatches(file: string, content: string): MatchInfo[] {
     if (shouldIgnoreLine(line)) {
       continue;
     }
-    const hasFallbackSignal = lower.includes("legacy") || lower.includes("fallback") || lower.includes("compat") || lower.includes("oldflow");
+    const hasLegacySignal = /\b(legacy|compat|oldflow|deprecated|previous implementation|old implementation)\b/.test(lower);
     // Further tightened for real code (post-ouroboros scan):
     // - Removed "return" (noisy on normal "return foo(fallback)" utils).
     // - Stricter hasBranchControl: only true branch keywords (if/else etc) or actual ternary ( ? ... : ).
     //   This avoids matching ":" in TS param types like "fallback: AgentTarget[]" on declaration lines.
     const hasBranchControl = /\b(if|else|catch|except|try|switch)\b/.test(lower) || (/\?/.test(lower) && /:/.test(lower));
-    if (hasFallbackSignal && hasBranchControl) {
-      const envGuardMatch = line.match(/\b([A-Z][A-Z0-9_]*(?:LEGACY|OLD|FALLBACK|COMPAT|V1)[A-Z0-9_]*)\b/);
+    if (hasLegacySignal && hasBranchControl) {
+      const envGuardMatch = line.match(/\b(?=[A-Z0-9_]*(?:LEGACY|OLD|FALLBACK|COMPAT|V1))([A-Z][A-Z0-9_]*)\b/);
       matches.push({
         group: "fallback-branch",
         pattern: lower.includes("legacy") ? "legacy branch" : "fallback branch",
@@ -186,11 +210,14 @@ function findFlagMatches(file: string, content: string): MatchInfo[] {
     if (shouldIgnoreLine(line)) {
       continue;
     }
-    const envMatch = trimmed.match(/\b([A-Z][A-Z0-9_]*(?:LEGACY|OLD|FALLBACK|COMPAT|DEPRECATED|PREVIOUS|V1)[A-Z0-9_]*)\b/);
-    const featureFlagMatch = trimmed.match(/\b(?:legacy|old|fallback|compat|deprecated|previous)[A-Z][A-Za-z0-9]+\b/);
+    const envMatch = trimmed.match(/\b(?=[A-Z0-9_]*(?:LEGACY|OLD|FALLBACK|COMPAT|DEPRECATED|PREVIOUS|V1))([A-Z][A-Z0-9_]*)\b/);
+    const featureFlagMatch = trimmed.match(/\b(?:legacy|old|compat|deprecated|previous)[A-Z][A-Za-z0-9]*(?:Flag|Enabled|Toggle|Mode)\b/);
     const signal = envMatch?.[1] ?? featureFlagMatch?.[0];
 
     if (!signal) {
+      continue;
+    }
+    if (!/(?:process\.env|env|config|flag|enabled|toggle|mode|if\s*\(|const|let|var|=)/i.test(trimmed)) {
       continue;
     }
 

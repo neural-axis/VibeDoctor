@@ -1,262 +1,188 @@
 # VibeDoctor
 
-**A health check for code you didn't write line by line.**
+A health check for code you did not write line by line.
 
-AI writes most of the code now. It ships fast, and it also leaves behind dead
-branches, half-removed fallbacks, commented-out experiments, untested files, and
-the occasional hardcoded secret. VibeDoctor is the checkup that catches all of
-that before it reaches your main branch.
-
-It runs the quality tools your project already uses, normalizes their output into
-one finding model, scores the repo, and tells humans **and** coding agents exactly
-what to fix next.
+VibeDoctor is a local code-health CLI for JS, TS, Python, and mixed repositories. It turns scattered tool output into a ranked health report, safe repair workflow, Privacy Review artifact, MCP server, and reusable agent skills.
 
 ```bash
-npx @neuralaxis/vibedoctor scan
-```
-
-```text
-Health: 71/100 ⚠️
-
-Blockers: 1
-Fix next: 3
-Leftovers: 1
-Dead code candidates: 1
-Refactor candidates: 1
-
-BLOCKERS
-1. Hardcoded secret in config (src/config.ts)
-
-FIX NEXT
-1. Hardcoded secret (src/config.ts)
-2. Dead chain candidate (src/legacy.ts)
-3. Ready for refactor (src/report_builder.ts)
-
-READY FOR AGENT
-Run:
-vibedoctor agent-plan
-```
-
-No dashboards, no SaaS sign-up, no config required to start. One command, one
-short answer.
-
-## Why VibeDoctor
-
-- **Built for the AI era.** It specifically hunts the debt that generated code
-  leaves behind: dead chains, legacy fallbacks, leftover comments, and untested
-  surface area, not just lint noise.
-- **One score, one priority list.** Fifteen-plus tools collapse into a single
-  health score and a ranked "fix next" list instead of a wall of warnings.
-- **Agent-native.** Ships skills and instructions for Codex, Claude Code, GitHub
-  Copilot, and Cursor, plus an MCP server, so your agent can scan and self-correct.
-- **Honest by default.** Missing tools are reported as skipped, never silently
-  counted as passing.
-- **Zero lock-in.** It orchestrates open tools you already trust and writes plain
-  JSON, HTML, Markdown, and SARIF you own.
-
-## What It Checks
-
-VibeDoctor detects the project shape, discovers local tool binaries from
-`node_modules/.bin` and Python virtualenv folders, then runs relevant adapters
-when available.
-
-It can report on:
-
-- type and lint failures from TypeScript, Pyright, Ruff, and Biome
-- secrets and dependency risk from Gitleaks, OSV-Scanner, Semgrep, deptry, and Knip
-- dead code from Vulture, Knip, and VibeDoctor's dead-chain detector
-- leftover AI or legacy code such as commented-out blocks, fallback flags, and stale TODOs
-- refactor-readiness hotspots, duplication, complexity, and coverage gaps
-- test coverage from coverage.py, Vitest, and Jest
-
-Missing tools are reported as skipped instead of treated as clean coverage.
-
-## Quickstart
-
-From the repository or package you want to inspect:
-
-```bash
-npx @neuralaxis/vibedoctor init
-npx @neuralaxis/vibedoctor setup
-npx @neuralaxis/vibedoctor scan --quick
 npx @neuralaxis/vibedoctor scan --changed
 ```
 
-Prefer a shorter command? Install it once and call the `vibedoctor` binary directly:
+For a stronger first run:
+
+```bash
+npx @neuralaxis/vibedoctor init
+npx @neuralaxis/vibedoctor setup --apply
+npx @neuralaxis/vibedoctor scan --quick
+```
+
+Install once if you prefer the short binary:
 
 ```bash
 npm install -g @neuralaxis/vibedoctor
-vibedoctor scan
+vibedoctor scan --full
 ```
 
-The remaining examples use the `vibedoctor` binary; prefix them with `npx @neuralaxis/vibedoctor` if you skip the global install.
+## Release Demos
 
-Want the strongest first scan? Run `vibedoctor setup --apply`. VibeDoctor will
-install the recommended project-local npm/Python tools (core essentials + high-value
-extras like duplication, coverage, and complexity) it can install safely, and
-print exact manual steps for native tools such as Gitleaks, OSV-Scanner, Semgrep, and Lizard.
+<video src="docs/assets/vibedoctor-product-release-demo-v0.1.1.mp4" controls muted playsinline width="100%"></video>
 
-For the strongest signal in monorepos, run VibeDoctor from the package or service root you are actively changing. Running from the monorepo root is supported, but package roots usually produce tighter dependency and test-tool signal.
+[Direct video link](docs/assets/vibedoctor-product-release-demo-v0.1.1.mp4)
 
-After a scan, VibeDoctor writes:
+## Why VibeDoctor
 
-- `.vibedoctor/report.json` for tools and agents
-- `.vibedoctor/report.html` for a browser-readable report
-- `.vibedoctor/agent-plan.md` for guided repair work
+- It focuses on the failure modes AI-heavy repos accumulate: dead branches, stale fallbacks, leftovers, weak coverage, and accidental sensitive-data exposure.
+- It collapses many tool results into one finding model, one score, and a ranked fix list instead of a wall of unrelated warnings.
+- It is agent-native without locking you into a hosted service: reports stay local and output remains plain JSON, HTML, Markdown, and SARIF.
 
-## Common Workflows
+## What VibeDoctor Checks
+
+VibeDoctor detects the project shape, discovers local tool binaries, runs the checks that make sense for the repo, and reports missing tools as skipped instead of pretending they passed.
+
+- Type and lint failures from TypeScript, Pyright, Ruff, Biome, and similar local tools.
+- Secrets and dependency risk from Gitleaks, OSV-Scanner, Semgrep, deptry, Knip, and project-native scanners when available.
+- Privacy and PII exposure from VibeDoctor's deterministic detector, with optional Presidio support.
+- Dead code from Vulture, Knip, and VibeDoctor's dead-chain detector.
+- AI and legacy leftovers such as commented-out blocks, stale TODOs, fallback flags, and half-removed code.
+- Refactor-readiness hotspots, duplication, complexity, and coverage gaps.
+- Test and coverage signal from local JS and Python tooling.
+
+After a scan, VibeDoctor writes machine-readable and human-readable artifacts under `.vibedoctor/`, including `report.json`, `report.html`, and `agent-plan.md`.
+
+## Tool Setup Philosophy
+
+VibeDoctor prefers repository-local tools and config so the scan matches the versions you actually use in development and CI. Missing tools are reported as skipped with install guidance instead of being counted as clean.
+
+## Common CLI Workflows
 
 | Goal | Command |
 | --- | --- |
 | Initialize config | `vibedoctor init` |
-| Plan/install scanner tools | `vibedoctor setup` / `vibedoctor setup --apply` |
+| Plan scanner setup | `vibedoctor setup` |
+| Install automatable recommended tools | `vibedoctor setup --apply` |
 | Fast local triage | `vibedoctor scan --quick` |
-| Review only changed files | `vibedoctor scan --changed` |
+| Review changed files | `vibedoctor scan --changed` |
 | Full repository scan | `vibedoctor scan --full` |
-| Scan one category | `vibedoctor scan --category dead_code,leftovers --report json` |
+| Scan selected categories | `vibedoctor scan --category dead_code,leftovers --report json` |
+| Scan privacy findings only | `vibedoctor scan --category privacy --report json` |
+| Render reports | `vibedoctor report --html`, `--markdown`, `--sarif`, or `--agent` |
 | Apply safe tool fixes | `vibedoctor fix --safe` |
 | Create a baseline | `vibedoctor baseline create` |
-| Explain one finding | `vibedoctor explain <finding-id>` |
+| Explain a finding | `vibedoctor explain <finding-id>` |
 | Verify after edits | `vibedoctor verify` |
-| Generate agent plan | `vibedoctor agent-plan --format markdown` |
-| Start MCP server | `vibedoctor mcp` |
+| Generate an agent repair plan | `vibedoctor agent-plan --format markdown` |
 
-`scan` and `verify` return a non-zero exit code when the configured score threshold or fail-fast checks are tripped, so they drop straight into a pre-commit hook or CI gate.
+`scan` and `verify` return a non-zero exit code when configured score thresholds or fail-fast checks are tripped, which makes them usable in pre-commit hooks and CI gates.
 
-## Configuration
+## Privacy Review
 
-`vibedoctor init` writes a `vibedoctor.yml` you can tune. Sensible defaults are
-baked in, so editing is optional. The most useful knobs:
-
-- `score.minimum` — the health score that `scan`/`verify` must clear to pass
-- `baseline.fail_only_on_new_issues` — only fail on debt introduced since the baseline
-- `checks.*` — enable/disable categories and set fail-fast rules for secrets, type errors, test failures, and vulnerabilities
-- `paths.include` / `paths.exclude` — scope what gets scanned
-
-Use `vibedoctor baseline create` to snapshot existing debt, then fail builds only
-on *new* problems while you pay down the rest over time.
-
-## Tool Setup Philosophy
-
-VibeDoctor prefers tools already installed by the repository because that matches
-your real CI versions and config. It never treats a missing tool as a clean pass:
-missing tools are shown as skipped with install guidance.
-
-For a smoother first run, `vibedoctor setup` (or `setup --apply`) gives you the
-curated recommended install plan out of the box. Many users don't know which
-extra packages will give the best signal, so the default now includes the
-essentials plus high-value "recommended" tools:
-
-- built-in detectors: leftovers, dead-chain candidates, and refactor readiness
-- JS/TS: TypeScript, Biome, Knip
-- Python: Ruff, Pyright, Vulture
-- security/dependencies: Gitleaks and OSV-Scanner
-- **Recommended extras (included by default)**: jscpd (duplication), coverage.py,
-  radon (complexity), deptry (dependency hygiene), semgrep (rules), and lizard
-  (function-level complexity hotspots)
-
-`vibedoctor setup --apply` installs the automatable package-manager tools (npm/pip/uv/poetry/etc).
-Native binaries (Gitleaks, OSV-Scanner, Semgrep, Lizard, ...) are listed with
-clear one-line install hints instead of being downloaded automatically.
-
-If you want the absolute minimal core only, or to target just one ecosystem:
-
-- `vibedoctor setup --include essential` — smallest core set only
-- `vibedoctor setup --include all` — recommended set plus any extended tools
-- `vibedoctor setup --include npm` — JS/TS package installs only
-- `vibedoctor setup --include python` — Python package installs only
-- `vibedoctor setup --include manual` — native/manual binaries only (hints)
-- `vibedoctor setup --include built-in` — VibeDoctor's built-in detectors only
-
-After setup (or any manual installs), re-run `vibedoctor scan --quick` or
-`scan --full` to see the richer findings and a stronger health score. The setup
-command itself always prints suggestions for additional tools you may not have
-thought of.
-
-## Reports
-
-Use `scan --report <format>` or `report` commands depending on whether you want a fresh scan or a rendered artifact.
+Privacy Review is deterministic-first and advisory by default. The built-in privacy detector finds regulated identifiers, personal-data fields, sensitive attributes, and combination-risk patterns while storing masked evidence in reports.
 
 ```bash
-vibedoctor scan --full --report json
-vibedoctor report --html
-vibedoctor report --markdown
-vibedoctor report --agent
-vibedoctor report --sarif
+vibedoctor scan --category privacy --report json
+vibedoctor privacy-review --refresh --format markdown
 ```
 
-JSON is the best format for automation. Terminal output is intentionally short and answers: health score, blockers, fix-next items, leftovers, dead-code candidates, skipped tools, and errored tool causes.
+By default, privacy findings affect the privacy category score but do not lower the overall health score or fail CI. To make privacy findings blocking, opt in through config:
 
-## Agent Pack
+- `checks.privacy.fail_on_regulated_identifiers`
+- `checks.privacy.fail_on_sensitive_attributes`
 
-VibeDoctor can install repo-scoped instructions and skills for Codex, Claude Code, GitHub Copilot, and Cursor.
+The `privacy-review` command writes `.vibedoctor/privacy-review.json` with structured review decisions and merge-back metadata. Optional AI adjudication only runs when `checks.privacy.ai.enabled` is true and the configured API-key environment variables are present.
+
+## Agent Skills And Plugins
+
+VibeDoctor has two agent surfaces.
+
+Repo-local install:
 
 ```bash
 vibedoctor agent init --targets all
 vibedoctor agent doctor --targets all
 ```
 
-Generated files:
+This writes repository-scoped guidance and skills:
 
-| Target | Files |
-| --- | --- |
-| Codex | `AGENTS.md`, `.agents/skills/<skill>/SKILL.md`, `.agents/skills/<skill>/agents/openai.yaml` |
-| Claude Code | `.claude/skills/<skill>/SKILL.md` plus mirrored skill support files |
-| GitHub Copilot | `.github/copilot-instructions.md`, `.github/skills/<skill>/SKILL.md` plus mirrored skill support files |
-| Cursor | `.cursor/rules/vibedoctor.mdc`, `.cursor/mcp.json` |
-| Shared policy | `.vibedoctor/agent-policy.yml`, `.vibedoctor/agent-pack.json` |
+- `AGENTS.md`
+- `.agents/skills/<skill>/SKILL.md`
+- `.agents/skills/<skill>/agents/openai.yaml`
+- `.claude/skills/<skill>/SKILL.md`
+- `.github/skills/<skill>/SKILL.md`
+- `.github/copilot-instructions.md`
+- `.cursor/rules/vibedoctor.mdc`
+- `.cursor/mcp.json`
+- `.vibedoctor/agent-policy.yml`
 
-The canonical source is `.agents/skills`. `agent sync` mirrors those skills into the target-specific locations.
+Plugin bundle:
 
 ```bash
-vibedoctor agent pack
-vibedoctor agent sync --targets claude,copilot,cursor
-vibedoctor agent sync --targets all --force
+vibedoctor agent plugin --target codex
+vibedoctor agent plugin --target claude
+vibedoctor agent plugin --targets all --force
 ```
 
-This follows the same packaging model used by the major coding agents:
+This materializes an installable bundle under `plugins/vibedoctor/`:
 
-- Codex reads repository instructions from `AGENTS.md` and repo skills from `.agents/skills/<skill>/SKILL.md`. VibeDoctor also emits optional Codex `agents/openai.yaml` metadata for a cleaner app experience.
-- Claude Code reads project skills from `.claude/skills/<skill>/SKILL.md`, where the directory name becomes the slash command.
-- GitHub Copilot reads repository guidance from `.github/copilot-instructions.md` and can use agent instructions from `AGENTS.md`.
-- Cursor uses rule files and MCP configuration for always-on guidance and tool access.
+- `plugins/vibedoctor/.codex-plugin/plugin.json`
+- `plugins/vibedoctor/.claude-plugin/plugin.json`
+- `plugins/vibedoctor/skills/<skill>/SKILL.md`
 
-VibeDoctor ships repo-scoped skills, not a Codex or Claude plugin package. That is intentional for now: the CLI installs workflow guidance directly into the repository being scanned.
+Codex discovers the plugin from `.codex-plugin/plugin.json`, which points to `./skills/`. Claude Code uses the plugin namespace for skill commands, for example:
+
+```text
+/vibedoctor:vibedoctor-health-scan
+/vibedoctor:vibedoctor-privacy-review
+```
+
+The canonical skill catalog is exported from the package root as `AGENT_SKILLS`, `DEFAULT_SKILL_NAMES`, and `SkillTemplate`, and the same templates generate repo skills, Claude skills, Copilot/Cursor shims, and packaged plugin skills.
 
 ## MCP Server
 
-Start the MCP server with:
+Start the MCP server over stdio:
 
 ```bash
 vibedoctor mcp
 ```
 
-The server exposes structured tools for changed scans, full scans, safe fixes, report retrieval, agent-plan retrieval, finding explanations, and verification.
+The MCP server exposes structured tools for changed scans, full scans, safe fixes, report retrieval, agent-plan retrieval, finding explanations, and verification. Agent configs generated by `vibedoctor agent init --targets all` include target-specific MCP wiring where supported.
 
-## Development
+## Configuration
+
+`vibedoctor init` writes `vibedoctor.yml`. Editing is optional, but these are the most common controls:
+
+- `score.minimum`: health score required for `scan` and `verify` to pass.
+- `baseline.fail_only_on_new_issues`: fail only on debt introduced after the baseline.
+- `checks.*`: enable categories and fail-fast gates for secrets, type errors, test failures, and vulnerabilities.
+- `checks.privacy.*`: tune deterministic privacy detection, masking, optional Presidio support, optional AI review, and CI blocking behavior.
+- `paths.include` and `paths.exclude`: scope scanned files.
+
+Use `vibedoctor baseline create` to snapshot existing debt, then fail builds only on new problems while you pay down the rest.
+
+## Development And Release
 
 Requirements:
 
 - Node.js 18 or newer
-- npm 10.x for lockfile-compatible installs
+- npm 10.x
 
-Install dependencies and run the full local check:
-
-```bash
-npm ci
-npm run check
-```
-
-Useful scripts:
+Run the local verification set:
 
 ```bash
 npm test
 npm run typecheck
 npm run build
-npm run dev -- scan --quick
+npm pack --dry-run
 ```
 
-`npm run build` emits production files into `dist/` from `src/` only. Generated output, dependencies, coverage, local virtualenvs, and VibeDoctor report artifacts are intentionally ignored by Git.
+Useful development commands:
+
+```bash
+npm run dev -- scan --quick
+npm run dev -- agent init --targets all
+npm run dev -- agent plugin --targets all --force
+```
+
+`npm run build` emits production files into `dist/`. Plugin bundles under `plugins/` are generated on demand by `vibedoctor agent plugin ...` and are ignored in this repository by default.
 
 ## Project Layout
 
@@ -265,26 +191,13 @@ npm run dev -- scan --quick
 | `src/adapters` | Tool adapters and parsers |
 | `src/core` | Project detection, scan planning, scoring, baselines, and command execution |
 | `src/cli` | Command-line interface |
-| `src/agentPack` | Agent instructions, skills, policy, and target shims |
+| `src/agentPack` | Agent instructions, skills, policy, shims, and plugin generation |
 | `src/mcp` | MCP server and tools |
 | `src/reporters` | Terminal, JSON, Markdown, HTML, SARIF, and agent reports |
-| `fixtures` | Small sample projects for integration tests |
+| `plugins/vibedoctor` | Generated Codex and Claude plugin bundle |
+| `fixtures` | Sample projects for tests |
 | `tests` | Unit, integration, and snapshot tests |
-
-## Packaging
-
-Before publish or release packaging, run:
-
-```bash
-npm pack --dry-run
-```
-
-The `prepack` script rebuilds `dist/`, and the npm package includes only compiled output plus README, license, and package metadata.
-
-## CI
-
-GitHub Actions runs `npm ci` and `npm run check` on Node 20 and 22 for pushes and pull requests to `main`.
 
 ## License
 
-VibeDoctor is licensed under GPL-3.0-or-later. You can use, copy, modify, and redistribute it under the GPL terms; distributed derivative works must provide corresponding source under compatible GPL terms.
+VibeDoctor is licensed under GPL-3.0-or-later.

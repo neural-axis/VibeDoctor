@@ -1,11 +1,14 @@
 import {
   doctorAgentPack,
+  generateAgentPluginBundle,
   initAgentPack,
   loadAgentPackManifest,
   packAgentPack,
+  parseAgentPluginTargets,
   parseAgentTargets,
   syncAgentPack,
   type AgentPackApplyResult,
+  type AgentPluginTarget,
   type AgentTarget
 } from "../../agentPack/generateAgentPack";
 
@@ -40,6 +43,14 @@ function resolveTargets(options: { target?: string; targets?: string }, defaultT
   return parseAgentTargets(merged, defaultTargets);
 }
 
+function resolvePluginTargets(
+  options: { target?: string; targets?: string },
+  defaultTargets: AgentPluginTarget[] = ["codex", "claude"]
+): AgentPluginTarget[] {
+  const merged = options.target ? options.target : options.targets;
+  return parseAgentPluginTargets(merged, defaultTargets);
+}
+
 export async function runAgentInitCommand(
   root: string,
   options: { target?: string; targets?: string; force?: boolean }
@@ -67,6 +78,15 @@ export async function runAgentSyncCommand(
   const targets = resolveTargets(options, manifest?.targets ?? ["codex"]);
   const result = await syncAgentPack(root, { targets, force: options.force });
   return formatApplyResult("VibeDoctor Agent Pack synced ✅", result);
+}
+
+export async function runAgentPluginCommand(
+  root: string,
+  options: { target?: string; targets?: string; force?: boolean }
+): Promise<string> {
+  const targets = resolvePluginTargets(options);
+  const result = await generateAgentPluginBundle(root, { targets, force: options.force });
+  return formatApplyResult("VibeDoctor Agent Plugin bundle generated ✅", result);
 }
 
 export async function runAgentDoctorCommand(

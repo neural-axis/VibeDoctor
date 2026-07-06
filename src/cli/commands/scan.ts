@@ -21,6 +21,14 @@ function isHighSeverity(finding: Finding): boolean {
   return finding.severity === "high" || finding.severity === "critical";
 }
 
+function isHighConfidence(finding: Finding): boolean {
+  return finding.confidence === "high";
+}
+
+function isReviewedFalsePositive(finding: Finding): boolean {
+  return finding.evidence?.reviewState === "false_positive";
+}
+
 export function determineExitCode(scan: Pick<ScanOutput, "score" | "findings">, config: VibeDoctorConfig): number {
   if (scan.score.overall < config.score.minimum) {
     return 1;
@@ -49,8 +57,36 @@ export function determineExitCode(scan: Pick<ScanOutput, "score" | "findings">, 
     config.checks.correctness.enabled &&
     config.checks.correctness.failOnTestFailures &&
     failingFindings.some((finding) => finding.category === "tests" && isHighSeverity(finding));
+  const regulatedIdentifierFailure =
+    config.checks.privacy.enabled &&
+    config.checks.privacy.failOnRegulatedIdentifiers &&
+    failingFindings.some(
+      (finding) =>
+        finding.category === "privacy" &&
+        isHighConfidence(finding) &&
+        !isReviewedFalsePositive(finding) &&
+        finding.evidence?.sensitivity === "regulated_identifier"
+    );
+  const sensitiveAttributeFailure =
+    config.checks.privacy.enabled &&
+    config.checks.privacy.failOnSensitiveAttributes &&
+    failingFindings.some(
+      (finding) =>
+        finding.category === "privacy" &&
+        isHighConfidence(finding) &&
+        !isReviewedFalsePositive(finding) &&
+        finding.evidence?.sensitivity === "high"
+    );
 
-  return secretFailure || dependencyFailure || missingDependencyFailure || typeFailure || testFailure ? 1 : 0;
+  return secretFailure ||
+    dependencyFailure ||
+    missingDependencyFailure ||
+    typeFailure ||
+    testFailure ||
+    regulatedIdentifierFailure ||
+    sensitiveAttributeFailure
+    ? 1
+    : 0;
 }
 
 export async function runScanCommand(

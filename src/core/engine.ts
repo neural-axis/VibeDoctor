@@ -12,13 +12,16 @@ import {
   radonAdapter,
   ruffAdapter,
   semgrepAdapter,
+  telemetryDetectorAdapter,
   tscAdapter,
   vitestAdapter,
   vultureAdapter
 } from "../adapters";
 import { customLeftoversAdapter } from "../adapters/customLeftovers";
+import { privacyDetectorAdapter } from "../adapters/privacyDetector";
 import { customRefactorAdapter } from "../adapters/customRefactor";
 import { detectDeadChains } from "../adapters/customDeadChain";
+import { presidioAdapter } from "../adapters/presidio";
 import {
   defaultAgentPolicy,
   getAllowedActions,
@@ -35,6 +38,11 @@ import { createScanPlan, type ScanMode } from "./scanPlanner";
 import { buildScore, type ScoreBreakdown } from "./scoring";
 import { runCommand, type ToolResult } from "./toolRunner";
 import { severityRank } from "../rules/severityMap";
+import {
+  loadPrivacyReview,
+  mergePrivacyReviewIntoFindings,
+  type PrivacyReviewSummary
+} from "./privacyReview";
 
 const ALL_ADAPTERS = [
   gitleaksAdapter,
@@ -53,6 +61,9 @@ const ALL_ADAPTERS = [
   coveragePyAdapter,
   vitestAdapter,
   jestAdapter,
+  privacyDetectorAdapter,
+  presidioAdapter,
+  telemetryDetectorAdapter,
   customLeftoversAdapter,
   customRefactorAdapter
 ] as const;
@@ -62,11 +73,12 @@ const categoryPriority: Record<FindingCategory, number> = {
   tests: 1,
   correctness: 2,
   dependencies: 3,
-  dead_code: 4,
-  leftovers: 5,
-  refactor_readiness: 6,
-  maintainability: 7,
-  efficiency: 8
+  privacy: 4,
+  dead_code: 5,
+  leftovers: 6,
+  refactor_readiness: 7,
+  maintainability: 8,
+  efficiency: 9
 };
 
 export type AgentPlanTarget = "generic" | "codex" | "copilot" | "claude" | "cursor";
@@ -114,6 +126,8 @@ export type ScanOutput = {
   topFindings: Finding[];
   blockers: Finding[];
   fixNext: Finding[];
+  privacyFindings: Finding[];
+  privacyReview?: PrivacyReviewSummary;
   leftovers: Finding[];
   deadCodeCandidates: Finding[];
   refactorCandidates: Finding[];
@@ -148,6 +162,7 @@ type BuildScanOutputOptions = {
   policy?: AgentPolicy;
   target?: AgentPlanTarget;
   configPath?: string;
+  privacyReview?: PrivacyReviewSummary;
 };
 
 type FilterScanOptions = {
@@ -193,7 +208,8 @@ function sortFindings(findings: Finding[]): Finding[] {
 function summarizeFindings(findings: Finding[]) {
   const ordered = sortFindings(findings);
   const blockers = ordered.filter((finding) => severityRank[finding.severity] >= severityRank.high);
-  const fixNext = ordered.filter((finding) => finding.category !== "leftovers").slice(0, 3);
+  const fixNext = ordered.filter((finding) => finding.category !== "leftovers" && finding.category !== "privacy").slice(0, 3);
+  const privacyFindings = ordered.filter((finding) => finding.category === "privacy");
   const leftovers = ordered.filter((finding) => finding.category === "leftovers");
   const deadCodeCandidates = ordered.filter((finding) => finding.category === "dead_code");
   const refactorCandidates = ordered.filter((finding) => finding.category === "refactor_readiness");
@@ -203,6 +219,7 @@ function summarizeFindings(findings: Finding[]) {
     ordered,
     blockers,
     fixNext,
+    privacyFindings,
     leftovers,
     deadCodeCandidates,
     refactorCandidates,
@@ -342,6 +359,8 @@ function buildScanOutput(options: BuildScanOutputOptions): ScanOutput {
     topFindings: summary.topFindings,
     blockers: summary.blockers,
     fixNext: summary.fixNext,
+    privacyFindings: summary.privacyFindings,
+    privacyReview: options.privacyReview,
     leftovers: summary.leftovers,
     deadCodeCandidates: summary.deadCodeCandidates,
     refactorCandidates: summary.refactorCandidates,
@@ -475,7 +494,7 @@ export async function runScan(root: string, mode: ScanMode = "default"): Promise
 
   let deadChainFindings: Finding[] = [];
   if (config.checks.deadCode.enabled) {
-    const rawDead = await detectDeadChains(project, findings);
+    const rawDead = await detectDeadChains(project, findings, config);
     const minConf = config.checks.deadCode.minConfidenceToReport;
     const rank: Record<"low" | "medium" | "high", number> = { low: 0, medium: 1, high: 2 };
     const minRank = rank[minConf];
@@ -491,6 +510,8 @@ export async function runScan(root: string, mode: ScanMode = "default"): Promise
     );
   }
 
+  const privacyReview = await loadPrivacyReview(root, config.output.privacyReview);
+  allFindings = mergePrivacyReviewIntoFindings(allFindings, privacyReview);
   allFindings = sortFindings(allFindings);
   const score = buildScore(allFindings);
 
@@ -503,7 +524,8 @@ export async function runScan(root: string, mode: ScanMode = "default"): Promise
     skippedTools,
     testCommands: project.testCommands,
     policy,
-    configPath
+    configPath,
+    privacyReview: privacyReview?.summary
   });
 }
 
@@ -525,7 +547,8 @@ export function filterScanByCategories(
     testCommands: scan.testCommands,
     policy: options.policy,
     target: options.target ?? scan.agentPlan.target,
-    configPath: scan.configPath
+    configPath: scan.configPath,
+    privacyReview: scan.privacyReview
   });
 }
 
@@ -534,6 +557,7 @@ export function buildSummaryLines(scan: ScanOutput): string[] {
 
   lines.push(`Blockers: ${scan.blockers.length}`);
   lines.push(`Fix next: ${scan.fixNext.length}`);
+  lines.push(`Privacy Review findings: ${scan.privacyFindings.length}`);
   lines.push(`Leftovers: ${scan.leftovers.length}`);
   lines.push(`Dead code candidates: ${scan.deadCodeCandidates.length}`);
   lines.push(`Refactor candidates: ${scan.refactorCandidates.length}`);
@@ -546,6 +570,15 @@ export function buildSummaryLines(scan: ScanOutput): string[] {
   if (scan.fixNext.length > 0) {
     lines.push("", "FIX NEXT");
     scan.fixNext.forEach((finding, index) => lines.push(`${index + 1}. ${finding.title}${finding.file ? ` (${finding.file})` : ""}`));
+  }
+
+  if (scan.privacyFindings.length > 0) {
+    lines.push("", "PRIVACY REVIEW FINDINGS");
+    scan.privacyFindings
+      .slice(0, 5)
+      .forEach((finding, index) =>
+        lines.push(`${index + 1}. ${finding.title}${finding.file ? ` (${finding.file}${finding.startLine ? `:${finding.startLine}` : ""})` : ""}`)
+      );
   }
 
   if (scan.leftovers.length > 0) {

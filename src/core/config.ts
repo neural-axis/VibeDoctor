@@ -61,12 +61,35 @@ export type VibeDoctorConfig = {
       failOnMissingDependencies: boolean;
       failOnNewDirectVulnerabilities: boolean;
     };
+    privacy: {
+      enabled: boolean;
+      minConfidenceToReport: "low" | "medium" | "high";
+      maskExamples: boolean;
+      maxFileBytes: number;
+      failOnRegulatedIdentifiers: boolean;
+      failOnSensitiveAttributes: boolean;
+      detectTelemetryOptOut: boolean;
+      detectUnsanitizedLogs: boolean;
+      detectApiOverfetching: boolean;
+      detectMissingRetention: boolean;
+      ai: {
+        enabled: boolean;
+        apiKeyEnv: string;
+        baseUrlEnv: string;
+        modelEnv: string;
+        includeRawValues: boolean;
+      };
+      presidio: {
+        enabled: boolean;
+      };
+    };
   };
   output: {
     terminal: boolean;
     json: string;
     html: string;
     agent: string;
+    privacyReview: string;
   };
 };
 
@@ -78,8 +101,27 @@ export const defaultConfig: VibeDoctorConfig = {
     languages: []
   },
   paths: {
-    include: ["src/**", "app/**", "packages/**", "services/**", "tests/**", "*.{js,jsx,ts,tsx,py}", "**/*.{js,jsx,ts,tsx,py}"],
-    exclude: DEFAULT_EXCLUDES
+    include: [
+      "src/**",
+      "app/**",
+      "packages/**",
+      "services/**",
+      "tests/**",
+      "*.{js,jsx,ts,tsx,py}",
+      "**/*.{js,jsx,ts,tsx,py}",
+      "*.prisma",
+      "**/*.prisma"
+    ],
+    exclude: [
+      ...DEFAULT_EXCLUDES,
+      "test/**",
+      "tests/**",
+      "**/test/**",
+      "**/tests/**",
+      "**/*.test.*",
+      "**/*.spec.*",
+      "**/__tests__/**"
+    ]
   },
   baseline: {
     enabled: true,
@@ -127,13 +169,36 @@ export const defaultConfig: VibeDoctorConfig = {
       enabled: true,
       failOnMissingDependencies: true,
       failOnNewDirectVulnerabilities: true
+    },
+    privacy: {
+      enabled: true,
+      minConfidenceToReport: "medium",
+      maskExamples: true,
+      maxFileBytes: 1_048_576,
+      failOnRegulatedIdentifiers: false,
+      failOnSensitiveAttributes: false,
+      detectTelemetryOptOut: true,
+      detectUnsanitizedLogs: true,
+      detectApiOverfetching: true,
+      detectMissingRetention: true,
+      ai: {
+        enabled: false,
+        apiKeyEnv: "VIBEDOCTOR_AI_API_KEY",
+        baseUrlEnv: "VIBEDOCTOR_AI_BASE_URL",
+        modelEnv: "VIBEDOCTOR_AI_MODEL",
+        includeRawValues: false
+      },
+      presidio: {
+        enabled: false
+      }
     }
   },
   output: {
     terminal: true,
     json: ".vibedoctor/report.json",
     html: ".vibedoctor/report.html",
-    agent: ".vibedoctor/agent-plan.md"
+    agent: ".vibedoctor/agent-plan.md",
+    privacyReview: ".vibedoctor/privacy-review.json"
   }
 };
 
@@ -176,9 +241,10 @@ export async function findConfigFile(root: string): Promise<string | undefined> 
 }
 
 function normalizeRawConfig(raw: Partial<VibeDoctorConfig>): Partial<VibeDoctorConfig> {
-  const { baseline: _baseline, checks: _checks, ...rest } = raw;
+  const { baseline: _baseline, checks: _checks, output: _output, ...rest } = raw;
   const rawChecks = raw.checks as Record<string, unknown> | undefined;
   const rawBaseline = raw.baseline as Record<string, unknown> | undefined;
+  const rawOutput = raw.output as Record<string, unknown> | undefined;
   const rawDeadCode = (rawChecks?.deadCode ?? rawChecks?.dead_code) as Record<string, unknown> | undefined;
   const rawLeftovers = rawChecks?.leftovers as Record<string, unknown> | undefined;
   const rawRefactor = (rawChecks?.refactorReadiness ?? rawChecks?.refactor_readiness) as Record<string, unknown> | undefined;
@@ -186,9 +252,26 @@ function normalizeRawConfig(raw: Partial<VibeDoctorConfig>): Partial<VibeDoctorC
   const rawCorrectness = rawChecks?.correctness as Record<string, unknown> | undefined;
   const rawTests = rawChecks?.tests as Record<string, unknown> | undefined;
   const rawDependencies = rawChecks?.dependencies as Record<string, unknown> | undefined;
+  const rawPrivacy = rawChecks?.privacy as Record<string, unknown> | undefined;
+  const rawPrivacyAi = (rawPrivacy?.ai ?? {}) as Record<string, unknown>;
+  const rawPresidio = (rawPrivacy?.presidio ?? {}) as Record<string, unknown>;
 
   return {
     ...rest,
+    ...(rawOutput
+      ? {
+          output: {
+            terminal: (rawOutput.terminal as boolean | undefined) ?? defaultConfig.output.terminal,
+            json: (rawOutput.json as string | undefined) ?? defaultConfig.output.json,
+            html: (rawOutput.html as string | undefined) ?? defaultConfig.output.html,
+            agent: (rawOutput.agent as string | undefined) ?? defaultConfig.output.agent,
+            privacyReview:
+              (rawOutput.privacyReview as string | undefined) ??
+              (rawOutput.privacy_review as string | undefined) ??
+              defaultConfig.output.privacyReview
+          }
+        }
+      : {}),
     ...(rawBaseline
       ? {
           baseline: {
@@ -306,7 +389,70 @@ function normalizeRawConfig(raw: Partial<VibeDoctorConfig>): Partial<VibeDoctorC
                     (rawDependencies.fail_on_new_direct_vulnerabilities as boolean | undefined) ??
                     defaultConfig.checks.dependencies.failOnNewDirectVulnerabilities
                 }
-              : defaultConfig.checks.dependencies
+              : defaultConfig.checks.dependencies,
+            privacy: rawPrivacy
+              ? {
+                  enabled: (rawPrivacy.enabled as boolean | undefined) ?? defaultConfig.checks.privacy.enabled,
+                  minConfidenceToReport:
+                    (rawPrivacy.minConfidenceToReport as "low" | "medium" | "high" | undefined) ??
+                    (rawPrivacy.min_confidence_to_report as "low" | "medium" | "high" | undefined) ??
+                    defaultConfig.checks.privacy.minConfidenceToReport,
+                  maskExamples:
+                    (rawPrivacy.maskExamples as boolean | undefined) ??
+                    (rawPrivacy.mask_examples as boolean | undefined) ??
+                    defaultConfig.checks.privacy.maskExamples,
+                  maxFileBytes:
+                    (rawPrivacy.maxFileBytes as number | undefined) ??
+                    (rawPrivacy.max_file_bytes as number | undefined) ??
+                    defaultConfig.checks.privacy.maxFileBytes,
+                  failOnRegulatedIdentifiers:
+                    (rawPrivacy.failOnRegulatedIdentifiers as boolean | undefined) ??
+                    (rawPrivacy.fail_on_regulated_identifiers as boolean | undefined) ??
+                    defaultConfig.checks.privacy.failOnRegulatedIdentifiers,
+                  failOnSensitiveAttributes:
+                    (rawPrivacy.failOnSensitiveAttributes as boolean | undefined) ??
+                    (rawPrivacy.fail_on_sensitive_attributes as boolean | undefined) ??
+                    defaultConfig.checks.privacy.failOnSensitiveAttributes,
+                  detectTelemetryOptOut:
+                    (rawPrivacy.detectTelemetryOptOut as boolean | undefined) ??
+                    (rawPrivacy.detect_telemetry_opt_out as boolean | undefined) ??
+                    defaultConfig.checks.privacy.detectTelemetryOptOut,
+                  detectUnsanitizedLogs:
+                    (rawPrivacy.detectUnsanitizedLogs as boolean | undefined) ??
+                    (rawPrivacy.detect_unsanitized_logs as boolean | undefined) ??
+                    defaultConfig.checks.privacy.detectUnsanitizedLogs,
+                  detectApiOverfetching:
+                    (rawPrivacy.detectApiOverfetching as boolean | undefined) ??
+                    (rawPrivacy.detect_api_overfetching as boolean | undefined) ??
+                    defaultConfig.checks.privacy.detectApiOverfetching,
+                  detectMissingRetention:
+                    (rawPrivacy.detectMissingRetention as boolean | undefined) ??
+                    (rawPrivacy.detect_missing_retention as boolean | undefined) ??
+                    defaultConfig.checks.privacy.detectMissingRetention,
+                  ai: {
+                    enabled: (rawPrivacyAi.enabled as boolean | undefined) ?? defaultConfig.checks.privacy.ai.enabled,
+                    apiKeyEnv:
+                      (rawPrivacyAi.apiKeyEnv as string | undefined) ??
+                      (rawPrivacyAi.api_key_env as string | undefined) ??
+                      defaultConfig.checks.privacy.ai.apiKeyEnv,
+                    baseUrlEnv:
+                      (rawPrivacyAi.baseUrlEnv as string | undefined) ??
+                      (rawPrivacyAi.base_url_env as string | undefined) ??
+                      defaultConfig.checks.privacy.ai.baseUrlEnv,
+                    modelEnv:
+                      (rawPrivacyAi.modelEnv as string | undefined) ??
+                      (rawPrivacyAi.model_env as string | undefined) ??
+                      defaultConfig.checks.privacy.ai.modelEnv,
+                    includeRawValues:
+                      (rawPrivacyAi.includeRawValues as boolean | undefined) ??
+                      (rawPrivacyAi.include_raw_values as boolean | undefined) ??
+                      defaultConfig.checks.privacy.ai.includeRawValues
+                  },
+                  presidio: {
+                    enabled: (rawPresidio.enabled as boolean | undefined) ?? defaultConfig.checks.privacy.presidio.enabled
+                  }
+                }
+              : defaultConfig.checks.privacy
           }
         }
       : {})

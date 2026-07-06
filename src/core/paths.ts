@@ -12,7 +12,12 @@ export const DEFAULT_EXCLUDES = [
   "**/.venv/**",
   "coverage/**",
   ".next/**",
+  "**/.next/**",
   "vendor/**",
+  ".agents/**",
+  "**/.agents/**",
+  ".vibedoctor/**",
+  "**/.vibedoctor/**",
   ".git/**",
   "**/__pycache__/**",
   "**/*.egg-info/**"

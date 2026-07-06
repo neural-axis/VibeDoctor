@@ -17,6 +17,12 @@ export function renderSarif(scan: ScanOutput): string {
             message: {
               text: finding.message
             },
+            properties: {
+              category: finding.category,
+              confidence: finding.confidence,
+              entityType: finding.evidence?.entityType,
+              sensitivity: finding.evidence?.sensitivity
+            },
             locations: finding.file
               ? [
                   {

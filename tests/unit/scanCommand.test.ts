@@ -31,6 +31,7 @@ function makeScan(overrides: Partial<Pick<ScanOutput, "score" | "findings">>): P
         correctness: 100,
         tests: 100,
         dependencies: 100,
+        privacy: 100,
         maintainability: 100,
         dead_code: 100,
         leftovers: 100,
@@ -42,6 +43,7 @@ function makeScan(overrides: Partial<Pick<ScanOutput, "score" | "findings">>): P
         correctness: 0,
         tests: 0,
         dependencies: 0,
+        privacy: 0,
         maintainability: 0,
         dead_code: 0,
         leftovers: 0,
@@ -116,5 +118,55 @@ describe("determineExitCode", () => {
     });
 
     expect(determineExitCode(scan, defaultConfig)).toBe(1);
+  });
+
+  it("does not fail on Privacy Review findings by default", () => {
+    const scan = makeScan({
+      findings: [
+        makeFinding({
+          source: "privacy-detector",
+          category: "privacy",
+          confidence: "high",
+          severity: "medium",
+          title: "PII detected: pan",
+          evidence: {
+            sensitivity: "regulated_identifier",
+            entityType: "pan"
+          }
+        })
+      ]
+    });
+
+    expect(determineExitCode(scan, defaultConfig)).toBe(0);
+  });
+
+  it("fails on high-confidence regulated identifiers when privacy gate is enabled", () => {
+    const config = {
+      ...defaultConfig,
+      checks: {
+        ...defaultConfig.checks,
+        privacy: {
+          ...defaultConfig.checks.privacy,
+          failOnRegulatedIdentifiers: true
+        }
+      }
+    };
+    const scan = makeScan({
+      findings: [
+        makeFinding({
+          source: "privacy-detector",
+          category: "privacy",
+          confidence: "high",
+          severity: "medium",
+          title: "PII detected: pan",
+          evidence: {
+            sensitivity: "regulated_identifier",
+            entityType: "pan"
+          }
+        })
+      ]
+    });
+
+    expect(determineExitCode(scan, config)).toBe(1);
   });
 });

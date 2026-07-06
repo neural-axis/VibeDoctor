@@ -2,13 +2,14 @@
 import { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
-import { runAgentDoctorCommand, runAgentInitCommand, runAgentPackCommand, runAgentSyncCommand } from "./commands/agent";
+import { runAgentDoctorCommand, runAgentInitCommand, runAgentPackCommand, runAgentPluginCommand, runAgentSyncCommand } from "./commands/agent";
 import { runAgentPlanCommand } from "./commands/agentPlan";
 import { runBaselineCreateCommand } from "./commands/baseline";
 import { runExplainCommand } from "./commands/explain";
 import { runSafeFixCommand } from "./commands/fix";
 import { runInit } from "./commands/init";
 import { runMcpServer } from "../mcp/server";
+import { runPrivacyReviewCommand } from "./commands/privacyReview";
 import { runReportCommand } from "./commands/report";
 import { runScanCommand } from "./commands/scan";
 import { runSetupCommand } from "./commands/setup";
@@ -128,6 +129,17 @@ async function main(): Promise<void> {
     });
 
   agent
+    .command("plugin")
+    .description("Generate installable Codex and Claude plugin bundle files")
+    .option("--target <target>", "Single target alias for --targets")
+    .option("--targets <targets>", "codex,claude|all", "all")
+    .option("--force", "Overwrite generated plugin files")
+    .action(async (options) => {
+      process.stdout.write(await runAgentPluginCommand(process.cwd(), options));
+      process.exit(0);
+    });
+
+  agent
     .command("doctor")
     .description("Check whether the agent-pack setup is healthy")
     .option("--target <target>", "Single target alias for --targets")
@@ -172,6 +184,20 @@ async function main(): Promise<void> {
     .description("Re-run scan in changed mode for agent verification")
     .action(async () => {
       const result = await runScanCommand(process.cwd(), { changed: true });
+      process.stdout.write(result.output);
+      process.exit(result.exitCode);
+    });
+
+  program
+    .command("privacy-review")
+    .description("Create a structured Privacy Review artifact for Privacy Review findings")
+    .option("--refresh", "Refresh the full scan before reviewing")
+    .option("--format <format>", "json|markdown", "json")
+    .action(async (options) => {
+      const result = await runPrivacyReviewCommand(process.cwd(), {
+        refresh: options.refresh,
+        format: options.format === "markdown" ? "markdown" : "json"
+      });
       process.stdout.write(result.output);
       process.exit(result.exitCode);
     });

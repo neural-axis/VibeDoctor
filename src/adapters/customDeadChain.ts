@@ -1,6 +1,7 @@
 import path from "node:path";
 import { filterPaths, readTextIfExists } from "../core/paths";
 import type { Finding } from "../core/finding";
+import type { VibeDoctorConfig } from "../core/config";
 import type { ProjectContext } from "../core/projectDetector";
 
 type CodeNode = {
@@ -24,6 +25,16 @@ type DeadChainCandidate = {
 const SOURCE_FILE_PATTERN = /\.(ts|tsx|js|jsx|py)$/;
 const JS_EXTENSIONS = [".ts", ".tsx", ".js", ".jsx"];
 const PY_EXTENSIONS = [".py"];
+const JS_CONFIG_FILES = ["tsconfig.json", "jsconfig.json"] as const;
+
+type JsResolverConfig = {
+  configDir: string;
+  baseUrl?: string;
+  paths: Array<{
+    pattern: string;
+    targets: string[];
+  }>;
+};
 
 function isTestFile(file: string): boolean {
   return /(^|\/)tests?\//.test(file) || /\.test\./.test(file) || /\.spec\./.test(file);
@@ -52,7 +63,13 @@ function parseImports(file: string, content: string): string[] {
     return Array.from(imports);
   }
 
-  for (const match of content.matchAll(/(?:import|export)\s+(?:[^"'`]+?\s+from\s+)?["'`]([^"'`]+)["'`]/g)) {
+  for (const match of content.matchAll(/(?:import|export)\s+(?:type\s+)?(?:[^"'`]+?\s+from\s+)?["'`]([^"'`]+)["'`]/g)) {
+    if (match[1]) {
+      imports.add(match[1]);
+    }
+  }
+
+  for (const match of content.matchAll(/\bimport\s*\(\s*["'`]([^"'`]+)["'`]\s*\)/g)) {
     if (match[1]) {
       imports.add(match[1]);
     }
@@ -67,9 +84,48 @@ function parseImports(file: string, content: string): string[] {
   return Array.from(imports);
 }
 
-function resolveRelativeImport(fromFile: string, specifier: string, projectFiles: Set<string>, extensions: string[]): string | undefined {
-  const baseDir = path.posix.dirname(fromFile);
-  const raw = path.posix.normalize(path.posix.join(baseDir, specifier));
+function stripJsonComments(content: string): string {
+  return content
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[^:])\/\/.*$/gm, "$1")
+    .replace(/,\s*([}\]])/g, "$1");
+}
+
+async function loadJsResolverConfig(project: ProjectContext): Promise<JsResolverConfig> {
+  const configFile = JS_CONFIG_FILES.find((file) => project.projectFiles.includes(file));
+  if (!configFile) {
+    return { configDir: "", paths: [] };
+  }
+
+  const content = await readTextIfExists(path.join(project.root, configFile));
+  if (!content) {
+    return { configDir: "", paths: [] };
+  }
+
+  try {
+    const parsed = JSON.parse(stripJsonComments(content)) as {
+      compilerOptions?: {
+        baseUrl?: string;
+        paths?: Record<string, string[]>;
+      };
+    };
+    const configDir = path.posix.dirname(configFile) === "." ? "" : path.posix.dirname(configFile);
+    const baseUrl = parsed.compilerOptions?.baseUrl
+      ? path.posix.normalize(path.posix.join(configDir, parsed.compilerOptions.baseUrl))
+      : undefined;
+    const paths = Object.entries(parsed.compilerOptions?.paths ?? {}).map(([pattern, targets]) => ({
+      pattern,
+      targets: Array.isArray(targets) ? targets : []
+    }));
+
+    return { configDir, baseUrl, paths };
+  } catch {
+    return { configDir: "", paths: [] };
+  }
+}
+
+function resolveCandidate(rawSpecifierPath: string, projectFiles: Set<string>, extensions: string[]): string | undefined {
+  const raw = path.posix.normalize(rawSpecifierPath).replace(/^\.\//, "");
   const candidates = [
     raw,
     ...extensions.map((extension) => `${raw}${extension}`),
@@ -77,6 +133,67 @@ function resolveRelativeImport(fromFile: string, specifier: string, projectFiles
   ];
 
   return candidates.find((candidate) => projectFiles.has(candidate));
+}
+
+function resolveRelativeImport(fromFile: string, specifier: string, projectFiles: Set<string>, extensions: string[]): string | undefined {
+  const baseDir = path.posix.dirname(fromFile);
+  const raw = path.posix.normalize(path.posix.join(baseDir, specifier));
+
+  return resolveCandidate(raw, projectFiles, extensions);
+}
+
+function matchPathPattern(specifier: string, pattern: string): string | undefined {
+  const starIndex = pattern.indexOf("*");
+  if (starIndex === -1) {
+    return specifier === pattern ? "" : undefined;
+  }
+
+  const prefix = pattern.slice(0, starIndex);
+  const suffix = pattern.slice(starIndex + 1);
+  if (!specifier.startsWith(prefix) || !specifier.endsWith(suffix)) {
+    return undefined;
+  }
+
+  return specifier.slice(prefix.length, specifier.length - suffix.length);
+}
+
+function resolveTsConfigImport(
+  specifier: string,
+  projectFiles: Set<string>,
+  extensions: string[],
+  resolverConfig: JsResolverConfig
+): string | undefined {
+  for (const mapping of resolverConfig.paths) {
+    const wildcard = matchPathPattern(specifier, mapping.pattern);
+    if (wildcard === undefined) {
+      continue;
+    }
+
+    for (const target of mapping.targets) {
+      const replaced = target.replace("*", wildcard);
+      const base = resolverConfig.baseUrl ?? resolverConfig.configDir;
+      const resolved = resolveCandidate(path.posix.join(base, replaced), projectFiles, extensions);
+      if (resolved) {
+        return resolved;
+      }
+    }
+  }
+
+  if (resolverConfig.baseUrl) {
+    const resolved = resolveCandidate(path.posix.join(resolverConfig.baseUrl, specifier), projectFiles, extensions);
+    if (resolved) {
+      return resolved;
+    }
+  }
+
+  if (specifier.startsWith("@/")) {
+    return (
+      resolveCandidate(path.posix.join("src", specifier.slice(2)), projectFiles, extensions) ??
+      resolveCandidate(specifier.slice(2), projectFiles, extensions)
+    );
+  }
+
+  return undefined;
 }
 
 function resolvePythonImport(fromFile: string, specifier: string, projectFiles: Set<string>): string | undefined {
@@ -100,10 +217,15 @@ function resolvePythonImport(fromFile: string, specifier: string, projectFiles: 
   return [`${dottedPath}.py`, `${dottedPath}/__init__.py`].find((candidate) => projectFiles.has(candidate));
 }
 
-async function buildGraph(project: ProjectContext): Promise<Map<string, CodeNode>> {
-  const sourceFiles = filterPaths(project.projectFiles, ["**/*"]).filter((file) => SOURCE_FILE_PATTERN.test(file));
+async function buildGraph(
+  project: ProjectContext,
+  includePatterns: string[],
+  excludePatterns: string[]
+): Promise<Map<string, CodeNode>> {
+  const sourceFiles = filterPaths(project.projectFiles, includePatterns, excludePatterns).filter((file) => SOURCE_FILE_PATTERN.test(file));
   const projectFileSet = new Set(sourceFiles);
   const graph = new Map<string, CodeNode>();
+  const jsResolverConfig = await loadJsResolverConfig(project);
 
   for (const file of sourceFiles) {
     graph.set(file, {
@@ -133,6 +255,8 @@ async function buildGraph(project: ProjectContext): Promise<Map<string, CodeNode
         resolved = resolvePythonImport(file, specifier, projectFileSet);
       } else if (specifier.startsWith(".")) {
         resolved = resolveRelativeImport(file, specifier, projectFileSet, extensions);
+      } else {
+        resolved = resolveTsConfigImport(specifier, projectFileSet, extensions, jsResolverConfig);
       }
 
       if (!resolved) {
@@ -153,6 +277,14 @@ async function buildGraph(project: ProjectContext): Promise<Map<string, CodeNode
   return graph;
 }
 
+function isFrameworkEntrypoint(file: string): boolean {
+  return (
+    /^(?:src\/)?app\/(?:.+\/)?(?:page|layout|route|loading|error|global-error|not-found|default|template)\.(ts|tsx|js|jsx)$/.test(file) ||
+    /^(?:src\/)?pages\/(?:.+)\.(ts|tsx|js|jsx)$/.test(file) ||
+    /^(?:src\/)?(?:middleware|instrumentation)\.(ts|js)$/.test(file)
+  );
+}
+
 function collectEntrypoints(project: ProjectContext, graph: Map<string, CodeNode>): string[] {
   const explicit = new Set(
     project.entryFiles.filter((file) => graph.has(file) && !isTestFile(file))
@@ -160,6 +292,9 @@ function collectEntrypoints(project: ProjectContext, graph: Map<string, CodeNode
 
   for (const file of graph.keys()) {
     if (/^src\/(index|main|app|server)\.(ts|tsx|js|jsx|py)$/.test(file)) {
+      explicit.add(file);
+    }
+    if (isFrameworkEntrypoint(file)) {
       explicit.add(file);
     }
   }
@@ -241,8 +376,12 @@ function isPackageInitializer(file: string): boolean {
   return file.endsWith("/__init__.py") || file === "__init__.py";
 }
 
-export async function detectDeadChains(project: ProjectContext, findings: Finding[]): Promise<Finding[]> {
-  const graph = await buildGraph(project);
+export async function detectDeadChains(
+  project: ProjectContext,
+  findings: Finding[],
+  config?: Pick<VibeDoctorConfig, "paths">
+): Promise<Finding[]> {
+  const graph = await buildGraph(project, config?.paths.include ?? ["**/*"], config?.paths.exclude ?? []);
   const entrypoints = collectEntrypoints(project, graph);
   const reachable = markReachable(graph, entrypoints);
 

@@ -2,6 +2,7 @@ Health: 71/100 ⚠️
 
 Blockers: 1
 Fix next: 3
+Privacy Review findings: 0
 Leftovers: 1
 Dead code candidates: 1
 Refactor candidates: 1
