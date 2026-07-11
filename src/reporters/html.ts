@@ -50,7 +50,8 @@ export function renderHtmlReport(scan: ScanOutput): string {
   <h1>VibeDoctor Health Report</h1>
   <div class="meta">Root: <code>${escapeHtml(scan.root)}</code> &middot; Mode: ${scan.mode} &middot; Generated for agents &amp; humans</div>
 
-  <div class="score">Health: ${scan.score.overall}/100 ${scan.score.overall >= 85 ? "✅" : "⚠️"}</div>
+  <div class="score">Health: ${scan.score.overall}/100 — ${scan.completeness.status.toUpperCase()} ${scan.score.overall >= 85 ? "✅" : "⚠️"}</div>
+  <div class="meta">Scan coverage: ${scan.completeness.completed}/${scan.completeness.planned} checks completed.${scan.completeness.comparable ? "" : " This score is not comparable to a complete scan."}</div>
 
   <div class="summary">
     <span class="pill">Blockers: ${scan.blockers.length}</span>
@@ -73,6 +74,7 @@ export function renderHtmlReport(scan: ScanOutput): string {
   ${toolList(scan.toolStatuses.filter(t => t.status !== "ok"), "Tool Statuses (non-ok)")}
   ${toolList(scan.skippedTools as any, "Skipped Tools")}
   ${errored.length ? toolList(errored as any, "Errored / Timed Out Tools") : ""}
+  ${scan.recoveryActions.length ? `<h3>Recover before editing</h3><ul>${scan.recoveryActions.map(action => `<li><code>${escapeHtml(action.command)}</code> — ${escapeHtml(action.successCondition)}</li>`).join("")}</ul>` : ""}
 
   <p class="meta" style="margin-top:32px">Run <code>vibedoctor agent-plan</code> for guided repair. Full JSON/HTML/Markdown/SARIF available via --report.</p>
 </body>

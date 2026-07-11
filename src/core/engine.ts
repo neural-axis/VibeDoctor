@@ -96,13 +96,35 @@ export type AgentPlanTask = {
 
 export type AgentPlan = {
   goal: string;
+  status: ScanExecutionStatus;
   target: AgentPlanTarget;
   workflow: string[];
   rules: string[];
   allowedActions: string[];
   forbiddenActions: string[];
   doNotTouch: string[];
+  recoveryActions: RecoveryAction[];
   tasks: AgentPlanTask[];
+};
+
+export type ScanExecutionStatus = "complete" | "partial" | "invalid";
+
+export type RecoveryAction = {
+  id: string;
+  tool: string;
+  command: string;
+  successCondition: string;
+  onFailure: string;
+};
+
+export type ScanCompleteness = {
+  status: ScanExecutionStatus;
+  comparable: boolean;
+  planned: number;
+  completed: number;
+  incompleteTools: string[];
+  requiredIncompleteTools: string[];
+  reason?: string;
 };
 
 export type ToolStatusSummary = {
@@ -133,6 +155,8 @@ export type ScanOutput = {
   refactorCandidates: Finding[];
   toolStatuses: ToolStatusSummary[];
   skippedTools: SkippedToolSummary[];
+  completeness: ScanCompleteness;
+  recoveryActions: RecoveryAction[];
   testCommands: string[];
   agentPlan: AgentPlan;
   configPath?: string;
@@ -158,11 +182,22 @@ type BuildScanOutputOptions = {
   score: ScoreBreakdown;
   toolStatuses: ToolStatusSummary[];
   skippedTools: SkippedToolSummary[];
+  completeness: ScanCompleteness;
   testCommands: string[];
   policy?: AgentPolicy;
   target?: AgentPlanTarget;
   configPath?: string;
   privacyReview?: PrivacyReviewSummary;
+};
+
+export type ToolRetryOutput = {
+  tool: string;
+  status: ToolResult["status"];
+  timeoutSeconds: number;
+  findings: Finding[];
+  message?: string;
+  successCondition: string;
+  nextAction: string;
 };
 
 type FilterScanOptions = {
@@ -313,13 +348,25 @@ function targetScore(overall: number): number {
 }
 
 export function createAgentPlan(
-  scan: Pick<ScanOutput, "findings" | "score" | "skippedTools"> & { testCommands?: string[] },
+  scan: Pick<ScanOutput, "findings" | "score" | "skippedTools"> &
+    Partial<Pick<ScanOutput, "toolStatuses" | "completeness" | "recoveryActions">> &
+    { testCommands?: string[] },
   options: { policy?: AgentPolicy; target?: AgentPlanTarget } = {}
 ): AgentPlan {
   const policy = options.policy ?? defaultAgentPolicy;
   const target = options.target ?? "generic";
+  const toolStatuses = scan.toolStatuses ?? [];
+  const completeness = scan.completeness ?? {
+    status: scan.skippedTools.length > 0 ? "partial" : "complete",
+    comparable: scan.skippedTools.length === 0,
+    planned: 0,
+    completed: 0,
+    incompleteTools: scan.skippedTools.map((tool) => tool.id),
+    requiredIncompleteTools: []
+  };
+  const recoveryActions = scan.recoveryActions ?? buildRecoveryActions(toolStatuses, scan.skippedTools);
   const ordered = sortFindings(scan.findings);
-  const tasks = ordered.slice(0, 5).map<AgentPlanTask>((finding, index) => ({
+  const tasks = (completeness.status === "invalid" ? [] : ordered.slice(0, 5)).map<AgentPlanTask>((finding, index) => ({
     id: `task-${index + 1}`,
     title: finding.title,
     priority: index + 1,
@@ -331,9 +378,13 @@ export function createAgentPlan(
   }));
 
   return {
-    goal: `Raise health score from ${scan.score.overall} to ${targetScore(scan.score.overall)}`,
+    goal:
+      completeness.status === "complete"
+        ? `Raise health score from ${scan.score.overall} to ${targetScore(scan.score.overall)}`
+        : "Recover incomplete checks before changing code, then improve validated findings",
+    status: completeness.status,
     target,
-    workflow: ["scan", "plan", "safe fix", "edit carefully", "verify", "scan again", "summarize"],
+    workflow: ["scan", "validate completeness", "recover tools", "plan", "safe fix", "edit carefully", "verify", "scan again", "summarize"],
     rules: [
       "Fix blockers before cleanup work.",
       "Do not delete low-confidence dead code.",
@@ -342,7 +393,13 @@ export function createAgentPlan(
     ],
     allowedActions: getAllowedActions(policy),
     forbiddenActions: getForbiddenActions(policy),
-    doNotTouch: scan.skippedTools.map((tool) => `Do not assume ${tool.id} was fully checked because the tool was skipped.`),
+    doNotTouch: [
+      ...scan.skippedTools.map((tool) => `Do not assume ${tool.id} was fully checked because the tool was skipped.`),
+      ...toolStatuses
+        .filter((tool) => tool.status === "timeout" || tool.status === "error")
+        .map((tool) => `Do not treat the health score as complete because ${tool.id} ${tool.status === "timeout" ? "timed out" : "failed"}.`)
+    ],
+    recoveryActions,
     tasks
   };
 }
@@ -350,6 +407,7 @@ export function createAgentPlan(
 function buildScanOutput(options: BuildScanOutputOptions): ScanOutput {
   const summary = summarizeFindings(options.findings);
   const policy = options.policy ?? defaultAgentPolicy;
+  const recoveryActions = buildRecoveryActions(options.toolStatuses, options.skippedTools);
 
   return {
     root: options.root,
@@ -366,12 +424,17 @@ function buildScanOutput(options: BuildScanOutputOptions): ScanOutput {
     refactorCandidates: summary.refactorCandidates,
     toolStatuses: [...options.toolStatuses].sort((left, right) => left.id.localeCompare(right.id)),
     skippedTools: [...options.skippedTools].sort((left, right) => left.id.localeCompare(right.id)),
+    completeness: options.completeness,
+    recoveryActions,
     testCommands: options.testCommands,
     agentPlan: createAgentPlan(
       {
         findings: summary.ordered,
         score: options.score,
+        toolStatuses: options.toolStatuses,
         skippedTools: options.skippedTools,
+        completeness: options.completeness,
+        recoveryActions,
         testCommands: options.testCommands
       },
       { policy, target: options.target }
@@ -400,6 +463,29 @@ function summarizeToolStatus(status: ToolResult): Pick<ToolStatusSummary, "messa
   return { message, command: status.command };
 }
 
+// Tools that intentionally use a non-zero exit for "findings reported" or emit
+// experimental warnings on otherwise-successful runs. Shared by runScan and
+// retryTool so a tool never "fails" in one path while "succeeding" in the other.
+function forgiveKnownToolQuirks(toolId: string, result: ToolResult): { status: "ok"; message?: string } | undefined {
+  if (result.status !== "error") {
+    return undefined;
+  }
+  const output = `${result.stderr}\n${result.stdout}`;
+  if (toolId === "biome" && /unstable|experimental/i.test(output)) {
+    return { status: "ok" };
+  }
+  if (toolId === "knip" && result.stdout.trim().startsWith("{")) {
+    return { status: "ok", message: "Reported issues (debt surfaced as findings)" };
+  }
+  if (toolId === "vitest" && /Loaded .*vitest@.*coverage-v8/i.test(output)) {
+    return { status: "ok" };
+  }
+  if (toolId === "osv-scanner" && result.stdout.trim().startsWith("{")) {
+    return { status: "ok", message: "Reported vulnerabilities as findings" };
+  }
+  return undefined;
+}
+
 async function runAdapter(
   adapter: (typeof ALL_ADAPTERS)[number],
   ctx: ToolAdapterContext
@@ -409,7 +495,10 @@ async function runAdapter(
   }
 
   if (adapter.buildScanCommand && adapter.parseResult) {
-    const status = await runCommand(adapter.buildScanCommand(ctx), adapter.installHint);
+    const command = adapter.buildScanCommand(ctx);
+    const timeoutSeconds = ctx.config.runtime.toolTimeouts[adapter.id] ?? ctx.config.runtime.defaultTimeoutSeconds;
+    command.timeoutMs = timeoutSeconds * 1000;
+    const status = await runCommand(command, adapter.installHint);
     if (status.status === "skipped") {
       return { findings: [], status };
     }
@@ -439,7 +528,8 @@ async function runAdapter(
 }
 
 export async function runScan(root: string, mode: ScanMode = "default"): Promise<ScanOutput> {
-  const [{ config, configPath }, { policy }, project] = await Promise.all([loadConfig(root), loadAgentPolicy(root), detectProject(root)]);
+  const [{ config, configPath }, { policy }] = await Promise.all([loadConfig(root), loadAgentPolicy(root)]);
+  const project = await detectProject(root, config.paths.exclude);
   const plan = await createScanPlan(project, config, [...ALL_ADAPTERS], mode);
   const ctx = { root, project, config, scanMode: mode } as const;
   const selectedAdapters = ALL_ADAPTERS.filter((adapter) => plan.adapterIds.includes(adapter.id));
@@ -470,27 +560,44 @@ export async function runScan(root: string, mode: ScanMode = "default"): Promise
       continue;
     }
 
-    toolStatuses.push({ id: adapter.id, status: result.status.status, ...summarizeToolStatus(result.status) });
+    const forgiven = forgiveKnownToolQuirks(adapter.id, result.status);
+    const summarized = summarizeToolStatus(result.status);
+    toolStatuses.push({
+      id: adapter.id,
+      status: forgiven?.status ?? result.status.status,
+      ...summarized,
+      ...(forgiven ? { message: forgiven.message } : {})
+    });
   }
 
-  // Ouroboros/self-scan improvement: normalize statuses for tools that intentionally use non-zero exit for "findings reported"
-  // or emit experimental warnings on otherwise-successful report formats (biome --reporter=json, knip exit-on-issues).
-  // This prevents noise in "ERRORED TOOLS" while still surfacing real parse/crash errors.
-  for (const ts of toolStatuses) {
-    if (ts.id === "biome" && /unstable|experimental/i.test(ts.message || "")) {
-      ts.status = "ok";
-      ts.message = undefined;
-    }
-    if (ts.id === "knip" && ts.status === "error" && (ts.message || "").trim().startsWith("{")) {
-      ts.status = "ok";
-      ts.message = "Reported issues (debt surfaced as findings)";
-    }
-    if (ts.id === "vitest" && /Loaded .*vitest@.*coverage-v8/i.test(ts.message || "")) {
-      // Vitest coverage adapter produces startup "Loaded ..." logs; treat as success when the dependency is available and a report was produced.
-      ts.status = "ok";
-      ts.message = undefined;
-    }
-  }
+  const incompleteTools = Array.from(
+    new Set([
+      ...skippedTools.map((tool) => tool.id),
+      ...toolStatuses.filter((tool) => tool.status === "error" || tool.status === "timeout").map((tool) => tool.id)
+    ])
+  ).sort();
+  // Skipped tools can include checks that were never selected as adapters
+  // (built-in checks, mode-filtered tools); count them in the denominator so
+  // "completed" never underflows.
+  const plannedIds = new Set([...selectedAdapters.map((adapter) => adapter.id), ...incompleteTools]);
+  const requiredIncompleteTools = incompleteTools.filter((id) => config.runtime.requiredTools.includes(id));
+  const completeness: ScanCompleteness = {
+    status:
+      incompleteTools.length === 0
+        ? "complete"
+        : requiredIncompleteTools.length > 0 || config.runtime.failOnIncompleteScan
+          ? "invalid"
+          : "partial",
+    comparable: incompleteTools.length === 0,
+    planned: plannedIds.size,
+    completed: plannedIds.size - incompleteTools.length,
+    incompleteTools,
+    requiredIncompleteTools,
+    reason:
+      incompleteTools.length > 0
+        ? `${incompleteTools.length} of ${plannedIds.size} planned checks did not complete.`
+        : undefined
+  };
 
   let deadChainFindings: Finding[] = [];
   if (config.checks.deadCode.enabled) {
@@ -522,11 +629,88 @@ export async function runScan(root: string, mode: ScanMode = "default"): Promise
     score,
     toolStatuses,
     skippedTools,
+    completeness,
     testCommands: project.testCommands,
     policy,
     configPath,
     privacyReview: privacyReview?.summary
   });
+}
+
+export async function retryTool(root: string, toolId: string, timeoutSeconds?: number): Promise<ToolRetryOutput> {
+  const { config } = await loadConfig(root);
+  const project = await detectProject(root, config.paths.exclude);
+  const adapter = ALL_ADAPTERS.find((candidate) => candidate.id === toolId);
+  if (!adapter || !adapter.buildScanCommand || !adapter.parseResult) {
+    return {
+      tool: toolId,
+      status: "skipped",
+      timeoutSeconds: timeoutSeconds ?? config.runtime.defaultTimeoutSeconds,
+      findings: [],
+      message: `Tool ${toolId} is unknown or does not support isolated retry.`,
+      successCondition: `${toolId} completes with status ok`,
+      nextAction: "Run vibedoctor scan --full --report agent-json and request human review if the tool remains incomplete."
+    };
+  }
+
+  const ctx = { root, project, config, scanMode: "full" } as const;
+  const seconds = timeoutSeconds ?? Math.max(
+    config.runtime.defaultTimeoutSeconds,
+    (config.runtime.toolTimeouts[toolId] ?? config.runtime.defaultTimeoutSeconds) * 2
+  );
+  const command = adapter.buildScanCommand(ctx);
+  command.timeoutMs = seconds * 1000;
+  const result = await runCommand(command, adapter.installHint);
+  const forgiven = forgiveKnownToolQuirks(toolId, result);
+  let status = forgiven?.status ?? result.status;
+  let parseError: string | undefined;
+  let findings: Finding[] = [];
+  if (status !== "skipped") {
+    try {
+      findings = adapter.parseResult(result, ctx) ?? [];
+    } catch (error) {
+      // A run that produced unparseable output is not a success; report it so
+      // agents do not mistake "ok with zero findings" for a clean result.
+      status = "error";
+      parseError = `Could not parse ${toolId} output: ${error instanceof Error ? error.message : String(error)}`;
+    }
+  }
+  const summary = summarizeToolStatus(result);
+  return {
+    tool: toolId,
+    status,
+    timeoutSeconds: seconds,
+    findings,
+    message: parseError ?? forgiven?.message ?? summary.message,
+    successCondition: `${toolId} completes with status ok`,
+    nextAction:
+      status === "ok"
+        ? "Run vibedoctor scan --full --report agent-json to produce a comparable health result."
+        : `Keep the scan partial and disclose missing ${toolId} coverage before changing risky code.`
+  };
+}
+
+function buildRecoveryActions(
+  toolStatuses: ToolStatusSummary[],
+  skippedTools: SkippedToolSummary[] = []
+): RecoveryAction[] {
+  const failed = toolStatuses
+    .filter((tool) => tool.status === "timeout" || tool.status === "error")
+    .map((tool) => ({
+      id: `recover-${tool.id}`,
+      tool: tool.id,
+      command: `vibedoctor tool retry ${tool.id}`,
+      successCondition: `${tool.id} completes with status ok`,
+      onFailure: `Keep the scan partial, disclose missing ${tool.id} coverage, and request human review before risky changes.`
+    }));
+  const skipped = skippedTools.map((tool) => ({
+    id: `recover-${tool.id}`,
+    tool: tool.id,
+    command: "vibedoctor setup --include recommended",
+    successCondition: `${tool.id} is installed and completes on the next scan`,
+    onFailure: `${(tool.installHint ?? `Install ${tool.id}`).replace(/[.,;:]$/, "")}, then rerun the scan; otherwise disclose missing ${tool.id} coverage.`
+  }));
+  return [...failed, ...skipped];
 }
 
 export function filterScanByCategories(
@@ -544,6 +728,7 @@ export function filterScanByCategories(
     score,
     toolStatuses: scan.toolStatuses,
     skippedTools: scan.skippedTools,
+    completeness: scan.completeness,
     testCommands: scan.testCommands,
     policy: options.policy,
     target: options.target ?? scan.agentPlan.target,
@@ -553,7 +738,12 @@ export function filterScanByCategories(
 }
 
 export function buildSummaryLines(scan: ScanOutput): string[] {
-  const lines = [`Health: ${scan.score.overall}/100 ${scan.score.overall >= 85 ? "✅" : "⚠️"}`, ""];
+  const lines = [
+    `Health: ${scan.score.overall}/100 — ${scan.completeness.status.toUpperCase()} ${scan.score.overall >= 85 ? "✅" : "⚠️"}`,
+    `Scan coverage: ${scan.completeness.completed}/${scan.completeness.planned} checks completed`,
+    ...(scan.completeness.comparable ? [] : ["This score is not comparable to a complete scan."]),
+    ""
+  ];
 
   lines.push(`Blockers: ${scan.blockers.length}`);
   lines.push(`Fix next: ${scan.fixNext.length}`);
@@ -602,6 +792,11 @@ export function buildSummaryLines(scan: ScanOutput): string[] {
     erroredTools.forEach((tool, index) => lines.push(`${index + 1}. ${tool.id}${tool.message ? ` — ${tool.message}` : ` — ${tool.status}`}`));
   }
 
+  if (scan.recoveryActions.length > 0) {
+    lines.push("", "RECOVER BEFORE EDITING");
+    scan.recoveryActions.forEach((action, index) => lines.push(`${index + 1}. ${action.command} — success: ${action.successCondition}`));
+  }
+
   lines.push("", "READY FOR AGENT", "Run:", "vibedoctor agent-plan");
   return lines;
 }
@@ -644,7 +839,8 @@ export async function createBaseline(root: string): Promise<{ file: string; coun
 
 export async function safeFix(root: string): Promise<SafeFixResult> {
   const before = await runScan(root, "default");
-  const [{ config }, project] = await Promise.all([loadConfig(root), detectProject(root)]);
+  const { config } = await loadConfig(root);
+  const project = await detectProject(root, config.paths.exclude);
   const ctx = { root, project, config, scanMode: "default" as const };
   const fixableAdapters = ALL_ADAPTERS.filter((adapter) => adapter.buildFixCommand && adapter.detect);
   const results: Array<ToolResult & { id: string }> = [];

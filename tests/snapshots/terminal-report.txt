@@ -1,4 +1,6 @@
-Health: 71/100 ⚠️
+Health: 71/100 — PARTIAL ⚠️
+Scan coverage: 1/2 checks completed
+This score is not comparable to a complete scan.
 
 Blockers: 1
 Fix next: 3

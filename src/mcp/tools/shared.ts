@@ -67,7 +67,14 @@ export async function prepareScan(
   const withPlan: ScanOutput = {
     ...filtered,
     agentPlan: createAgentPlan(
-      { findings: filtered.findings, score: filtered.score, skippedTools: filtered.skippedTools },
+      {
+        findings: filtered.findings,
+        score: filtered.score,
+        skippedTools: filtered.skippedTools,
+        toolStatuses: filtered.toolStatuses,
+        completeness: filtered.completeness,
+        recoveryActions: filtered.recoveryActions
+      },
       { policy, target }
     )
   };

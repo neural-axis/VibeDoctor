@@ -74,12 +74,22 @@ describe("custom detectors (leftovers config gates + min confidence)", () => {
     // Overwrite with config that disables commented code scanning (but keeps other leftovers)
     const yml = `version: 1
 checks:
+  security:
+    enabled: false
+  correctness:
+    enabled: false
   leftovers:
     enabled: true
     scan_comments: true
     scan_commented_code: false
     scan_legacy_fallbacks: true
   refactor_readiness:
+    enabled: false
+  tests:
+    enabled: false
+  dependencies:
+    enabled: false
+  privacy:
     enabled: false
 `;
     await fs.writeFile(path.join(root, "vibedoctor.yml"), yml, "utf8");
@@ -99,12 +109,22 @@ checks:
     // Config requesting only high confidence dead code
     const yml = `version: 1
 checks:
+  security:
+    enabled: false
+  correctness:
+    enabled: false
   deadCode:
     enabled: true
     minConfidenceToReport: high
   leftovers:
     enabled: false
   refactor_readiness:
+    enabled: false
+  tests:
+    enabled: false
+  dependencies:
+    enabled: false
+  privacy:
     enabled: false
 `;
     await fs.writeFile(path.join(root, "vibedoctor.yml"), yml, "utf8");

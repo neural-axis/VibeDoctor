@@ -4,6 +4,8 @@ export function renderJsonReport(scan: ScanOutput): string {
   return JSON.stringify(
     {
       score: scan.score.overall,
+      completeness: scan.completeness,
+      recoveryActions: scan.recoveryActions,
       categoryScores: scan.score.categories,
       findings: scan.findings,
       topFindings: scan.topFindings,

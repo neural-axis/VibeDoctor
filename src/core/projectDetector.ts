@@ -3,7 +3,7 @@ import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { getChangedFiles, isGitRepo } from "./git";
-import { listProjectFiles, pathExists } from "./paths";
+import { filterPaths, listProjectFiles, pathExists } from "./paths";
 import { buildCommandEnv } from "./toolRunner";
 
 const execFileAsync = promisify(execFile);
@@ -144,13 +144,14 @@ function isFrameworkEntryFile(file: string): boolean {
   );
 }
 
-export async function detectProject(root: string): Promise<ProjectContext> {
+export async function detectProject(root: string, excludePatterns?: string[]): Promise<ProjectContext> {
   const projectFiles = await listProjectFiles(root);
+  const detectionFiles = excludePatterns ? filterPaths(projectFiles, ["**/*"], excludePatterns) : projectFiles;
   const fileSet = new Set(projectFiles);
   const languages = new Set<ProjectLanguage>();
   const frameworkHints = new Set<string>();
 
-  for (const file of projectFiles) {
+  for (const file of detectionFiles) {
     if (file.endsWith(".py")) {
       languages.add("python");
     }
@@ -190,7 +191,7 @@ export async function detectProject(root: string): Promise<ProjectContext> {
   }
 
   const toolPairs = await Promise.all(KNOWN_TOOLS.map(async (tool) => [tool, await commandExists(tool, root)] as const));
-  const entryFiles = projectFiles.filter((file) =>
+  const entryFiles = detectionFiles.filter((file) =>
     /(^|\/)(main|index|app|server|cli)\.(ts|tsx|js|jsx|py)$/.test(file) || isFrameworkEntryFile(file) || file === "package.json"
   );
 

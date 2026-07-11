@@ -120,6 +120,25 @@ describe("determineExitCode", () => {
     expect(determineExitCode(scan, defaultConfig)).toBe(1);
   });
 
+  it("uses exit code 2 when a required tool makes the scan invalid", () => {
+    expect(
+      determineExitCode(
+        {
+          ...makeScan({}),
+          completeness: {
+            status: "invalid",
+            comparable: false,
+            planned: 2,
+            completed: 1,
+            incompleteTools: ["semgrep"],
+            requiredIncompleteTools: ["semgrep"]
+          }
+        },
+        defaultConfig
+      )
+    ).toBe(2);
+  });
+
   it("does not fail on Privacy Review findings by default", () => {
     const scan = makeScan({
       findings: [

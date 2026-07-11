@@ -29,7 +29,13 @@ function isReviewedFalsePositive(finding: Finding): boolean {
   return finding.evidence?.reviewState === "false_positive";
 }
 
-export function determineExitCode(scan: Pick<ScanOutput, "score" | "findings">, config: VibeDoctorConfig): number {
+export function determineExitCode(scan: Pick<ScanOutput, "score" | "findings"> & Partial<Pick<ScanOutput, "completeness">>, config: VibeDoctorConfig): number {
+  if (
+    scan.completeness &&
+    (scan.completeness.status === "invalid" || (config.runtime.failOnIncompleteScan && scan.completeness.status !== "complete"))
+  ) {
+    return 2;
+  }
   if (scan.score.overall < config.score.minimum) {
     return 1;
   }

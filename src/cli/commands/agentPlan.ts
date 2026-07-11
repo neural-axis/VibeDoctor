@@ -10,7 +10,15 @@ export async function runAgentPlanCommand(
   const scan = await runScan(root, "default");
   const { policy } = await loadAgentPolicy(root);
   const plan = createAgentPlan(
-    { findings: scan.findings, score: scan.score, skippedTools: scan.skippedTools, testCommands: scan.testCommands },
+    {
+      findings: scan.findings,
+      score: scan.score,
+      skippedTools: scan.skippedTools,
+      toolStatuses: scan.toolStatuses,
+      completeness: scan.completeness,
+      recoveryActions: scan.recoveryActions,
+      testCommands: scan.testCommands
+    },
     { policy, target: target ?? "generic" }
   );
   return format === "json" ? `${renderAgentJson(plan)}\n` : renderAgentMarkdown(plan);

@@ -14,6 +14,8 @@ Before major edits:
 vibedoctor scan --changed --report json
 \`\`\`
 
+Read \`completeness.status\` before editing. If it is \`partial\` or \`invalid\`, run the report's \`recoveryActions\` first. Never compare a partial score with a complete score or assume a timed-out tool passed.
+
 After edits:
 \`\`\`bash
 vibedoctor scan --changed --report json
@@ -57,6 +59,7 @@ At the end, report:
 
 \`\`\`text
 Health score:
+Scan completeness:
 Commands run:
 Files changed:
 Remaining blockers:

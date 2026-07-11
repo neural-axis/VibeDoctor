@@ -2,7 +2,14 @@ import type { ScanOutput } from "../core/engine";
 
 export function renderMarkdownReport(scan: ScanOutput): string {
   const plan = scan.agentPlan;
-  const lines: string[] = [`# VibeDoctor Report`, "", `Health: **${scan.score.overall}/100**`, ""];
+  const lines: string[] = [
+    `# VibeDoctor Report`,
+    "",
+    `Health: **${scan.score.overall}/100** — ${scan.completeness.status.toUpperCase()}`,
+    `Scan coverage: **${scan.completeness.completed}/${scan.completeness.planned} checks completed**`,
+    ...(scan.completeness.comparable ? [] : ["This score is not comparable to a complete scan."]),
+    ""
+  ];
 
   lines.push("## Summary");
   lines.push(`- Blockers: ${scan.blockers.length}`);

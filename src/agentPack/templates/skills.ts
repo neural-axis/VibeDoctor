@@ -73,7 +73,12 @@ vibedoctor scan --full --report json
 
 3. Read \`.vibedoctor/report.json\`.
 
-4. Prioritize findings in this order:
+4. Check \`completeness.status\` before changing code:
+   - \`complete\`: the score is comparable and findings can be prioritized.
+   - \`partial\` or \`invalid\`: run every command in \`recoveryActions\` first.
+   - If recovery fails, disclose the missing coverage and request human review before risky edits.
+
+5. Prioritize validated findings in this order:
    - security blockers
    - correctness blockers
    - failing tests
@@ -91,6 +96,7 @@ Give only:
 - safest next command
 - top 3 fixes
 - whether work is safe to continue
+- scan completeness and any missing tool coverage
 
 Do not paste the full JSON unless the user asks.
 `

@@ -10,6 +10,15 @@ export function renderAgentMarkdown(input: Pick<ScanOutput, "agentPlan"> | Agent
 
   plan.workflow.forEach((step, index) => lines.push(`${index + 1}. ${step}`));
 
+  if (plan.recoveryActions.length > 0) {
+    lines.push("", "## Recover before editing", "");
+    plan.recoveryActions.forEach((action) => {
+      lines.push(`- ${action.tool}: \`${action.command}\``);
+      lines.push(`  Success: ${action.successCondition}.`);
+      lines.push(`  If it fails: ${action.onFailure}`);
+    });
+  }
+
   lines.push("", "## Allowed actions", "");
   plan.allowedActions.forEach((action) => lines.push(`- ${action}`));
 

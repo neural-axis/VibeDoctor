@@ -56,4 +56,36 @@ describe("createAgentPlan", () => {
     expect(plan.tasks[0].verify).toContain("pytest");
     expect(plan.tasks[0].verify).not.toContain("npm test");
   });
+
+  it("puts tool recovery before edits when a scan times out", () => {
+    const plan = createAgentPlan({
+      findings: [],
+      score: { overall: 92, categories: {} as ScanOutput["score"]["categories"], penalties: {} as ScanOutput["score"]["penalties"] },
+      skippedTools: [],
+      toolStatuses: [{ id: "semgrep", status: "timeout", message: "Timed out after 300s." }],
+      completeness: {
+        status: "invalid",
+        comparable: false,
+        planned: 1,
+        completed: 0,
+        incompleteTools: ["semgrep"],
+        requiredIncompleteTools: ["semgrep"]
+      },
+      recoveryActions: [
+        {
+          id: "recover-semgrep",
+          tool: "semgrep",
+          command: "vibedoctor tool retry semgrep",
+          successCondition: "semgrep completes with status ok",
+          onFailure: "Disclose missing coverage."
+        }
+      ]
+    });
+
+    expect(plan.status).toBe("invalid");
+    expect(plan.goal).toContain("Recover incomplete checks");
+    expect(plan.workflow.indexOf("recover tools")).toBeLessThan(plan.workflow.indexOf("safe fix"));
+    expect(plan.recoveryActions[0].command).toBe("vibedoctor tool retry semgrep");
+    expect(plan.doNotTouch.join(" ")).toContain("semgrep timed out");
+  });
 });

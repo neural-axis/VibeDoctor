@@ -19,6 +19,19 @@ async function writeExecutable(root: string, segments: string[], name: string): 
 }
 
 describe("detectProject", () => {
+  it("respects configured exclusions when detecting project languages", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "vibedoctor-project-"));
+    await fs.mkdir(path.join(root, "src"), { recursive: true });
+    await fs.mkdir(path.join(root, "fixtures", "python"), { recursive: true });
+    await fs.writeFile(path.join(root, "src", "index.ts"), "export const value = 1;\n");
+    await fs.writeFile(path.join(root, "fixtures", "python", "app.py"), "print('fixture')\n");
+
+    const project = await detectProject(root, ["fixtures/**"]);
+
+    expect(project.languages).toEqual(["typescript"]);
+    expect(project.projectFiles).toContain("fixtures/python/app.py");
+  });
+
   it("detects mixed TypeScript and Python repositories", async () => {
     const root = path.join(process.cwd(), "fixtures", "mixed-monorepo");
     const project = await detectProject(root);

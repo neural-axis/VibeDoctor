@@ -13,6 +13,7 @@ import { runPrivacyReviewCommand } from "./commands/privacyReview";
 import { runReportCommand } from "./commands/report";
 import { runScanCommand } from "./commands/scan";
 import { runSetupCommand } from "./commands/setup";
+import { runToolRetryCommand } from "./commands/tool";
 
 function getVersion(): string {
   try {
@@ -126,6 +127,18 @@ async function main(): Promise<void> {
     .action(async (options) => {
       process.stdout.write(await runAgentSyncCommand(process.cwd(), options));
       process.exit(0);
+    });
+
+  const tool = program.command("tool").description("Inspect and recover individual scanner tools");
+  tool
+    .command("retry")
+    .description("Retry one scanner with an extended deadline")
+    .argument("<tool-id>")
+    .option("--timeout <seconds>", "Override the retry deadline in seconds", (value) => Number(value))
+    .action(async (toolId, options) => {
+      const result = await runToolRetryCommand(process.cwd(), toolId, options.timeout);
+      process.stdout.write(result.output);
+      process.exit(result.exitCode);
     });
 
   agent

@@ -2,6 +2,7 @@ import path from "node:path";
 import type { CommandSpec, ToolResult } from "../../core/toolRunner";
 import { runCommand } from "../../core/toolRunner";
 import { detectProject, type PackageManager, type ProjectContext, type ProjectLanguage } from "../../core/projectDetector";
+import { loadConfig } from "../../core/config";
 import { pathExists } from "../../core/paths";
 
 export type SetupPriority = "essential" | "recommended";
@@ -303,7 +304,8 @@ function resolveTools(include: SetupInclude): SetupTool[] {
 }
 
 export async function createSetupPlan(root: string, include: SetupInclude = "recommended"): Promise<SetupPlan> {
-  const project = await detectProject(root);
+  const { config } = await loadConfig(root);
+  const project = await detectProject(root, config.paths.exclude);
   const tools = resolveTools(include);
   const relevantTools = tools.filter((tool) => appliesToProject(tool, project));
   const builtIn = relevantTools.filter((tool) => tool.ecosystem === "built-in");

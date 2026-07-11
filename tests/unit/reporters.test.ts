@@ -107,9 +107,20 @@ function makeScan(): ScanOutput {
     refactorCandidates: [findings[3]],
     toolStatuses: [{ id: "gitleaks", status: "ok" }],
     skippedTools: [{ id: "semgrep", status: "skipped", installHint: "Install Semgrep" }],
+    completeness: {
+      status: "partial",
+      comparable: false,
+      planned: 2,
+      completed: 1,
+      incompleteTools: ["semgrep"],
+      requiredIncompleteTools: [],
+      reason: "1 of 2 planned checks did not complete."
+    },
+    recoveryActions: [],
     testCommands: ["npm test"],
     agentPlan: {
       goal: "Raise health score from 71 to 85",
+      status: "partial",
       target: "generic",
       workflow: ["scan", "plan", "safe fix", "edit carefully", "verify", "scan again", "summarize"],
       rules: [
@@ -127,6 +138,7 @@ function makeScan(): ScanOutput {
         "change public APIs without approval"
       ],
       doNotTouch: ["Do not assume semgrep was fully checked because the tool was skipped."],
+      recoveryActions: [],
       tasks: [
         {
           id: "task-1",
