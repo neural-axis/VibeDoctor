@@ -44,6 +44,57 @@ describe("privacy detector", () => {
     expect(json.privacyFindings.length).toBe(json.findings.length);
   });
 
+  it("does not treat programming metadata as PAN or combination-risk PII", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "vibedoctor-privacy-code-"));
+    await fs.mkdir(path.join(root, "src"), { recursive: true });
+    await fs.writeFile(
+      path.join(root, "src", "adapter.ts"),
+      `type Result = {
+  span?: { start: number; end: number };
+  message: string;
+  agentInstruction: string;
+  location: string;
+  title: string;
+  language: string;
+  JS_EXTENSIONS: string[];
+};
+`,
+      "utf8"
+    );
+    await fs.writeFile(
+      path.join(root, "vibedoctor.yml"),
+      `version: 1
+paths:
+  include:
+    - src/**
+baseline:
+  enabled: false
+checks:
+  security:
+    enabled: false
+  correctness:
+    enabled: false
+  deadCode:
+    enabled: false
+  leftovers:
+    enabled: false
+  refactorReadiness:
+    enabled: false
+  tests:
+    enabled: false
+  dependencies:
+    enabled: false
+  privacy:
+    enabled: true
+`,
+      "utf8"
+    );
+
+    const scan = await runScan(root, "full");
+
+    expect(scan.privacyFindings).toHaveLength(0);
+  });
+
   it("respects the configured file-size cap", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "vibedoctor-pii-size-"));
     await fs.mkdir(path.join(root, "data"), { recursive: true });

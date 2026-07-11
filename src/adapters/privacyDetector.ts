@@ -241,7 +241,7 @@ function fieldEntity(field: string): Pick<PrivacyMatch, "entityType" | "sensitiv
   if (/aadhaar|aadhar|uidai/.test(normalized)) {
     return { entityType: "aadhaar", sensitivity: "regulated_identifier", confidenceScore: 0.82, matchedPattern: "aadhaar-field", reasons: [reason] };
   }
-  if (/permanentaccountnumber|pan(number|no|card)?$/.test(normalized)) {
+  if (/^(?:permanentaccountnumber|pan(?:number|no|card)?)$/.test(normalized)) {
     return { entityType: "pan", sensitivity: "regulated_identifier", confidenceScore: 0.82, matchedPattern: "pan-field", reasons: [reason] };
   }
   if (/passport/.test(normalized)) {
@@ -554,16 +554,16 @@ function combinationRisk(file: string, fields: FieldSignal[]): PrivacyMatch | un
   const groups = new Map<string, string[]>();
   for (const field of fields) {
     const normalized = field.normalized;
-    if (/age|dob|dateofbirth|birthdate/.test(normalized)) {
+    if (/^(?:age|dob|dateofbirth|birthdate|userage|customerage|employeeage|patientage)$/.test(normalized)) {
       groups.set("age_or_dob", [...(groups.get("age_or_dob") ?? []), field.field]);
     }
-    if (/gender|sex/.test(normalized)) {
+    if (/^(?:gender|sex|usergender|customergender|employeegender|patientgender)$/.test(normalized)) {
       groups.set("gender", [...(groups.get("gender") ?? []), field.field]);
     }
-    if (/location|site|city|branch|address|latitude|longitude|gps/.test(normalized)) {
+    if (/^(?:location|site|city|branch|address|latitude|longitude|gps|userlocation|customerlocation|employeelocation|patientlocation)$/.test(normalized)) {
       groups.set("location", [...(groups.get("location") ?? []), field.field]);
     }
-    if (/designation|role|title|department|team|job/.test(normalized)) {
+    if (/^(?:designation|role|title|department|team|job|jobtitle|employeerole|employeedepartment)$/.test(normalized)) {
       groups.set("role_or_department", [...(groups.get("role_or_department") ?? []), field.field]);
     }
   }
