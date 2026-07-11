@@ -34,6 +34,7 @@ vibedoctor scan --full
 - It focuses on the failure modes AI-heavy repos accumulate: dead branches, stale fallbacks, leftovers, weak coverage, and accidental sensitive-data exposure.
 - It collapses many tool results into one finding model, one score, and a ranked fix list instead of a wall of unrelated warnings.
 - It is agent-native without locking you into a hosted service: reports stay local and output remains plain JSON, HTML, Markdown, and SARIF.
+- It tells agents whether a scan is complete, provides exact recovery commands for failed tools, and prevents partial scores from masquerading as authoritative health checks.
 
 ## What VibeDoctor Checks
 
@@ -70,9 +71,24 @@ VibeDoctor prefers repository-local tools and config so the scan matches the ver
 | Create a baseline | `vibedoctor baseline create` |
 | Explain a finding | `vibedoctor explain <finding-id>` |
 | Verify after edits | `vibedoctor verify` |
+| Retry a timed-out scanner | `vibedoctor tool retry <tool-id> [--timeout 600]` |
 | Generate an agent repair plan | `vibedoctor agent-plan --format markdown` |
 
-`scan` and `verify` return a non-zero exit code when configured score thresholds or fail-fast checks are tripped, which makes them usable in pre-commit hooks and CI gates.
+`scan` and `verify` return exit code `1` when completed health gates fail and exit code `2` when required checks are incomplete. Reports label incomplete scores as `PARTIAL` or `INVALID` and include machine-readable `recoveryActions`.
+
+Timeouts and required checks are configurable:
+
+```yaml
+runtime:
+  default_timeout_seconds: 120
+  tool_timeouts:
+    biome: 180
+    semgrep: 300
+  required_tools:
+    - biome
+    - semgrep
+  fail_on_incomplete_scan: true
+```
 
 ## Privacy Review
 

@@ -1,6 +1,6 @@
 {
   "name": "@neuralaxis/vibedoctor",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Health diagnosis and fix planning for JS, TS, Python, and mixed repositories.",
   "type": "commonjs",
   "publishConfig": {
@@ -68,6 +68,10 @@
     "knip": "^6.16.1",
     "tsx": "^4.20.3",
     "typescript": "^5.8.3",
-    "vitest": "^3.2.4"
+    "vite": "^7.3.5",
+    "vitest": "^3.2.6"
+  },
+  "overrides": {
+    "esbuild": "0.28.1"
   }
 }
