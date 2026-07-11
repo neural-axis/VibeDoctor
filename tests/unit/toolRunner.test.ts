@@ -2,7 +2,7 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { runCommand } from "../../src/core/toolRunner";
+import { buildCommandEnv, runCommand } from "../../src/core/toolRunner";
 
 async function writeLocalCommand(root: string, segments: string[], name: string): Promise<void> {
   const binDir = path.join(root, ...segments);
@@ -19,6 +19,20 @@ async function writeLocalCommand(root: string, segments: string[], name: string)
 }
 
 describe("runCommand", () => {
+  it("adds Python user scripts to the Windows command search path", async () => {
+    if (process.platform !== "win32") {
+      return;
+    }
+
+    const appData = await fs.mkdtemp(path.join(os.tmpdir(), "vibedoctor-appdata-"));
+    const scripts = path.join(appData, "Python", "Python312", "Scripts");
+    await fs.mkdir(scripts, { recursive: true });
+
+    const env = buildCommandEnv(undefined, { APPDATA: appData, PATH: "original-path" });
+
+    expect(env.PATH).toContain(scripts);
+  });
+
   it("marks missing commands as skipped", async () => {
     const result = await runCommand({
       cmd: "definitely-missing-vibedoctor-command",
@@ -65,5 +79,20 @@ describe("runCommand", () => {
 
     expect(result.status).toBe("ok");
     expect(result.stdout).toContain("vibedoctor-local-venv-tool-ok");
+  });
+
+  it("passes wildcard arguments literally to Windows executables", async () => {
+    if (process.platform !== "win32") {
+      return;
+    }
+
+    const result = await runCommand({
+      cmd: process.execPath,
+      args: ["-e", "console.log(process.argv[1])", "node_modules/**"],
+      cwd: process.cwd()
+    });
+
+    expect(result.status).toBe("ok");
+    expect(result.stdout.trim()).toBe("node_modules/**");
   });
 });

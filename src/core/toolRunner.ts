@@ -1,5 +1,7 @@
 import path from "node:path";
+import { existsSync, readdirSync } from "node:fs";
 import { spawn } from "node:child_process";
+import { execFile } from "node:child_process";
 
 export type CommandSpec = {
   cmd: string;
@@ -54,26 +56,88 @@ export function getLocalToolSearchPaths(cwd: string | undefined): string[] {
   return Array.from(new Set(paths));
 }
 
+function getUserToolSearchPaths(env: NodeJS.ProcessEnv): string[] {
+  const paths: string[] = [];
+
+  if (process.platform === "win32" && env.APPDATA) {
+    const pythonRoot = path.join(env.APPDATA, "Python");
+    try {
+      for (const entry of readdirSync(pythonRoot, { withFileTypes: true })) {
+        if (entry.isDirectory() && /^Python\d+$/i.test(entry.name)) {
+          paths.push(path.join(pythonRoot, entry.name, "Scripts"));
+        }
+      }
+    } catch {
+      // Python user packages have not been installed for this account.
+    }
+  } else if (env.HOME) {
+    paths.push(path.join(env.HOME, ".local", "bin"));
+  }
+
+  return paths;
+}
+
 export function buildCommandEnv(cwd: string | undefined, overrides: NodeJS.ProcessEnv | undefined): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = { ...process.env, ...overrides };
   const pathKey = getPathKey(env);
   const existingPath = env[pathKey];
-  env[pathKey] = [...getLocalToolSearchPaths(cwd), existingPath].filter(Boolean).join(path.delimiter);
+  env[pathKey] = [...getLocalToolSearchPaths(cwd), ...getUserToolSearchPaths(env), existingPath].filter(Boolean).join(path.delimiter);
   return env;
+}
+
+function findWindowsCommandOnPath(command: string, env: NodeJS.ProcessEnv): string | undefined {
+  const pathValue = env[getPathKey(env)] ?? "";
+  const extensions = (env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD")
+    .split(";")
+    .map((extension) => extension.toLowerCase());
+
+  for (const directory of pathValue.split(path.delimiter).filter(Boolean)) {
+    for (const extension of extensions) {
+      const candidate = path.join(directory, `${command}${extension}`);
+      if (existsSync(candidate)) {
+        return candidate;
+      }
+    }
+  }
+
+  return undefined;
+}
+
+export function commandExistsOnWindowsPath(command: string, cwd?: string): boolean {
+  return findWindowsCommandOnPath(command, buildCommandEnv(cwd, undefined)) !== undefined;
+}
+
+function resolveWindowsCommand(command: string, env: NodeJS.ProcessEnv): { command: string; useShell: boolean } {
+  if (process.platform !== "win32" || path.isAbsolute(command) || path.extname(command)) {
+    return { command, useShell: false };
+  }
+
+  const candidate = findWindowsCommandOnPath(command, env);
+  if (candidate) {
+    if (/\.(?:cmd|bat)$/i.test(candidate)) {
+      // cmd.exe scripts must run through the shell; quote the resolved path so
+      // directories with spaces (e.g. "Program Files") do not break parsing.
+      return { command: candidate.includes(" ") ? `"${candidate}"` : candidate, useShell: true };
+    }
+    return { command: candidate, useShell: false };
+  }
+
+  // Not found via PATH/PATHEXT probing. Fall back to the shell so commands that
+  // are only reachable through cmd.exe mechanisms (App Execution Aliases,
+  // App Paths registry entries) still launch, matching the previous behavior.
+  return { command, useShell: true };
 }
 
 export async function runCommand(spec: CommandSpec, installHint?: string): Promise<ToolResult> {
   const startedAt = Date.now();
-  const useShell =
-    process.platform === "win32" &&
-    !path.isAbsolute(spec.cmd) &&
-    path.extname(spec.cmd).length === 0;
+  const env = buildCommandEnv(spec.cwd, spec.env);
+  const resolved = resolveWindowsCommand(spec.cmd, env);
 
   return new Promise<ToolResult>((resolve) => {
-    const child = spawn(spec.cmd, spec.args, {
+    const child = spawn(resolved.command, spec.args, {
       cwd: spec.cwd,
-      env: buildCommandEnv(spec.cwd, spec.env),
-      shell: useShell,
+      env,
+      shell: resolved.useShell,
       windowsHide: true
     });
 
@@ -156,10 +220,13 @@ export async function runCommand(spec: CommandSpec, installHint?: string): Promi
         }
 
         settled = true;
-        const killSignal = process.platform === "win32" ? undefined : "SIGTERM";
-        try {
-          child.kill(killSignal);
-        } catch {}
+        if (process.platform === "win32" && child.pid) {
+          execFile("taskkill", ["/pid", String(child.pid), "/T", "/F"], { windowsHide: true }, () => undefined);
+        } else {
+          try {
+            child.kill("SIGTERM");
+          } catch {}
+        }
         cleanup();
         resolve({
           command: [spec.cmd, ...spec.args].join(" "),
