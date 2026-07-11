@@ -22,6 +22,12 @@ export type VibeDoctorConfig = {
   score: {
     minimum: number;
   };
+  runtime: {
+    defaultTimeoutSeconds: number;
+    toolTimeouts: Record<string, number>;
+    requiredTools: string[];
+    failOnIncompleteScan: boolean;
+  };
   checks: {
     security: {
       enabled: boolean;
@@ -130,6 +136,15 @@ export const defaultConfig: VibeDoctorConfig = {
   },
   score: {
     minimum: 80
+  },
+  runtime: {
+    defaultTimeoutSeconds: 120,
+    toolTimeouts: {
+      biome: 180,
+      semgrep: 300
+    },
+    requiredTools: [],
+    failOnIncompleteScan: false
   },
   checks: {
     security: {
@@ -241,10 +256,11 @@ export async function findConfigFile(root: string): Promise<string | undefined> 
 }
 
 function normalizeRawConfig(raw: Partial<VibeDoctorConfig>): Partial<VibeDoctorConfig> {
-  const { baseline: _baseline, checks: _checks, output: _output, ...rest } = raw;
+  const { baseline: _baseline, checks: _checks, output: _output, runtime: _runtime, ...rest } = raw;
   const rawChecks = raw.checks as Record<string, unknown> | undefined;
   const rawBaseline = raw.baseline as Record<string, unknown> | undefined;
   const rawOutput = raw.output as Record<string, unknown> | undefined;
+  const rawRuntime = raw.runtime as Record<string, unknown> | undefined;
   const rawDeadCode = (rawChecks?.deadCode ?? rawChecks?.dead_code) as Record<string, unknown> | undefined;
   const rawLeftovers = rawChecks?.leftovers as Record<string, unknown> | undefined;
   const rawRefactor = (rawChecks?.refactorReadiness ?? rawChecks?.refactor_readiness) as Record<string, unknown> | undefined;
@@ -258,6 +274,28 @@ function normalizeRawConfig(raw: Partial<VibeDoctorConfig>): Partial<VibeDoctorC
 
   return {
     ...rest,
+    ...(rawRuntime
+      ? {
+          runtime: {
+            defaultTimeoutSeconds:
+              (rawRuntime.defaultTimeoutSeconds as number | undefined) ??
+              (rawRuntime.default_timeout_seconds as number | undefined) ??
+              defaultConfig.runtime.defaultTimeoutSeconds,
+            toolTimeouts:
+              (rawRuntime.toolTimeouts as Record<string, number> | undefined) ??
+              (rawRuntime.tool_timeouts as Record<string, number> | undefined) ??
+              defaultConfig.runtime.toolTimeouts,
+            requiredTools:
+              (rawRuntime.requiredTools as string[] | undefined) ??
+              (rawRuntime.required_tools as string[] | undefined) ??
+              defaultConfig.runtime.requiredTools,
+            failOnIncompleteScan:
+              (rawRuntime.failOnIncompleteScan as boolean | undefined) ??
+              (rawRuntime.fail_on_incomplete_scan as boolean | undefined) ??
+              defaultConfig.runtime.failOnIncompleteScan
+          }
+        }
+      : {}),
     ...(rawOutput
       ? {
           output: {

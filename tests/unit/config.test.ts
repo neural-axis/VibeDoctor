@@ -39,4 +39,19 @@ describe("loadConfig", () => {
     expect(config.checks.privacy.ai.enabled).toBe(true);
     expect(config.checks.privacy.ai.modelEnv).toBe("CUSTOM_MODEL_ENV");
   });
+
+  it("normalizes runtime timeout and incomplete-scan settings", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "vibedoctor-runtime-config-"));
+    await fs.writeFile(
+      path.join(root, "vibedoctor.yml"),
+      "version: 1\nruntime:\n  default_timeout_seconds: 150\n  tool_timeouts:\n    semgrep: 600\n  required_tools:\n    - semgrep\n  fail_on_incomplete_scan: true\n",
+      "utf8"
+    );
+
+    const { config } = await loadConfig(root);
+    expect(config.runtime.defaultTimeoutSeconds).toBe(150);
+    expect(config.runtime.toolTimeouts.semgrep).toBe(600);
+    expect(config.runtime.requiredTools).toEqual(["semgrep"]);
+    expect(config.runtime.failOnIncompleteScan).toBe(true);
+  });
 });

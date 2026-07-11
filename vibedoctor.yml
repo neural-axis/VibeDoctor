@@ -43,6 +43,16 @@ baseline:
 score:
   minimum: 80
 
+runtime:
+  default_timeout_seconds: 120
+  tool_timeouts:
+    biome: 180
+    semgrep: 300
+  required_tools:
+    - biome
+    - semgrep
+  fail_on_incomplete_scan: true
+
 checks:
   security:
     enabled: true

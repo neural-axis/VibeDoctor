@@ -49,6 +49,14 @@ baseline:
 score:
   minimum: ${defaultConfig.score.minimum}
 
+runtime:
+  default_timeout_seconds: ${defaultConfig.runtime.defaultTimeoutSeconds}
+  tool_timeouts:
+    biome: ${defaultConfig.runtime.toolTimeouts.biome}
+    semgrep: ${defaultConfig.runtime.toolTimeouts.semgrep}
+  required_tools: []
+  fail_on_incomplete_scan: false
+
 checks:
   security:
     enabled: true
