@@ -1,11 +1,12 @@
 import type { ToolAdapter } from "./shared";
 
-type OsvPackage = { name?: string };
+type OsvPackage = { name?: string; version?: string };
 type OsvFinding = {
   package?: OsvPackage;
   id?: string;
   summary?: string;
   severity?: Array<{ score?: string }>;
+  database_specific?: { severity?: string };
 };
 
 type OsvResult = {
@@ -39,6 +40,10 @@ function parseOsv(stdout: string): OsvFinding[] {
 }
 
 function severityFromCvss(item: OsvFinding): "low" | "medium" | "high" | "critical" {
+  const namedSeverity = item.database_specific?.severity?.toLowerCase();
+  if (namedSeverity === "critical" || namedSeverity === "high" || namedSeverity === "medium" || namedSeverity === "low") {
+    return namedSeverity;
+  }
   const score = Number(item.severity?.[0]?.score ?? 0);
   if (score >= 9) {
     return "critical";
@@ -61,14 +66,22 @@ export const osvScannerAdapter: ToolAdapter = {
   buildScanCommand(ctx) {
     return {
       cmd: "osv-scanner",
-      args: ["scan", "--lockfile=auto", "--format=json", "."],
+      args: [
+        "scan",
+        "source",
+        ...ctx.project.lockfiles.flatMap((lockfile) => ["--lockfile", lockfile]),
+        "--format",
+        "json",
+        "--verbosity",
+        "error"
+      ],
       cwd: ctx.root,
       timeoutMs: 60_000
     };
   },
   parseResult(result) {
     return parseOsv(result.stdout).map((item, index) => ({
-      id: `osv:${item.package?.name}:${item.id ?? index}`,
+      id: `osv:${item.package?.name}:${item.package?.version ?? "unknown"}:${item.id ?? index}`,
       source: "osv-scanner",
       category: "dependencies",
       severity: severityFromCvss(item),

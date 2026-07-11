@@ -1,6 +1,6 @@
 import type { Finding } from "../core/finding";
 import { normalizeFilePath } from "../core/finding";
-import type { ToolAdapter } from "./shared";
+import { adapterTargets, type ToolAdapter } from "./shared";
 
 type BiomeDiagnostic = {
   category?: string;
@@ -49,11 +49,12 @@ export const biomeAdapter: ToolAdapter = {
     return project.languages.includes("javascript") || project.languages.includes("typescript");
   },
   buildScanCommand(ctx) {
+    const targets = adapterTargets(ctx, /\.(?:js|jsx|ts|tsx|json|jsonc)$/i);
     return {
       cmd: "biome",
-      args: ["check", ".", "--reporter=json"],
+      args: ["check", ...targets, "--reporter=json"],
       cwd: ctx.root,
-      timeoutMs: 60_000
+      timeoutMs: 180_000
     };
   },
   parseResult(result, ctx) {
@@ -78,11 +79,12 @@ export const biomeAdapter: ToolAdapter = {
     }));
   },
   buildFixCommand(ctx) {
+    const targets = adapterTargets(ctx, /\.(?:js|jsx|ts|tsx|json|jsonc)$/i);
     return {
       cmd: "biome",
-      args: ["check", ".", "--write"],
+      args: ["check", ...targets, "--write"],
       cwd: ctx.root,
-      timeoutMs: 60_000
+      timeoutMs: 180_000
     };
   },
   installHint: "Install Biome with: npm install -D @biomejs/biome"

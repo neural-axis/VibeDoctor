@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { gitleaksAdapter } from "../../src/adapters/gitleaks";
+import { lizardAdapter } from "../../src/adapters/lizard";
+import { osvScannerAdapter } from "../../src/adapters/osvScanner";
 import { buildJscpdArgs } from "../../src/adapters/jscpd";
 import { tscAdapter } from "../../src/adapters/tsc";
 import { vultureAdapter } from "../../src/adapters/vulture";
@@ -87,5 +89,36 @@ describe("adapter parsing", () => {
     expect(args).toContain("30");
     expect(args).toContain("--ignore");
     expect(args).toContain(".agents/**,ops/**,**/*.test.*,**/__tests__/**");
+  });
+
+  it("parses current Lizard CSV output", () => {
+    const parserContext = {
+      ...ctx,
+      config: { checks: { refactorReadiness: { minComplexity: 12 } } } as ToolAdapterContext["config"]
+    };
+    const findings = lizardAdapter.parseResult!(
+      toolResult('35,12,333,1,40,"normalizeRawConfig@258-297@src/core/config.ts","src/core/config.ts","normalizeRawConfig","normalizeRawConfig ( raw )",258,297', "", 0),
+      parserContext
+    );
+
+    expect(findings).toHaveLength(1);
+    expect(findings[0].source).toBe("lizard");
+    expect(findings[0].startLine).toBe(258);
+  });
+
+  it("builds OSV-Scanner v2 lockfile arguments and parses findings", () => {
+    const command = osvScannerAdapter.buildScanCommand!({
+      ...ctx,
+      project: { ...ctx.project, lockfiles: ["package-lock.json"] }
+    });
+    expect(command.args).toEqual([
+      "scan", "source", "--lockfile", "package-lock.json", "--format", "json", "--verbosity", "error"
+    ]);
+
+    const findings = osvScannerAdapter.parseResult!(
+      toolResult('{"results":[{"packages":[{"package":{"name":"vite"},"vulnerabilities":[{"id":"GHSA-test","summary":"Test advisory","severity":[{"score":"9.8"}]}]}]}]}'),
+      ctx
+    );
+    expect(findings[0].title).toBe("GHSA-test");
   });
 });

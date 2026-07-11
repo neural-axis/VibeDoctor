@@ -1,5 +1,6 @@
 import { normalizeFilePath, type Finding } from "../core/finding";
-import type { ToolAdapter } from "./shared";
+import { commandExistsOnWindowsPath } from "../core/toolRunner";
+import { adapterTargets, type ToolAdapter } from "./shared";
 
 type SemgrepOutput = {
   results?: Array<{
@@ -50,11 +51,23 @@ export const semgrepAdapter: ToolAdapter = {
     return project.languages.length > 0;
   },
   buildScanCommand(ctx) {
+    const targets = adapterTargets(ctx, /\.(?:js|jsx|ts|tsx|py)$/i);
+    // The Semgrep Windows launcher expands wildcard arguments before handing
+    // them to pysemgrep. Calling pysemgrep directly preserves exclude globs,
+    // but fall back to the regular launcher when only "semgrep" is installed.
+    const useDirectEntryPoint = process.platform === "win32" && commandExistsOnWindowsPath("pysemgrep", ctx.root);
     return {
-      cmd: "semgrep",
-      args: ["scan", "--json", "--quiet", "--config", "auto", "."],
+      cmd: useDirectEntryPoint ? "pysemgrep" : "semgrep",
+      args: [
+        "scan",
+        "--json",
+        "--no-git-ignore",
+        "--config",
+        "auto",
+        ...targets
+      ],
       cwd: ctx.root,
-      timeoutMs: 120_000
+      timeoutMs: 300_000
     };
   },
   parseResult(result, ctx) {

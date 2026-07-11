@@ -1,5 +1,5 @@
 import { normalizeFilePath } from "../core/finding";
-import type { ToolAdapter } from "./shared";
+import { adapterTargets, type ToolAdapter } from "./shared";
 
 type LizardFunction = {
   name?: string;
@@ -13,8 +13,48 @@ type LizardFile = {
   function_list?: LizardFunction[];
 };
 
+function parseCsvLine(line: string): string[] {
+  const values: string[] = [];
+  let value = "";
+  let quoted = false;
+  for (let index = 0; index < line.length; index += 1) {
+    const character = line[index];
+    if (character === '"') {
+      if (quoted && line[index + 1] === '"') {
+        value += '"';
+        index += 1;
+      } else {
+        quoted = !quoted;
+      }
+    } else if (character === "," && !quoted) {
+      values.push(value);
+      value = "";
+    } else {
+      value += character;
+    }
+  }
+  values.push(value);
+  return values;
+}
+
 function parseLizard(stdout: string): LizardFile[] {
-  return stdout.trim() ? (JSON.parse(stdout) as LizardFile[]) : [];
+  const files = new Map<string, LizardFunction[]>();
+  for (const line of stdout.split(/\r?\n/).filter(Boolean)) {
+    const columns = parseCsvLine(line);
+    if (columns.length < 11) {
+      continue;
+    }
+    const filename = columns[6];
+    const functions = files.get(filename) ?? [];
+    functions.push({
+      name: columns[7],
+      start_line: Number(columns[9]),
+      end_line: Number(columns[10]),
+      cyclomatic_complexity: Number(columns[1])
+    });
+    files.set(filename, functions);
+  }
+  return Array.from(files, ([filename, function_list]) => ({ filename, function_list }));
 }
 
 export const lizardAdapter: ToolAdapter = {
@@ -24,9 +64,15 @@ export const lizardAdapter: ToolAdapter = {
     return project.languages.length > 0;
   },
   buildScanCommand(ctx) {
+    const targets = adapterTargets(ctx, /\.(?:js|jsx|ts|tsx|py)$/i);
     return {
       cmd: "lizard",
-      args: ["-j", "."],
+      args: [
+        "--csv",
+        "--ignore_warnings",
+        "-1",
+        ...targets
+      ],
       cwd: ctx.root,
       timeoutMs: 120_000
     };
