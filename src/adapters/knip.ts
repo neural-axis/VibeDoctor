@@ -1,3 +1,4 @@
+import path from "node:path";
 import { normalizeFilePath } from "../core/finding";
 import type { ToolAdapter } from "./shared";
 
@@ -14,7 +15,15 @@ type KnipOutput = {
 };
 
 function parseKnip(stdout: string): KnipOutput {
-  return stdout.trim() ? (JSON.parse(stdout) as KnipOutput) : {};
+  const trimmed = stdout.trim();
+  return trimmed && trimmed.startsWith("{") ? (JSON.parse(trimmed) as KnipOutput) : {};
+}
+
+function findPackageJsonPath(projectFiles: string[]): string | undefined {
+  if (projectFiles.includes("package.json")) {
+    return "package.json";
+  }
+  return projectFiles.find((f) => f.endsWith("/package.json"));
 }
 
 export const knipAdapter: ToolAdapter = {
@@ -24,14 +33,33 @@ export const knipAdapter: ToolAdapter = {
     return project.languages.includes("javascript") || project.languages.includes("typescript");
   },
   buildScanCommand(ctx) {
+    const packageJsonPath = findPackageJsonPath(ctx.project.projectFiles);
+    const cwd = packageJsonPath && path.dirname(packageJsonPath) !== "." ? path.join(ctx.root, path.dirname(packageJsonPath)) : ctx.root;
+
     return {
       cmd: "knip",
       args: ["--reporter", "json"],
-      cwd: ctx.root,
+      cwd,
       timeoutMs: 60_000
     };
   },
   parseResult(result, ctx) {
+    const output = `${result.stdout}\n${result.stderr}`;
+
+    if (/styleText|ERR_UNKNOWN_BUILTIN_MODULE|SyntaxError.*styleText/i.test(output)) {
+      result.status = "skipped";
+      result.installHint = "Knip 5+ requires Node >= 20.19. Please upgrade Node.js to run Knip.";
+      return [];
+    }
+
+    if (result.exitCode !== 0 && /Could not find package\.json|ENOENT.*package\.json/i.test(output)) {
+      result.status = "skipped";
+      return [];
+    }
+
+    const packageJsonPath = findPackageJsonPath(ctx.project.projectFiles);
+    const prefix = packageJsonPath && path.dirname(packageJsonPath) !== "." ? path.dirname(packageJsonPath) : "";
+
     const parsed = parseKnip(result.stdout);
     const fileFindings = (parsed.unusedFiles ?? []).map((file) => ({
       id: `knip:file:${file}`,
@@ -41,7 +69,7 @@ export const knipAdapter: ToolAdapter = {
       confidence: "high" as const,
       title: "Unused file",
       message: `${file} is not reachable from detected entrypoints.`,
-      file: normalizeFilePath(file, ctx.root),
+      file: normalizeFilePath(prefix ? path.join(prefix, file) : file, ctx.root),
       isNew: true,
       isAutofixable: false,
       safeToAutofix: false,
@@ -58,7 +86,7 @@ export const knipAdapter: ToolAdapter = {
       confidence: "high" as const,
       title: "Unused export",
       message: `${item.symbol ?? "Export"} appears unused.`,
-      file: normalizeFilePath(item.file, ctx.root),
+      file: normalizeFilePath(item.file ? (prefix ? path.join(prefix, item.file) : item.file) : undefined, ctx.root),
       startLine: item.line,
       isNew: true,
       isAutofixable: false,

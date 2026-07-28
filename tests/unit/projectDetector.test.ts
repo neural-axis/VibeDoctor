@@ -82,4 +82,24 @@ describe("detectProject", () => {
     expect(project.frameworkHints).toContain("nextjs");
     expect(project.entryFiles).toContain("src/app/results/page.tsx");
   });
+
+  it("detects monorepo config files located in subdirectories", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "vibedoctor-detect-monorepo-"));
+    await fs.mkdir(path.join(root, "backend"), { recursive: true });
+    await fs.mkdir(path.join(root, "frontend"), { recursive: true });
+    await fs.writeFile(path.join(root, "backend", "pyproject.toml"), "[project]\nname=\"backend\"\n", "utf8");
+    await fs.writeFile(path.join(root, "backend", "app.py"), "print('hello')\n", "utf8");
+    await fs.writeFile(path.join(root, "frontend", "package.json"), JSON.stringify({ name: "frontend" }), "utf8");
+    await fs.writeFile(path.join(root, "frontend", "package-lock.json"), JSON.stringify({ lockfileVersion: 3 }), "utf8");
+    await fs.writeFile(path.join(root, "frontend", "tsconfig.json"), "{}", "utf8");
+    await fs.writeFile(path.join(root, "frontend", "index.ts"), "export const a = 1;\n", "utf8");
+
+    const project = await detectProject(root);
+
+    expect(project.languages).toEqual(["python", "typescript"]);
+    expect(project.configFiles).toContain("pyproject.toml");
+    expect(project.configFiles).toContain("package.json");
+    expect(project.configFiles).toContain("tsconfig.json");
+    expect(project.lockfiles).toContain("frontend/package-lock.json");
+  });
 });

@@ -22,10 +22,19 @@ export type ToolAdapter = {
   installHint: string;
 };
 
-// Windows limits a cmd.exe command line to ~8191 characters; keep a margin for
-// the executable path and flags. When the explicit file list would blow past
-// this, fall back to scanning "." and let the tool's own ignore handling apply.
 const MAX_TARGET_ARGS_LENGTH = 6_000;
+
+function getTopLevelTargets(targets: string[]): string[] {
+  const topLevels = new Set<string>();
+  for (const target of targets) {
+    const parts = target.split("/");
+    if (parts.length > 0 && parts[0]) {
+      topLevels.add(parts[0]);
+    }
+  }
+  const result = Array.from(topLevels).sort();
+  return result.length > 0 ? result : ["."];
+}
 
 export function adapterTargets(ctx: ToolAdapterContext, extensionPattern: RegExp): string[] {
   const targets = filterPaths(ctx.project.projectFiles, ctx.config.paths.include, ctx.config.paths.exclude).filter((file) =>
@@ -35,5 +44,5 @@ export function adapterTargets(ctx: ToolAdapterContext, extensionPattern: RegExp
     return ["."];
   }
   const totalLength = targets.reduce((sum, target) => sum + target.length + 1, 0);
-  return totalLength > MAX_TARGET_ARGS_LENGTH ? ["."] : targets;
+  return totalLength > MAX_TARGET_ARGS_LENGTH ? getTopLevelTargets(targets) : targets;
 }

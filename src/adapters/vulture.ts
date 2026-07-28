@@ -1,18 +1,34 @@
 import { normalizeFilePath } from "../core/finding";
-import type { ToolAdapter } from "./shared";
+import { adapterTargets, type ToolAdapter } from "./shared";
 
 type VultureItem = {
   filename: string;
   first_lineno: number;
-  size?: number;
   name: string;
   type: string;
-  confidence?: number;
+  confidence: number;
 };
+const VULTURE_PATTERN = /^(?<file>.+?):(?<line>\d+):\s*unused\s+(?<type>[\w\s]+)\s+'(?<name>[^']+)'(?:\s*\((?<confidence>\d+)%\s*confidence\))?/gm;
 
 function parseVulture(stdout: string): VultureItem[] {
-  const trimmed = stdout.trim();
-  return trimmed ? (JSON.parse(trimmed) as VultureItem[]) : [];
+  const items: VultureItem[] = [];
+  const matches = stdout.matchAll(VULTURE_PATTERN);
+
+  for (const match of matches) {
+    if (!match.groups) {
+      continue;
+    }
+
+    items.push({
+      filename: match.groups.file,
+      first_lineno: Number(match.groups.line),
+      name: match.groups.name,
+      type: match.groups.type.trim(),
+      confidence: match.groups.confidence ? Number(match.groups.confidence) : 60
+    });
+  }
+
+  return items;
 }
 
 function isPackageInitializer(file: string): boolean {
@@ -26,15 +42,20 @@ export const vultureAdapter: ToolAdapter = {
     return project.languages.includes("python");
   },
   buildScanCommand(ctx) {
+    const targets = adapterTargets(ctx, /\.py$/i);
+    const excludePatterns = ctx.config.paths.exclude.length > 0 ? ctx.config.paths.exclude.join(",") : undefined;
+    const excludeArgs = excludePatterns ? ["--exclude", excludePatterns] : [];
+
     return {
       cmd: "vulture",
-      args: [".", "--json"],
+      args: [...targets, ...excludeArgs],
       cwd: ctx.root,
       timeoutMs: 60_000
     };
   },
   parseResult(result, ctx) {
-    return parseVulture(result.stdout).map((item) => {
+    const text = `${result.stdout}\n${result.stderr}`;
+    return parseVulture(text).map((item) => {
       const packageInitializer = isPackageInitializer(item.filename);
 
       return {
@@ -44,9 +65,9 @@ export const vultureAdapter: ToolAdapter = {
         severity: "low" as const,
         confidence: packageInitializer
           ? ("low" as const)
-          : (item.confidence ?? 60) >= 90
+          : item.confidence >= 90
             ? ("high" as const)
-            : (item.confidence ?? 60) >= 70
+            : item.confidence >= 70
               ? ("medium" as const)
               : ("low" as const),
         title: packageInitializer ? `Review package initializer ${item.type}` : `Unused ${item.type}`,

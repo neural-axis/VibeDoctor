@@ -52,6 +52,9 @@ export const coveragePyAdapter: ToolAdapter = {
       }
     } catch {
       findings = [];
+      if (/no data to report|no coverage data/i.test(`${status.stderr}\n${status.stdout}`)) {
+        status.status = "skipped";
+      }
     } finally {
       await fs.rm(reportFile, { force: true }).catch(() => undefined);
     }

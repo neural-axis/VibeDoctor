@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { gitleaksAdapter } from "../../src/adapters/gitleaks";
+import { knipAdapter } from "../../src/adapters/knip";
 import { lizardAdapter } from "../../src/adapters/lizard";
 import { osvScannerAdapter } from "../../src/adapters/osvScanner";
 import { buildJscpdArgs } from "../../src/adapters/jscpd";
@@ -62,7 +63,7 @@ describe("adapter parsing", () => {
 
   it("keeps vulture results non-autodeletable", () => {
     const findings = vultureAdapter.parseResult!(
-      toolResult('[{"filename":"app.py","first_lineno":8,"name":"old_auth","type":"function","confidence":60}]'),
+      toolResult("app.py:8: unused function 'old_auth' (60% confidence)"),
       ctx
     );
 
@@ -72,7 +73,7 @@ describe("adapter parsing", () => {
 
   it("marks __init__.py vulture results as review-only", () => {
     const findings = vultureAdapter.parseResult!(
-      toolResult('[{"filename":"pkg/__init__.py","first_lineno":1,"name":"exported","type":"variable","confidence":100}]'),
+      toolResult("pkg/__init__.py:1: unused variable 'exported' (100% confidence)"),
       ctx
     );
 
@@ -120,5 +121,22 @@ describe("adapter parsing", () => {
       ctx
     );
     expect(findings[0].title).toBe("GHSA-test");
+  });
+
+  it("marks knip Node version incompatibility output as skipped", () => {
+    const result = toolResult("", "TypeError: util.styleText is not a function", 1);
+    const findings = knipAdapter.parseResult!(result, ctx);
+
+    expect(findings).toHaveLength(0);
+    expect(result.status).toBe("skipped");
+    expect(result.installHint).toContain("Node >= 20.19");
+  });
+
+  it("marks tsc CLI help output (missing tsconfig) as skipped even with a successful exit", () => {
+    const result = toolResult("", "Syntax: tsc [options] [file ...]\nOptions:\n --help", 0);
+    const findings = tscAdapter.parseResult!(result, ctx);
+
+    expect(findings).toHaveLength(0);
+    expect(result.status).toBe("skipped");
   });
 });

@@ -147,7 +147,6 @@ function isFrameworkEntryFile(file: string): boolean {
 export async function detectProject(root: string, excludePatterns?: string[]): Promise<ProjectContext> {
   const projectFiles = await listProjectFiles(root);
   const detectionFiles = excludePatterns ? filterPaths(projectFiles, ["**/*"], excludePatterns) : projectFiles;
-  const fileSet = new Set(projectFiles);
   const languages = new Set<ProjectLanguage>();
   const frameworkHints = new Set<string>();
 
@@ -171,11 +170,32 @@ export async function detectProject(root: string, excludePatterns?: string[]): P
   }
 
   const packageManagers = new Set<PackageManager>();
-  if (fileSet.has("package.json")) {
-    packageManagers.add(fileSet.has("pnpm-lock.yaml") ? "pnpm" : fileSet.has("yarn.lock") ? "yarn" : fileSet.has("bun.lockb") ? "bun" : "npm");
+  const hasPackageJson = detectionFiles.some((f) => f === "package.json" || f.endsWith("/package.json"));
+  const hasPythonManifest = detectionFiles.some(
+    (f) => f === "requirements.txt" || f.endsWith("/requirements.txt") || f === "pyproject.toml" || f.endsWith("/pyproject.toml")
+  );
+
+  if (hasPackageJson) {
+    packageManagers.add(
+      detectionFiles.some((f) => f === "pnpm-lock.yaml" || f.endsWith("/pnpm-lock.yaml"))
+        ? "pnpm"
+        : detectionFiles.some((f) => f === "yarn.lock" || f.endsWith("/yarn.lock"))
+          ? "yarn"
+          : detectionFiles.some((f) => f === "bun.lockb" || f.endsWith("/bun.lockb"))
+            ? "bun"
+            : "npm"
+    );
   }
-  if (fileSet.has("requirements.txt") || fileSet.has("pyproject.toml")) {
-    packageManagers.add(fileSet.has("uv.lock") ? "uv" : fileSet.has("poetry.lock") ? "poetry" : fileSet.has("pdm.lock") ? "pdm" : "pip");
+  if (hasPythonManifest) {
+    packageManagers.add(
+      detectionFiles.some((f) => f === "uv.lock" || f.endsWith("/uv.lock"))
+        ? "uv"
+        : detectionFiles.some((f) => f === "poetry.lock" || f.endsWith("/poetry.lock"))
+          ? "poetry"
+          : detectionFiles.some((f) => f === "pdm.lock" || f.endsWith("/pdm.lock"))
+            ? "pdm"
+            : "pip"
+    );
   }
 
   const packageMetadata = await readPackageMetadata(
@@ -186,13 +206,16 @@ export async function detectProject(root: string, excludePatterns?: string[]): P
     frameworkHints.add(hint);
   }
 
-  if (fileSet.has("pytest.ini") || projectFiles.some((file) => /(^|\/)tests?\//.test(file) && file.endsWith(".py"))) {
+  if (
+    detectionFiles.some((f) => f === "pytest.ini" || f.endsWith("/pytest.ini")) ||
+    detectionFiles.some((file) => /(^|\/)tests?\//.test(file) && file.endsWith(".py"))
+  ) {
     packageMetadata.testCommands.push(pythonTestCommand(packageManagers));
   }
 
   const toolPairs = await Promise.all(KNOWN_TOOLS.map(async (tool) => [tool, await commandExists(tool, root)] as const));
   const entryFiles = detectionFiles.filter((file) =>
-    /(^|\/)(main|index|app|server|cli)\.(ts|tsx|js|jsx|py)$/.test(file) || isFrameworkEntryFile(file) || file === "package.json"
+    /(^|\/)(main|index|app|server|cli)\.(ts|tsx|js|jsx|py)$/.test(file) || isFrameworkEntryFile(file) || file.endsWith("package.json")
   );
 
   return {
@@ -201,8 +224,14 @@ export async function detectProject(root: string, excludePatterns?: string[]): P
     packageManagers: Array.from(packageManagers).sort(),
     hasGit: await isGitRepo(root),
     changedFiles: await getChangedFiles(root),
-    configFiles: KNOWN_CONFIG_FILES.filter((fileName) => fileSet.has(fileName)),
-    lockfiles: KNOWN_LOCKFILES.filter((fileName) => fileSet.has(fileName)),
+    configFiles: KNOWN_CONFIG_FILES.filter((fileName) =>
+      detectionFiles.some((f) => f === fileName || f.endsWith(`/${fileName}`))
+    ),
+    // Consumers pass these values directly to tools such as osv-scanner, so
+    // retain the repository-relative path rather than just the basename.
+    lockfiles: detectionFiles.filter((file) =>
+      KNOWN_LOCKFILES.some((fileName) => file === fileName || file.endsWith(`/${fileName}`))
+    ),
     testCommands: Array.from(new Set(packageMetadata.testCommands)),
     toolsAvailable: Object.fromEntries(toolPairs),
     frameworkHints: Array.from(frameworkHints).sort(),

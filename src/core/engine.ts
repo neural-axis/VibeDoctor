@@ -466,10 +466,19 @@ function summarizeToolStatus(status: ToolResult): Pick<ToolStatusSummary, "messa
 // Tools that intentionally use a non-zero exit for "findings reported" or emit
 // experimental warnings on otherwise-successful runs. Shared by runScan and
 // retryTool so a tool never "fails" in one path while "succeeding" in the other.
-function forgiveKnownToolQuirks(toolId: string, result: ToolResult): { status: "ok"; message?: string } | undefined {
+function forgiveKnownToolQuirks(
+  toolId: string,
+  result: ToolResult,
+  findingsCount = 0
+): { status: "ok"; message?: string } | undefined {
   if (result.status !== "error") {
     return undefined;
   }
+
+  if (findingsCount > 0) {
+    return { status: "ok", message: "Reported issues (debt surfaced as findings)" };
+  }
+
   const output = `${result.stderr}\n${result.stdout}`;
   if (toolId === "biome" && /unstable|experimental/i.test(output)) {
     return { status: "ok" };
@@ -560,7 +569,7 @@ export async function runScan(root: string, mode: ScanMode = "default"): Promise
       continue;
     }
 
-    const forgiven = forgiveKnownToolQuirks(adapter.id, result.status);
+    const forgiven = forgiveKnownToolQuirks(adapter.id, result.status, result.findings.length);
     const summarized = summarizeToolStatus(result.status);
     toolStatuses.push({
       id: adapter.id,
@@ -661,20 +670,19 @@ export async function retryTool(root: string, toolId: string, timeoutSeconds?: n
   const command = adapter.buildScanCommand(ctx);
   command.timeoutMs = seconds * 1000;
   const result = await runCommand(command, adapter.installHint);
-  const forgiven = forgiveKnownToolQuirks(toolId, result);
-  let status = forgiven?.status ?? result.status;
   let parseError: string | undefined;
   let findings: Finding[] = [];
-  if (status !== "skipped") {
+  if (result.status !== "skipped") {
     try {
       findings = adapter.parseResult(result, ctx) ?? [];
     } catch (error) {
       // A run that produced unparseable output is not a success; report it so
       // agents do not mistake "ok with zero findings" for a clean result.
-      status = "error";
       parseError = `Could not parse ${toolId} output: ${error instanceof Error ? error.message : String(error)}`;
     }
   }
+  const forgiven = forgiveKnownToolQuirks(toolId, result, findings.length);
+  const status = parseError ? "error" : forgiven?.status ?? result.status;
   const summary = summarizeToolStatus(result);
   return {
     tool: toolId,

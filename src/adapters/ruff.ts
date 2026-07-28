@@ -1,6 +1,6 @@
 import type { Finding } from "../core/finding";
 import { normalizeFilePath } from "../core/finding";
-import type { ToolAdapter } from "./shared";
+import { adapterTargets, type ToolAdapter } from "./shared";
 
 type RuffItem = {
   filename: string;
@@ -37,9 +37,11 @@ export const ruffAdapter: ToolAdapter = {
     return project.languages.includes("python");
   },
   buildScanCommand(ctx) {
+    const targets = adapterTargets(ctx, /\.py$/i);
+    const excludePatterns = ctx.config.paths.exclude.length > 0 ? ["--exclude", ctx.config.paths.exclude.join(",")] : [];
     return {
       cmd: "ruff",
-      args: ["check", ".", "--output-format", "json"],
+      args: ["check", ...targets, "--output-format", "json", ...excludePatterns],
       cwd: ctx.root,
       timeoutMs: 60_000
     };
