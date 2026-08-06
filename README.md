@@ -10,8 +10,6 @@ npx @neuralaxis/vibedoctor scan --changed
 
 VibeDoctor runs locally by default. Missing or failed scanners are reported as incomplete evidence, never silently counted as a clean result.
 
-The source for the vertical DPDP launch reel lives in [`launch-video/`](launch-video/README.md). Rendered video files stay local and are intentionally excluded from Git.
-
 ## Start here
 
 Choose the shortest path for what you are doing:

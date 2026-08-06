@@ -42,8 +42,5 @@ plugins/
 
 # Local release demo workspace
 release-video/
-launch-video/node_modules/
-launch-video/out/
-launch-video/public/hyperframes-intro.mp4
-launch-video/public/recordings/*.mp4
+launch-video/
 docs/assets/*.mp4
