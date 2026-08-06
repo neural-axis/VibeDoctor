@@ -10,11 +10,7 @@ npx @neuralaxis/vibedoctor scan --changed
 
 VibeDoctor runs locally by default. Missing or failed scanners are reported as incomplete evidence, never silently counted as a clean result.
 
-## DPDP readiness launch video
-
-<video src="docs/assets/vibedoctor-dpdp-launch.mp4" controls muted playsinline width="100%"></video>
-
-[Watch or download the DPDP technical-readiness launch video](docs/assets/vibedoctor-dpdp-launch.mp4). Its reproducible source lives in [`launch-video/`](launch-video/README.md) and uses Hyperframes for the opening sequence plus Remotion for the final composition.
+The source for the vertical DPDP launch reel lives in [`launch-video/`](launch-video/README.md). Rendered video files stay local and are intentionally excluded from Git.
 
 ## Start here
 
@@ -316,12 +312,6 @@ npm run dev -- agent plugin --targets all --force
 | `src/reporters` | Terminal, JSON, Markdown, HTML, SARIF, and agent reports |
 | `fixtures` | Sample repositories used by tests |
 | `tests` | Unit, integration, and snapshot tests |
-
-## Release demo
-
-<video src="docs/assets/vibedoctor-product-release-demo-v0.1.1.mp4" controls muted playsinline width="100%"></video>
-
-[Open the release demo](docs/assets/vibedoctor-product-release-demo-v0.1.1.mp4)
 
 ## License
 
