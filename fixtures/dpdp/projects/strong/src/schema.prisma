@@ -1,0 +1,12 @@
+model User {
+  id            String    @id @default(cuid())
+  email         String
+  phone         String?
+  consentGiven  Boolean   @default(false)
+  consentAt     DateTime?
+  purposeId     String?
+  noticeVersion String?
+  deletedAt     DateTime?
+  expiresAt     DateTime?
+  createdAt     DateTime  @default(now())
+}

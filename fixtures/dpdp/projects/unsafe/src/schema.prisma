@@ -1,0 +1,9 @@
+model Customer {
+  id        String @id
+  email     String
+  phone     String
+  aadhaar   String
+  pan       String
+  password  String
+  // no deletedAt / expiresAt / ttl
+}

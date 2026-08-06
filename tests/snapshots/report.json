@@ -119,6 +119,7 @@
     }
   ],
   "privacyFindings": [],
+  "dpdpFindings": [],
   "toolStatuses": [
     {
       "id": "gitleaks",
@@ -190,5 +191,8 @@
         "commands": []
       }
     ]
+  },
+  "notes": {
+    "dpdp": "DPDP findings are technical readiness signals integrated into privacy findings. See .vibedoctor/dpdp/ for the control matrix and data map. Not legal compliance."
   }
 }

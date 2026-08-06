@@ -1,0 +1,9 @@
+model Consent {
+  id            String   @id
+  userId        String
+  email         String
+  consent       Boolean
+  consent_at    DateTime
+  purpose_id    String
+  notice_version String
+}

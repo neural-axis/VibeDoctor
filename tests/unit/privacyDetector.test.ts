@@ -1,13 +1,26 @@
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { runScanCommand } from "../../src/cli/commands/scan";
-import { isValidAadhaar, maskPiiValue, passesLuhn } from "../../src/adapters/privacyDetector";
+import {
+  clearPrivacyFindingsCache,
+  detectPiiFindings,
+  getPrivacyFindingsCacheStats,
+  isValidAadhaar,
+  maskPiiValue,
+  passesLuhn
+} from "../../src/adapters/privacyDetector";
 import { runScan } from "../../src/core/engine";
+import { loadConfig, defaultConfig } from "../../src/core/config";
+import { detectProject } from "../../src/core/projectDetector";
+import type { ToolAdapterContext } from "../../src/adapters/shared";
 import { createTempFixtureCopy } from "../helpers";
 
 describe("privacy detector", () => {
+  afterEach(() => {
+    clearPrivacyFindingsCache();
+  });
   it("validates and masks common identifier formats", () => {
     expect(passesLuhn("4111 1111 1111 1111")).toBe(true);
     expect(passesLuhn("4111 1111 1111 1112")).toBe(false);
@@ -23,7 +36,8 @@ describe("privacy detector", () => {
     const scan = await runScan(root, "full");
 
     expect(scan.privacyFindings.length).toBeGreaterThan(0);
-    expect(scan.privacyFindings.every((finding) => finding.source === "privacy-detector")).toBe(true);
+    expect(scan.privacyFindings.some((finding) => finding.source === "privacy-detector")).toBe(true);
+    expect(scan.privacyFindings.every((finding) => finding.source === "privacy-detector" || finding.source === "dpdp")).toBe(true);
     expect(scan.privacyFindings.some((finding) => finding.evidence?.entityType === "pan")).toBe(true);
     expect(scan.privacyFindings.some((finding) => finding.evidence?.entityType === "combination_risk")).toBe(true);
 
@@ -86,6 +100,10 @@ checks:
     enabled: false
   privacy:
     enabled: true
+    presidio:
+      enabled: false
+  dpdp:
+    enabled: false
 `,
       "utf8"
     );
@@ -125,11 +143,110 @@ checks:
   privacy:
     enabled: true
     max_file_bytes: 10
+    presidio:
+      enabled: false
+  dpdp:
+    enabled: false
 `,
       "utf8"
     );
 
     const scan = await runScan(root, "full");
     expect(scan.privacyFindings).toHaveLength(0);
+  });
+
+  it("reuses detectPiiFindings work for identical inputs in the same process", async () => {
+    const root = await createTempFixtureCopy("pii-basic");
+    const { config } = await loadConfig(root);
+    const project = await detectProject(root, config.paths.exclude);
+    const ctx: ToolAdapterContext = {
+      root,
+      project,
+      config,
+      scanMode: "full"
+    };
+
+    clearPrivacyFindingsCache();
+    const first = await detectPiiFindings(ctx);
+    const afterMiss = getPrivacyFindingsCacheStats();
+    expect(afterMiss.misses).toBe(1);
+    expect(afterMiss.hits).toBe(0);
+
+    const second = await detectPiiFindings(ctx);
+    const afterHit = getPrivacyFindingsCacheStats();
+    expect(afterHit.misses).toBe(1);
+    expect(afterHit.hits).toBe(1);
+    expect(second).toEqual(first);
+    // Callers get clones — mutating one result must not poison the cache
+    if (second[0]) {
+      second[0].title = "mutated";
+    }
+    const third = await detectPiiFindings(ctx);
+    expect(third[0]?.title).not.toBe("mutated");
+    expect(third[0]?.title).toBe(first[0]?.title);
+  });
+
+  it("dedupes concurrent detectPiiFindings calls with the same key", async () => {
+    const root = await createTempFixtureCopy("pii-basic");
+    const { config } = await loadConfig(root);
+    const project = await detectProject(root, config.paths.exclude);
+    const ctx: ToolAdapterContext = { root, project, config, scanMode: "full" };
+
+    clearPrivacyFindingsCache();
+    const [a, b] = await Promise.all([detectPiiFindings(ctx), detectPiiFindings(ctx)]);
+    const stats = getPrivacyFindingsCacheStats();
+    expect(stats.misses).toBe(1);
+    expect(stats.hits).toBe(1);
+    expect(a).toEqual(b);
+  });
+
+  it("skipCache forces a fresh walk", async () => {
+    const root = await createTempFixtureCopy("pii-basic");
+    const { config } = await loadConfig(root);
+    const project = await detectProject(root, config.paths.exclude);
+    const ctx: ToolAdapterContext = { root, project, config, scanMode: "full" };
+
+    clearPrivacyFindingsCache();
+    await detectPiiFindings(ctx);
+    await detectPiiFindings(ctx, { skipCache: true });
+    // skipCache does not record hits; still only one miss from the first call
+    const stats = getPrivacyFindingsCacheStats();
+    expect(stats.hits).toBe(0);
+    expect(stats.misses).toBe(1);
+  });
+
+  it("does not share cache entries when privacy confidence threshold differs", async () => {
+    const root = await createTempFixtureCopy("pii-basic");
+    const project = await detectProject(root, defaultConfig.paths.exclude);
+    const lowCfg = structuredClone(defaultConfig);
+    lowCfg.checks.privacy.enabled = true;
+    lowCfg.checks.privacy.minConfidenceToReport = "low";
+    const highCfg = structuredClone(defaultConfig);
+    highCfg.checks.privacy.enabled = true;
+    highCfg.checks.privacy.minConfidenceToReport = "high";
+
+    clearPrivacyFindingsCache();
+    await detectPiiFindings({ root, project, config: lowCfg, scanMode: "full" });
+    await detectPiiFindings({ root, project, config: highCfg, scanMode: "full" });
+    const stats = getPrivacyFindingsCacheStats();
+    expect(stats.misses).toBe(2);
+    expect(stats.hits).toBe(0);
+    expect(stats.size).toBe(2);
+  });
+
+  it("invalidates cached findings when a candidate file changes", async () => {
+    const root = await createTempFixtureCopy("pii-basic");
+    const { config } = await loadConfig(root);
+    const project = await detectProject(root, config.paths.exclude);
+    const ctx: ToolAdapterContext = { root, project, config, scanMode: "full" };
+
+    clearPrivacyFindingsCache();
+    await detectPiiFindings(ctx);
+    await fs.appendFile(path.join(root, "src", "schema.ts"), "\n// cache invalidation marker\n", "utf8");
+    await detectPiiFindings(ctx);
+
+    const stats = getPrivacyFindingsCacheStats();
+    expect(stats.misses).toBe(2);
+    expect(stats.hits).toBe(0);
   });
 });

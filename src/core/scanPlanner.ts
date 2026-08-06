@@ -26,6 +26,7 @@ export async function createScanPlan(
     "gitleaks",
     "osv-scanner",
     "privacy-detector",
+    "dpdp",
     "custom-leftovers"
   ]);
 
@@ -48,8 +49,14 @@ export async function createScanPlan(
     if (adapter.category === "dependencies" && !config.checks.dependencies.enabled) {
       continue;
     }
-    if (adapter.category === "privacy" && !config.checks.privacy.enabled) {
-      continue;
+    if (adapter.category === "privacy") {
+      if (adapter.id === "dpdp") {
+        if (!config.checks.dpdp.enabled) {
+          continue;
+        }
+      } else if (!config.checks.privacy.enabled) {
+        continue;
+      }
     }
 
     if (mode === "quick" && !quickAdapterIds.has(adapter.id)) {

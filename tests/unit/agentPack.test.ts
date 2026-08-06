@@ -23,6 +23,7 @@ describe("agent pack generator", () => {
     expect(result.created).toContain("AGENTS.md");
     expect(result.created).toContain(".agents/skills/vibedoctor-health-scan/SKILL.md");
     expect(result.created).toContain(".agents/skills/vibedoctor-privacy-review/SKILL.md");
+    expect(result.created).toContain(".agents/skills/vibedoctor-dpdp-readiness-review/SKILL.md");
     expect(result.created).toContain(".agents/skills/vibedoctor-health-scan/agents/openai.yaml");
     expect(await fs.readFile(path.join(root, "AGENTS.md"), "utf8")).toContain("## VibeDoctor workflow");
     expect(await fs.readFile(path.join(root, ".agents", "skills", "vibedoctor-health-scan", "SKILL.md"), "utf8")).toContain(
@@ -74,6 +75,7 @@ describe("agent pack generator", () => {
     expect(result.created).toContain("plugins/vibedoctor/.claude-plugin/plugin.json");
     expect(result.created).toContain("plugins/vibedoctor/skills/vibedoctor-health-scan/SKILL.md");
     expect(result.created).toContain("plugins/vibedoctor/skills/vibedoctor-privacy-review/SKILL.md");
+    expect(result.created).toContain("plugins/vibedoctor/skills/vibedoctor-dpdp-readiness-review/SKILL.md");
 
     const codexManifest = JSON.parse(await fs.readFile(path.join(root, "plugins", "vibedoctor", ".codex-plugin", "plugin.json"), "utf8"));
     const claudeManifest = JSON.parse(await fs.readFile(path.join(root, "plugins", "vibedoctor", ".claude-plugin", "plugin.json"), "utf8"));

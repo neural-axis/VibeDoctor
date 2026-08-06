@@ -19,6 +19,7 @@ import {
 } from "../adapters";
 import { customLeftoversAdapter } from "../adapters/customLeftovers";
 import { privacyDetectorAdapter } from "../adapters/privacyDetector";
+import { dpdpAdapter } from "../adapters/dpdp";
 import { customRefactorAdapter } from "../adapters/customRefactor";
 import { detectDeadChains } from "../adapters/customDeadChain";
 import { presidioAdapter } from "../adapters/presidio";
@@ -62,6 +63,7 @@ const ALL_ADAPTERS = [
   vitestAdapter,
   jestAdapter,
   privacyDetectorAdapter,
+  dpdpAdapter,
   presidioAdapter,
   telemetryDetectorAdapter,
   customLeftoversAdapter,
@@ -542,12 +544,24 @@ export async function runScan(root: string, mode: ScanMode = "default"): Promise
   const plan = await createScanPlan(project, config, [...ALL_ADAPTERS], mode);
   const ctx = { root, project, config, scanMode: mode } as const;
   const selectedAdapters = ALL_ADAPTERS.filter((adapter) => plan.adapterIds.includes(adapter.id));
+  const independentAdapters = selectedAdapters.filter((adapter) => adapter.id !== "dpdp");
 
-  // Run adapters concurrently for performance (independent tools; dead-chain post-process depends on aggregated findings).
-  // This addresses the previous sequential for-loop bottleneck in runScan.
-  const adapterResults = await Promise.all(
-    selectedAdapters.map(async (adapter) => ({ adapter, result: await runAdapter(adapter, ctx) }))
+  // Run independent adapters once. DPDP follows so it can reuse optional scanner
+  // findings/status instead of launching duplicate Semgrep and Presidio processes.
+  const adapterResults: Array<{
+    adapter: (typeof ALL_ADAPTERS)[number];
+    result: Awaited<ReturnType<typeof runAdapter>>;
+  }> = await Promise.all(
+    independentAdapters.map(async (adapter) => ({ adapter, result: await runAdapter(adapter, ctx) }))
   );
+
+  if (selectedAdapters.some((adapter) => adapter.id === "dpdp")) {
+    const sharedToolResults = Object.fromEntries(
+      adapterResults.map(({ adapter, result }) => [adapter.id, result])
+    );
+    const dpdpCtx: ToolAdapterContext = { ...ctx, sharedToolResults };
+    adapterResults.push({ adapter: dpdpAdapter, result: await runAdapter(dpdpAdapter, dpdpCtx) });
+  }
 
   const findings: Finding[] = [];
   const toolStatuses: ToolStatusSummary[] = [];
@@ -756,6 +770,10 @@ export function buildSummaryLines(scan: ScanOutput): string[] {
   lines.push(`Blockers: ${scan.blockers.length}`);
   lines.push(`Fix next: ${scan.fixNext.length}`);
   lines.push(`Privacy Review findings: ${scan.privacyFindings.length}`);
+  const dpdpFindings = scan.privacyFindings.filter((finding) => finding.source === "dpdp");
+  if (dpdpFindings.length > 0) {
+    lines.push(`DPDP technical findings: ${dpdpFindings.length} (not legal compliance)`);
+  }
   lines.push(`Leftovers: ${scan.leftovers.length}`);
   lines.push(`Dead code candidates: ${scan.deadCodeCandidates.length}`);
   lines.push(`Refactor candidates: ${scan.refactorCandidates.length}`);
@@ -777,6 +795,16 @@ export function buildSummaryLines(scan: ScanOutput): string[] {
       .forEach((finding, index) =>
         lines.push(`${index + 1}. ${finding.title}${finding.file ? ` (${finding.file}${finding.startLine ? `:${finding.startLine}` : ""})` : ""}`)
       );
+  }
+
+  if (dpdpFindings.length > 0) {
+    lines.push("", "DPDP TECHNICAL FINDINGS (not legal compliance)");
+    dpdpFindings
+      .slice(0, 5)
+      .forEach((finding, index) =>
+        lines.push(`${index + 1}. ${finding.title}${finding.file ? ` (${finding.file}${finding.startLine ? `:${finding.startLine}` : ""})` : ""}`)
+      );
+    lines.push("Artifacts: .vibedoctor/dpdp/ · Command: vibedoctor dpdp report --markdown");
   }
 
   if (scan.leftovers.length > 0) {

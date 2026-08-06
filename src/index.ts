@@ -7,3 +7,4 @@ export * from "./core/finding";
 export * from "./core/privacyReview";
 export * from "./core/projectDetector";
 export * from "./mcp/server";
+export * from "./dpdp";

@@ -193,7 +193,8 @@ const recommendedTools: SetupTool[] = [
     id: "presidio",
     ecosystem: "manual",
     priority: "recommended",
-    reason: "Optional external scanner for Privacy Review when checks.privacy.presidio.enabled is true.",
+    reason:
+      "External PII analyzer used by privacy + DPDP scans by default (skipped gracefully if missing). The normal privacy and DPDP opt-outs are independent.",
     installHint: "Install in the project Python environment with: python -m pip install presidio-analyzer"
   }
 ];

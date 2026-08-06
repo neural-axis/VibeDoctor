@@ -188,4 +188,42 @@ describe("determineExitCode", () => {
 
     expect(determineExitCode(scan, config)).toBe(1);
   });
+
+  it("uses the DPDP fail-only-on-new policy independently of the general baseline policy", () => {
+    const config = structuredClone(defaultConfig);
+    config.baseline.failOnlyOnNewIssues = false;
+    config.checks.dpdp.failOnlyOnNew = true;
+    config.checks.dpdp.failOnSeverity = ["medium"];
+    const scan = makeScan({
+      findings: [
+        makeFinding({
+          source: "dpdp",
+          category: "privacy",
+          severity: "medium",
+          isNew: false,
+          tags: ["dpdp", "DPDP-SEC-001", "partial", "deterministic"]
+        })
+      ]
+    });
+
+    expect(determineExitCode(scan, config)).toBe(0);
+    config.checks.dpdp.failOnlyOnNew = false;
+    expect(determineExitCode(scan, config)).toBe(1);
+  });
+
+  it("does not apply severity gates to non-deterministic DPDP signals", () => {
+    const config = structuredClone(defaultConfig);
+    config.checks.dpdp.failOnSeverity = ["high"];
+    const scan = makeScan({
+      findings: [
+        makeFinding({
+          source: "dpdp",
+          category: "privacy",
+          severity: "high",
+          tags: ["dpdp", "DPDP-NOTICE-001", "violated", "technical_signal"]
+        })
+      ]
+    });
+    expect(determineExitCode(scan, config)).toBe(0);
+  });
 });

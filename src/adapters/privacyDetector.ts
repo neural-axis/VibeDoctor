@@ -643,9 +643,96 @@ function passesConfidenceThreshold(finding: Finding, minimum: Confidence): boole
   return CONFIDENCE_RANK[finding.confidence] >= CONFIDENCE_RANK[minimum];
 }
 
-export async function detectPiiFindings(ctx: ToolAdapterContext): Promise<Finding[]> {
+export type DetectPiiFindingsOptions = {
+  /**
+   * When set, only these files are scanned (already path-normalized preferred).
+   * Used by DPDP changed-scope collection so privacy reuse the same allowlist.
+   */
+  fileAllowlist?: string[];
+  /** Override include patterns (defaults to config.paths.include). Ignored when fileAllowlist is set. */
+  include?: string[];
+  /** Override exclude patterns (defaults to config.paths.exclude). Ignored when fileAllowlist is set. */
+  exclude?: string[];
+  /** Bypass process-lifetime cache (tests / forced refresh). */
+  skipCache?: boolean;
+};
+
+/** Process-lifetime cache: privacy adapter + DPDP collectors often scan the same tree once per run. */
+const privacyFindingsCache = new Map<string, Promise<Finding[]>>();
+let privacyCacheHits = 0;
+let privacyCacheMisses = 0;
+
+export function clearPrivacyFindingsCache(): void {
+  privacyFindingsCache.clear();
+  privacyCacheHits = 0;
+  privacyCacheMisses = 0;
+}
+
+export function getPrivacyFindingsCacheStats(): { size: number; hits: number; misses: number } {
+  return {
+    size: privacyFindingsCache.size,
+    hits: privacyCacheHits,
+    misses: privacyCacheMisses
+  };
+}
+
+function privacyConfigFingerprint(ctx: ToolAdapterContext): string {
+  const privacy = ctx.config.checks.privacy;
+  return JSON.stringify({
+    minConfidenceToReport: privacy.minConfidenceToReport,
+    maskExamples: privacy.maskExamples,
+    maxFileBytes: privacy.maxFileBytes,
+    detectUnsanitizedLogs: privacy.detectUnsanitizedLogs,
+    detectApiOverfetching: privacy.detectApiOverfetching,
+    detectMissingRetention: privacy.detectMissingRetention
+  });
+}
+
+function resolvePrivacyCandidates(ctx: ToolAdapterContext, options: DetectPiiFindingsOptions): string[] {
+  if (options.fileAllowlist !== undefined) {
+    return options.fileAllowlist.filter(isTextCandidate).map((file) => file.replaceAll("\\", "/")).sort();
+  }
+  return filterPaths(
+    ctx.project.projectFiles,
+    options.include ?? ctx.config.paths.include,
+    options.exclude ?? ctx.config.paths.exclude
+  )
+    .filter(isTextCandidate)
+    .map((file) => file.replaceAll("\\", "/"))
+    .sort();
+}
+
+async function buildPrivacyFindingsCacheKey(
+  ctx: ToolAdapterContext,
+  options: DetectPiiFindingsOptions,
+  candidates: string[]
+): Promise<string> {
+  const fileVersions: string[] = [];
+  for (const candidate of candidates) {
+    const stat = await fs.stat(path.join(ctx.root, candidate)).catch(() => undefined);
+    fileVersions.push(`${candidate}:${stat?.size ?? -1}:${stat?.mtimeMs ?? -1}`);
+  }
+  return [
+    ctx.root,
+    privacyConfigFingerprint(ctx),
+    fileVersions.join("\n"),
+    JSON.stringify({
+      include: options.include ?? null,
+      exclude: options.exclude ?? null,
+      allowlist: options.fileAllowlist !== undefined
+    })
+  ].join("::");
+}
+
+function cloneFindings(findings: Finding[]): Finding[] {
+  return structuredClone(findings);
+}
+
+async function detectPiiFindingsUncached(
+  ctx: ToolAdapterContext,
+  candidates: string[]
+): Promise<Finding[]> {
   const privacyCfg = ctx.config.checks.privacy;
-  const candidates = filterPaths(ctx.project.projectFiles, ctx.config.paths.include, ctx.config.paths.exclude).filter(isTextCandidate);
   const findings: Finding[] = [];
 
   for (const file of candidates) {
@@ -781,6 +868,40 @@ export async function detectPiiFindings(ctx: ToolAdapterContext): Promise<Findin
   }
 
   return findings.filter((finding) => passesConfidenceThreshold(finding, privacyCfg.minConfidenceToReport));
+}
+
+/**
+ * Deterministic privacy scan with process-lifetime cache.
+ * Concurrent callers with the same key share one in-flight computation (dedupes privacy + DPDP double walks).
+ */
+export async function detectPiiFindings(
+  ctx: ToolAdapterContext,
+  options: DetectPiiFindingsOptions = {}
+): Promise<Finding[]> {
+  const candidates = resolvePrivacyCandidates(ctx, options);
+
+  if (options.skipCache) {
+    return detectPiiFindingsUncached(ctx, candidates);
+  }
+
+  const key = await buildPrivacyFindingsCacheKey(ctx, options, candidates);
+  const existing = privacyFindingsCache.get(key);
+  if (existing) {
+    privacyCacheHits += 1;
+    return cloneFindings(await existing);
+  }
+
+  privacyCacheMisses += 1;
+  const pending = detectPiiFindingsUncached(ctx, candidates);
+  privacyFindingsCache.set(key, pending);
+
+  try {
+    const findings = await pending;
+    return cloneFindings(findings);
+  } catch (error) {
+    privacyFindingsCache.delete(key);
+    throw error;
+  }
 }
 
 export const privacyDetectorAdapter: ToolAdapter = {

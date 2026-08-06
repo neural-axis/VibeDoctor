@@ -1,0 +1,223 @@
+[
+  {
+    "controlId": "DPDP-SEC-001",
+    "kind": "positive",
+    "files": { "src/app.ts": "DPDP-SEC-001/positive.ts" },
+    "expectedStatus": "VIOLATED",
+    "rawPiiSamples": ["user.email"]
+  },
+  {
+    "controlId": "DPDP-SEC-001",
+    "kind": "positive",
+    "id": "DPDP-SEC-001-multiline",
+    "files": { "src/app.ts": "DPDP-SEC-001/multiline-positive.ts" },
+    "expectedStatus": "VIOLATED"
+  },
+  {
+    "controlId": "DPDP-SEC-001",
+    "kind": "negative",
+    "files": {
+      "src/app.ts": "DPDP-SEC-001/negative.ts",
+      "src/schema.prisma": "DPDP-SEC-001/negative.prisma"
+    },
+    "expectedStatus": ["NOT_OBSERVED", "NOT_APPLICABLE"]
+  },
+  {
+    "controlId": "DPDP-SEC-002",
+    "kind": "positive",
+    "files": { "src/app.ts": "DPDP-SEC-002/positive.ts" },
+    "expectedStatus": "VIOLATED",
+    "rawPiiSamples": ["user.email"]
+  },
+  {
+    "controlId": "DPDP-SEC-002",
+    "kind": "positive",
+    "id": "DPDP-SEC-002-multiline",
+    "files": { "src/app.ts": "DPDP-SEC-002/multiline-positive.ts" },
+    "expectedStatus": "VIOLATED"
+  },
+  {
+    "controlId": "DPDP-SEC-002",
+    "kind": "negative",
+    "files": { "src/app.ts": "DPDP-SEC-002/negative.ts" },
+    "expectedStatus": ["NOT_OBSERVED", "NOT_APPLICABLE"]
+  },
+  {
+    "controlId": "DPDP-EXPORT-001",
+    "kind": "positive",
+    "files": { "src/app.ts": "DPDP-EXPORT-001/positive.ts" },
+    "expectedStatus": "VIOLATED"
+  },
+  {
+    "controlId": "DPDP-EXPORT-001",
+    "kind": "negative",
+    "files": { "src/app.ts": "DPDP-EXPORT-001/negative.ts" },
+    "expectedStatus": ["NOT_OBSERVED", "PARTIAL", "NOT_APPLICABLE"]
+  },
+  {
+    "controlId": "DPDP-SEC-006",
+    "kind": "positive",
+    "files": { "src/app.ts": "DPDP-SEC-006/positive.ts" },
+    "expectedStatus": ["VIOLATED", "PARTIAL"]
+  },
+  {
+    "controlId": "DPDP-SEC-006",
+    "kind": "positive",
+    "id": "DPDP-SEC-006-multiline",
+    "files": { "src/app.ts": "DPDP-SEC-006/multiline-positive.ts" },
+    "expectedStatus": ["VIOLATED", "PARTIAL"]
+  },
+  {
+    "controlId": "DPDP-SEC-006",
+    "kind": "negative",
+    "files": { "src/app.ts": "DPDP-SEC-006/negative.ts" },
+    "expectedStatus": ["NOT_OBSERVED", "NOT_APPLICABLE", "PARTIAL"]
+  },
+  {
+    "controlId": "DPDP-CONSENT-001",
+    "kind": "positive",
+    "files": { "src/app.ts": "DPDP-CONSENT-001/positive.ts" },
+    "expectedStatus": "PARTIAL"
+  },
+  {
+    "controlId": "DPDP-CONSENT-001",
+    "kind": "negative",
+    "files": { "src/app.ts": "DPDP-CONSENT-001/negative.ts" },
+    "expectedStatus": ["NOT_OBSERVED", "NOT_APPLICABLE"]
+  },
+  {
+    "controlId": "DPDP-CONSENT-002",
+    "kind": "positive",
+    "files": {
+      "src/app.ts": "DPDP-CONSENT-002/positive.ts",
+      "src/schema.prisma": "DPDP-CONSENT-002/positive.prisma"
+    },
+    "expectedStatus": ["VIOLATED", "PARTIAL"]
+  },
+  {
+    "controlId": "DPDP-CONSENT-002",
+    "kind": "negative",
+    "files": {
+      "src/app.ts": "DPDP-CONSENT-002/negative.ts",
+      "src/schema.prisma": "DPDP-CONSENT-002/negative.prisma"
+    },
+    "expectedStatus": ["VERIFIED", "PARTIAL"]
+  },
+  {
+    "controlId": "DPDP-ERA-001",
+    "kind": "positive",
+    "files": {
+      "src/app.ts": "DPDP-ERA-001/positive.ts",
+      "src/schema.prisma": "DPDP-ERA-001/positive.prisma"
+    },
+    "expectedStatus": "VIOLATED"
+  },
+  {
+    "controlId": "DPDP-ERA-001",
+    "kind": "negative",
+    "files": {
+      "src/app.ts": "DPDP-ERA-001/negative.ts",
+      "src/schema.prisma": "DPDP-ERA-001/negative.prisma"
+    },
+    "expectedStatus": ["PARTIAL", "VERIFIED"]
+  },
+  {
+    "controlId": "DPDP-ERA-002",
+    "kind": "positive",
+    "files": {
+      "src/app.ts": "DPDP-ERA-002/positive.ts",
+      "src/schema.prisma": "DPDP-ERA-002/positive.prisma"
+    },
+    "expectedStatus": "VIOLATED"
+  },
+  {
+    "controlId": "DPDP-ERA-002",
+    "kind": "negative",
+    "files": {
+      "src/app.ts": "DPDP-ERA-002/negative.ts",
+      "src/schema.prisma": "DPDP-ERA-002/negative.prisma"
+    },
+    "expectedStatus": ["PARTIAL", "NOT_APPLICABLE"]
+  },
+  {
+    "controlId": "DPDP-RET-001",
+    "kind": "positive",
+    "files": {
+      "src/app.ts": "DPDP-RET-001/positive.ts",
+      "src/schema.prisma": "DPDP-RET-001/positive.prisma"
+    },
+    "expectedStatus": "VIOLATED"
+  },
+  {
+    "controlId": "DPDP-RET-001",
+    "kind": "negative",
+    "files": {
+      "src/app.ts": "DPDP-RET-001/negative.ts",
+      "src/schema.prisma": "DPDP-RET-001/negative.prisma"
+    },
+    "expectedStatus": ["PARTIAL", "NOT_OBSERVED", "NOT_APPLICABLE"]
+  },
+  {
+    "controlId": "DPDP-CHILD-001",
+    "kind": "positive",
+    "files": { "src/app.ts": "DPDP-CHILD-001/positive.ts" },
+    "expectedStatus": ["VIOLATED", "PARTIAL", "NEEDS_CONTEXT"]
+  },
+  {
+    "controlId": "DPDP-CHILD-001",
+    "kind": "negative",
+    "files": { "src/app.ts": "DPDP-CHILD-001/negative.ts" },
+    "expectedStatus": ["NOT_OBSERVED", "NOT_APPLICABLE", "PARTIAL"]
+  },
+  {
+    "controlId": "DPDP-CHILD-002",
+    "kind": "positive",
+    "files": { "src/app.ts": "DPDP-CHILD-002/positive.ts" },
+    "expectedStatus": ["VIOLATED", "PARTIAL", "NEEDS_CONTEXT"]
+  },
+  {
+    "controlId": "DPDP-CHILD-002",
+    "kind": "negative",
+    "files": { "src/app.ts": "DPDP-CHILD-002/negative.ts" },
+    "expectedStatus": ["PARTIAL", "VERIFIED", "NOT_OBSERVED", "NOT_APPLICABLE"]
+  },
+  {
+    "controlId": "DPDP-MIN-001",
+    "kind": "positive",
+    "files": { "src/app.ts": "DPDP-MIN-001/positive.ts" },
+    "expectedStatus": "VIOLATED"
+  },
+  {
+    "controlId": "DPDP-MIN-001",
+    "kind": "negative",
+    "files": { "src/app.ts": "DPDP-MIN-001/negative.ts" },
+    "expectedStatus": ["NOT_OBSERVED", "NOT_APPLICABLE"]
+  },
+  {
+    "controlId": "DPDP-MIN-002",
+    "kind": "positive",
+    "files": { "src/app.ts": "DPDP-MIN-002/positive.ts" },
+    "expectedStatus": "VIOLATED"
+  },
+  {
+    "controlId": "DPDP-MIN-002",
+    "kind": "negative",
+    "files": { "src/app.ts": "DPDP-MIN-002/negative.ts" },
+    "expectedStatus": ["NOT_OBSERVED", "NOT_APPLICABLE"]
+  },
+  {
+    "controlId": "DPDP-THIRD-001",
+    "kind": "positive",
+    "files": { "src/app.ts": "DPDP-THIRD-001/positive.ts" },
+    "expectedStatus": "VIOLATED"
+  },
+  {
+    "controlId": "DPDP-THIRD-001",
+    "kind": "negative",
+    "files": {
+      "src/app.ts": "DPDP-THIRD-001/negative.ts",
+      "src/schema.prisma": "DPDP-THIRD-001/negative.prisma"
+    },
+    "expectedStatus": ["NOT_OBSERVED", "NOT_APPLICABLE"]
+  }
+]

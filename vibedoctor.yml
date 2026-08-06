@@ -100,6 +100,24 @@ checks:
       includeRawValues: false
     presidio:
       enabled: false
+  dpdp:
+    enabled: true
+    minConfidenceToReport: medium
+    maskExamples: true
+    # Opt-out scanners (default true in product defaults; explicit for this repo)
+    usePresidio: true
+    useSemgrep: true
+    legalSourceVersion: "2025.2-final-corrigendum"
+    contextFile: .vibedoctor/dpdp/context.yml
+    evidenceFile: .vibedoctor/dpdp/evidence.yml
+    failOnSeverity: []
+    failOnViolatedControls: []
+    failOnlyOnNew: true
+    organization:
+      processes_personal_data: unknown
+      is_significant_data_fiduciary: unknown
+      processes_children_data: unknown
+      has_cross_border_transfer: unknown
 
 output:
   terminal: true

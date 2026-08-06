@@ -130,6 +130,8 @@ export const presidioAdapter: ToolAdapter = {
   id: "presidio",
   category: "privacy",
   async detect(_project, config) {
+    // This adapter belongs to the normal privacy scan. DPDP has an independent
+    // opt-out switch and invokes/reuses this adapter through its collector.
     return config.checks.privacy.enabled && config.checks.privacy.presidio.enabled;
   },
   async runStandalone(ctx) {
@@ -178,5 +180,6 @@ export const presidioAdapter: ToolAdapter = {
       status
     };
   },
-  installHint: "Optional privacy scanner. Enable checks.privacy.presidio.enabled and install presidio-analyzer."
+  installHint:
+    "Optional privacy scanner (on by default). Install: python -m pip install presidio-analyzer. Opt out of normal privacy scans with checks.privacy.presidio.enabled: false."
 };

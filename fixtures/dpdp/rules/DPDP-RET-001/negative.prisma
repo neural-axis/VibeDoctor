@@ -1,0 +1,7 @@
+model Customer {
+  id        String    @id
+  email     String
+  deletedAt DateTime?
+  expiresAt DateTime?
+  ttl       Int?
+}

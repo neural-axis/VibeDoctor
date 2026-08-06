@@ -9,6 +9,13 @@ export type ToolAdapterContext = {
   project: ProjectContext;
   config: VibeDoctorConfig;
   scanMode: "default" | "changed" | "quick" | "full";
+  /** Results already produced by the scan engine, available to dependent adapters for reuse. */
+  sharedToolResults?: Record<string, SharedToolExecution>;
+};
+
+export type SharedToolExecution = {
+  findings: Finding[];
+  status?: ToolResult;
 };
 
 export type ToolAdapter = {

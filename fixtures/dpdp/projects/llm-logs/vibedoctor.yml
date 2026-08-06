@@ -1,0 +1,26 @@
+version: 1
+baseline:
+  enabled: false
+checks:
+  security:
+    enabled: false
+  correctness:
+    enabled: false
+  deadCode:
+    enabled: false
+  leftovers:
+    enabled: false
+  refactorReadiness:
+    enabled: false
+  tests:
+    enabled: false
+  dependencies:
+    enabled: false
+  privacy:
+    enabled: true
+    detectUnsanitizedLogs: true
+  dpdp:
+    enabled: true
+paths:
+  include:
+    - src/**

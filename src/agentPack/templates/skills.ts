@@ -193,6 +193,116 @@ Return:
 `
   ),
   createSkill(
+    "vibedoctor-dpdp-readiness-review",
+    "Run DPDP technical readiness review using deterministic VibeDoctor DPDP artifacts. Use when asked about DPDP, India data protection technical controls, personal-data maps, consent/erasure gaps, processor signals, or engineering risk against DPDP — never for legal certification.",
+    `
+# VibeDoctor DPDP Readiness Review
+
+This skill supports **DPDP technical readiness / engineering-risk assessment**.
+It is **not** legal advice and **not** a compliance certification.
+
+## Hard rules
+
+1. Consume deterministic artifacts; do not implement a competing compliance engine.
+2. Never independently mark DETERMINISTIC controls as passed if the control matrix says otherwise.
+3. Never invent evidence.
+4. Never claim legal certification.
+5. Never calculate a separate legal compliance percentage or score.
+6. Declared evidence is not deterministic verification.
+7. Preserve provenance and uncertainty in every answer.
+8. After code changes, re-run deterministic verification.
+9. Treat the bundled legal-source manifest as a versioned offline baseline, not proof that the law is current.
+
+## Legal-source freshness gate
+
+Perform this gate whenever the answer interprets a control against DPDP law, rules, commencement, or enforcement status.
+
+1. Read \`legalSourceVersion\` and the legal citations in the control matrix or report.
+2. Use current web research to find the latest official primary sources. Check, as applicable:
+   - the Digital Personal Data Protection Act and later amendments
+   - final Rules and later amendments or corrigenda
+   - commencement and enforcement notifications
+   - Data Protection Board or other notifications only when relevant to the controls under review
+3. Prefer official Government of India sources, including \`meity.gov.in\`, \`indiacode.nic.in\`, and \`egazette.nic.in\`. Search results, blogs, news, and law-firm summaries may help discovery but are not authority.
+4. For each official source used, record its title, URL, Act/Gazette/notification identifier, publication date, effective date or phased schedule, and the date checked. Use exact citations; do not reproduce long passages.
+5. Compare the current official sources with the bundled manifest and its \`legalSourceVersion\`.
+6. If an official source is newer or materially different, label the result \`LEGAL_SOURCE_DRIFT\`. Identify affected control IDs and citations, keep the deterministic technical statuses unchanged, and recommend updating the versioned catalogue plus qualified legal review.
+7. If live research is unavailable, official pages cannot be reached, or currency cannot be established, label the result \`CURRENT_LEGAL_SOURCES_NOT_VERIFIED\`. You may use the bundled manifest as an offline baseline, but do not claim the legal position is current.
+8. Never silently use live research to change deterministic findings, scores, or control statuses. Present current-law observations separately from technical scan results.
+
+## Default workflow
+
+1. Run or refresh the deterministic scan:
+
+\`\`\`bash
+vibedoctor dpdp scan --full
+\`\`\`
+
+2. Read these artifacts (source of truth):
+   - \`.vibedoctor/dpdp/data-map.json\`
+   - \`.vibedoctor/dpdp/control-matrix.json\`
+   - \`.vibedoctor/dpdp/evidence-ledger.json\`
+   - \`.vibedoctor/dpdp/review-queue.md\`
+   - \`.vibedoctor/dpdp/agent-handoff.md\` (or run \`vibedoctor dpdp handoff\`)
+
+3. Do **not** re-ask questions already answered by deterministic evidence.
+
+4. Group unresolved questions by audience from the review queue:
+   - developer
+   - security
+   - product
+   - legal
+   - operations
+   - founder
+
+5. Ask the **minimum** number of questions needed.
+
+6. Review any supplied policies and \`.vibedoctor/dpdp/evidence.yml\` declarations.
+   Compare declared policy against implementation signals in the data map.
+
+7. Produce remediation grouped into:
+   - code
+   - configuration
+   - documentation
+   - organisational work
+
+8. After code/config changes:
+
+\`\`\`bash
+vibedoctor dpdp verify
+\`\`\`
+
+## Output format
+
+\`\`\`text
+DPDP technical posture (not legal compliance):
+Legal-source freshness: verified as of <date> | LEGAL_SOURCE_DRIFT | CURRENT_LEGAL_SOURCES_NOT_VERIFIED
+Official sources checked:
+Bundled-manifest drift:
+Evidence completeness:
+Personal-data categories:
+Stores / external recipients:
+Verified technical risks (violations):
+Partial controls:
+Human-review items (by audience):
+Skipped capabilities:
+Fix-next (code/config first):
+Questions still needed:
+What was not verified:
+\`\`\`
+
+## Scoring language
+
+Only cite scores from the deterministic report:
+- technical posture score
+- evidence completeness percentage
+- open-risk counts by severity
+- status counts
+
+Label them as **technical readiness**, never as legal compliance.
+`
+  ),
+  createSkill(
     "vibedoctor-dead-code-cleanup",
     "Review and clean high-confidence dead code chains, unused exports, unused files, unused dependencies, commented-out code, legacy fallbacks, and AI-created leftovers found by VibeDoctor. Use when asked to remove dead code, clean leftovers, reduce legacy baggage, or simplify AI-generated code.",
     `

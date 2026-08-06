@@ -7,6 +7,7 @@ import { renderJsonReport } from "../../reporters/json";
 import { renderHtmlReport } from "../../reporters/html";
 import { renderAgentJson, renderAgentMarkdown } from "../../reporters/agent";
 import { ensureOutputArtifacts, getConfig } from "./shared";
+import { evaluateDpdpFailureGate, findingToGateCandidate } from "../../dpdp/gates";
 
 export type ScanCommandResult = {
   output: string;
@@ -84,13 +85,19 @@ export function determineExitCode(scan: Pick<ScanOutput, "score" | "findings"> &
         finding.evidence?.sensitivity === "high"
     );
 
+  const dpdpFailure = evaluateDpdpFailureGate(
+    scan.findings.map(findingToGateCandidate).filter((item) => item !== undefined),
+    config
+  );
+
   return secretFailure ||
     dependencyFailure ||
     missingDependencyFailure ||
     typeFailure ||
     testFailure ||
     regulatedIdentifierFailure ||
-    sensitiveAttributeFailure
+    sensitiveAttributeFailure ||
+    dpdpFailure
     ? 1
     : 0;
 }

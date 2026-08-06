@@ -5,6 +5,7 @@ import { getReportTool } from "./getReport";
 import { scanChangedTool } from "./scanChanged";
 import { scanFullTool } from "./scanFull";
 import { verifyTool } from "./verify";
+import { dpdpMcpTools } from "./dpdp";
 
 export const mcpTools = [
   scanChangedTool,
@@ -13,5 +14,6 @@ export const mcpTools = [
   getReportTool,
   getAgentPlanTool,
   explainFindingTool,
-  verifyTool
+  verifyTool,
+  ...dpdpMcpTools
 ];

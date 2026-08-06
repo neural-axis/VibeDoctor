@@ -22,6 +22,7 @@ export const FINDING_SOURCES = [
   "presidio",
   "privacy-ai-review",
   "telemetry-detector",
+  "dpdp",
   "custom-leftovers",
   "custom-refactor",
   "custom-dead-chain"

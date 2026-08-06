@@ -10,6 +10,16 @@ import { runSafeFixCommand } from "./commands/fix";
 import { runInit } from "./commands/init";
 import { runMcpServer } from "../mcp/server";
 import { runPrivacyReviewCommand } from "./commands/privacyReview";
+import {
+  runDpdpExplainCommand,
+  runDpdpHandoffCommand,
+  runDpdpInitCommand,
+  runDpdpMapCommand,
+  runDpdpReportCommand,
+  runDpdpReviewQueueCommand,
+  runDpdpScanCommand,
+  runDpdpVerifyCommand
+} from "./commands/dpdp";
 import { runReportCommand } from "./commands/report";
 import { runScanCommand } from "./commands/scan";
 import { runSetupCommand } from "./commands/setup";
@@ -211,6 +221,103 @@ async function main(): Promise<void> {
         refresh: options.refresh,
         format: options.format === "markdown" ? "markdown" : "json"
       });
+      process.stdout.write(result.output);
+      process.exit(result.exitCode);
+    });
+
+  const dpdp = program
+    .command("dpdp")
+    .description("DPDP technical readiness assessment (not legal certification)");
+
+  dpdp
+    .command("init")
+    .description("Create optional DPDP context and declared-evidence scaffolding")
+    .action(async () => {
+      const result = await runDpdpInitCommand(process.cwd());
+      process.stdout.write(result.output);
+      process.exit(result.exitCode);
+    });
+
+  dpdp
+    .command("scan")
+    .description("Run deterministic DPDP technical readiness scan")
+    .option("--full", "Full repository scan (default)", true)
+    .option(
+      "--changed",
+      "Collect evidence only from git changed files (falls back to full scope if no delta); control matrix remains full catalogue"
+    )
+    .option("--report <format>", "terminal|json|html|markdown", "terminal")
+    .action(async (options) => {
+      const result = await runDpdpScanCommand(process.cwd(), {
+        full: !options.changed,
+        changed: Boolean(options.changed),
+        report: options.report
+      });
+      process.stdout.write(result.output);
+      process.exit(result.exitCode);
+    });
+
+  dpdp
+    .command("map")
+    .description("Print the personal-data processing map JSON (uses cached artifacts unless --refresh)")
+    .option("--refresh", "Force a new scan before printing", false)
+    .action(async (options) => {
+      const result = await runDpdpMapCommand(process.cwd(), { refresh: Boolean(options.refresh) });
+      process.stdout.write(result.output);
+      process.exit(result.exitCode);
+    });
+
+  dpdp
+    .command("review-queue")
+    .description("Print human-review questions grouped by audience (uses cached artifacts unless --refresh)")
+    .option("--refresh", "Force a new scan before printing", false)
+    .action(async (options) => {
+      const result = await runDpdpReviewQueueCommand(process.cwd(), { refresh: Boolean(options.refresh) });
+      process.stdout.write(result.output);
+      process.exit(result.exitCode);
+    });
+
+  dpdp
+    .command("report")
+    .description("Emit DPDP readiness report (uses cached artifacts unless --refresh)")
+    .option("--json", "JSON report")
+    .option("--html", "HTML report")
+    .option("--markdown", "Markdown report")
+    .option("--refresh", "Force a new scan before reporting", false)
+    .action(async (options) => {
+      const result = await runDpdpReportCommand(process.cwd(), options);
+      process.stdout.write(result.output);
+      process.exit(result.exitCode);
+    });
+
+  dpdp
+    .command("handoff")
+    .description("Generate agent handoff markdown from deterministic artifacts (cached unless --refresh)")
+    .option("--refresh", "Force a new scan before generating handoff", false)
+    .action(async (options) => {
+      const result = await runDpdpHandoffCommand(process.cwd(), { refresh: Boolean(options.refresh) });
+      process.stdout.write(result.output);
+      process.exit(result.exitCode);
+    });
+
+  dpdp
+    .command("verify")
+    .description(
+      "Re-run DPDP collection on changed files for post-fix verification (same scope as scan --changed; falls back to full if no git delta)"
+    )
+    .action(async () => {
+      const result = await runDpdpVerifyCommand(process.cwd());
+      process.stdout.write(result.output);
+      process.exit(result.exitCode);
+    });
+
+  dpdp
+    .command("explain")
+    .description("Explain a DPDP control or finding id (uses cached artifacts unless --refresh)")
+    .argument("<control-or-finding-id>")
+    .option("--refresh", "Force a new scan before explaining", false)
+    .action(async (id: string, options) => {
+      const result = await runDpdpExplainCommand(process.cwd(), id, { refresh: Boolean(options.refresh) });
       process.stdout.write(result.output);
       process.exit(result.exitCode);
     });

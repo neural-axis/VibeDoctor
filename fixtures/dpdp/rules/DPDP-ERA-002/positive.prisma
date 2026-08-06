@@ -1,0 +1,5 @@
+model Customer {
+  id    String @id
+  email String
+  pan   String
+}

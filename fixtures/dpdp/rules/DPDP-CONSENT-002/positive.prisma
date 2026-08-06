@@ -1,0 +1,6 @@
+model ConsentRecord {
+  id     String  @id
+  userId String
+  email  String
+  agreed Boolean
+}

@@ -16,4 +16,5 @@ export { tscAdapter } from "./tsc";
 export { vitestAdapter } from "./vitest";
 export { vultureAdapter } from "./vulture";
 export { privacyDetectorAdapter } from "./privacyDetector";
+export { dpdpAdapter } from "./dpdp";
 export { telemetryDetectorAdapter } from "./telemetryDetector";
