@@ -1,84 +1,239 @@
 # VibeDoctor
 
-A health check for code you did not write line by line.
+**A local health check for code you did not write line by line.**
 
-VibeDoctor is a local code-health CLI for JS, TS, Python, and mixed repositories. It turns scattered tool output into a ranked health report, safe repair workflow, Privacy Review artifact, MCP server, and reusable agent skills.
+VibeDoctor scans JavaScript, TypeScript, Python, and mixed repositories for code-health, security, privacy, testing, and maintainability problems. It combines repository-local scanner output into one ranked report, one normalized finding format, and a fix-next plan that humans and coding agents can use without interpreting a wall of unrelated logs.
 
 ```bash
 npx @neuralaxis/vibedoctor scan --changed
 ```
 
-For a stronger first run:
+VibeDoctor runs locally by default. Missing or failed scanners are reported as incomplete evidence, never silently counted as a clean result.
+
+## DPDP readiness launch video
+
+<video src="docs/assets/vibedoctor-dpdp-launch.mp4" controls muted playsinline width="100%"></video>
+
+[Watch or download the DPDP technical-readiness launch video](docs/assets/vibedoctor-dpdp-launch.mp4). Its reproducible source lives in [`launch-video/`](launch-video/README.md) and uses Hyperframes for the opening sequence plus Remotion for the final composition.
+
+## Start here
+
+Choose the shortest path for what you are doing:
+
+| Goal | Command |
+| --- | --- |
+| Check files changed in Git | `npx @neuralaxis/vibedoctor scan --changed` |
+| Run a fast repository check | `npx @neuralaxis/vibedoctor scan --quick` |
+| Run the most complete check | `npx @neuralaxis/vibedoctor scan --full` |
+| Prepare local scanner tools | `npx @neuralaxis/vibedoctor setup` |
+| Get a repair plan for an AI agent | `npx @neuralaxis/vibedoctor agent-plan --format markdown` |
+| Check India DPDP technical readiness | `npx @neuralaxis/vibedoctor dpdp scan --full` |
+
+For a new repository, initialize the config and review the scanner setup plan:
 
 ```bash
 npx @neuralaxis/vibedoctor init
+npx @neuralaxis/vibedoctor setup
 npx @neuralaxis/vibedoctor setup --apply
 npx @neuralaxis/vibedoctor scan --quick
 ```
 
-Install once if you prefer the short binary:
+`setup --apply` installs supported recommended tools, so review the plan before applying it. To use the shorter `vibedoctor` command everywhere:
 
 ```bash
 npm install -g @neuralaxis/vibedoctor
-vibedoctor scan --full
 ```
 
-## Release Demos
+## What you get
 
-<video src="docs/assets/vibedoctor-product-release-demo-v0.1.1.mp4" controls muted playsinline width="100%"></video>
+Every scan reports both repository health and scan completeness. It highlights blockers, the next fixes, privacy findings, skipped or failed tools, and exact recovery commands.
 
-[Direct video link](docs/assets/vibedoctor-product-release-demo-v0.1.1.mp4)
+Default artifacts are written under `.vibedoctor/`:
 
-## Why VibeDoctor
+```text
+.vibedoctor/
+├── report.json       # automation and agents
+├── report.html       # human review
+└── agent-plan.md     # ordered repair work
+```
 
-- It focuses on the failure modes AI-heavy repos accumulate: dead branches, stale fallbacks, leftovers, weak coverage, and accidental sensitive-data exposure.
-- It collapses many tool results into one finding model, one score, and a ranked fix list instead of a wall of unrelated warnings.
-- It is agent-native without locking you into a hosted service: reports stay local and output remains plain JSON, HTML, Markdown, and SARIF.
-- It tells agents whether a scan is complete, provides exact recovery commands for failed tools, and prevents partial scores from masquerading as authoritative health checks.
+Use the terminal report for quick triage, HTML for review, JSON for automation, and `agent-plan.md` for a coding agent.
 
-## What VibeDoctor Checks
-
-VibeDoctor detects the project shape, discovers local tool binaries, runs the checks that make sense for the repo, and reports missing tools as skipped instead of pretending they passed.
+## What VibeDoctor checks
 
 - Type and lint failures from TypeScript, Pyright, Ruff, Biome, and similar local tools.
-- Secrets and dependency risk from Gitleaks, OSV-Scanner, Semgrep, deptry, Knip, and project-native scanners when available.
-- Privacy and PII exposure from VibeDoctor's deterministic detector, with optional Presidio support.
-- Dead code from Vulture, Knip, and VibeDoctor's dead-chain detector.
-- AI and legacy leftovers such as commented-out blocks, stale TODOs, fallback flags, and half-removed code.
-- Refactor-readiness hotspots, duplication, complexity, and coverage gaps.
-- Test and coverage signal from local JS and Python tooling.
+- Secrets, vulnerable dependencies, and insecure patterns from Gitleaks, OSV-Scanner, Semgrep, and project-native scanners when available.
+- Dead or unused code from Knip, Vulture, deptry, and VibeDoctor's dead-chain detector.
+- AI and legacy leftovers such as stale TODOs, commented-out code, fallback flags, and half-removed features.
+- Refactor-readiness hotspots, duplication, complexity, tests, and coverage signals.
+- Regulated identifiers, personal-data fields, sensitive attributes, and risky combinations through deterministic privacy checks and optional Presidio support.
 
-After a scan, VibeDoctor writes machine-readable and human-readable artifacts under `.vibedoctor/`, including `report.json`, `report.html`, and `agent-plan.md`.
+VibeDoctor detects the repository shape and discovers applicable local tools. A missing optional tool is marked `SKIPPED`; a failed or timed-out required tool can make the result `PARTIAL` or `INVALID`.
 
-## Tool Setup Philosophy
+## Understand the result before fixing code
 
-VibeDoctor prefers repository-local tools and config so the scan matches the versions you actually use in development and CI. Missing tools are reported as skipped with install guidance instead of being counted as clean.
+| Status | Meaning | What to do |
+| --- | --- | --- |
+| `COMPLETE` | All required checks completed. | Work through the ranked findings. |
+| `PARTIAL` | Some checks were skipped, failed, or timed out. | Follow `recoveryActions`; do not rely on the score alone. |
+| `INVALID` | There is not enough trustworthy evidence for an authoritative result. | Recover the required scanners and scan again before editing. |
 
-## Common CLI Workflows
+CLI exit codes let people, agents, and CI distinguish health failures from missing evidence:
+
+| Code | Meaning |
+| --- | --- |
+| `0` | The scan completed and configured gates passed. |
+| `1` | One or more configured health gates failed. |
+| `2` | Required checks were incomplete. |
+
+Skipped scanners are never treated as clean results. Privacy findings affect the privacy category score by default, but do not lower the overall score or fail CI unless you opt into privacy gates.
+
+If a scanner times out or fails, run the recovery command shown in the report. For example:
+
+```bash
+vibedoctor tool retry semgrep --timeout 600
+```
+
+## A fast, safe repair loop
+
+```bash
+# 1. Establish the current state
+vibedoctor scan --changed --report json
+
+# 2. Generate ordered work
+vibedoctor agent-plan --format markdown
+
+# 3. Optionally apply supported safe tool fixes
+vibedoctor fix --safe
+
+# 4. Review every change, then verify
+vibedoctor verify
+```
+
+Use `vibedoctor explain <finding-id>` when a finding needs more context. Always review generated changes before committing them.
+
+For an inherited repository, baseline existing debt and fail only on new findings:
+
+```bash
+vibedoctor baseline create
+```
+
+```yaml
+baseline:
+  fail_only_on_new_issues: true
+```
+
+## Using VibeDoctor with AI agents
+
+The quickest one-off handoff is `.vibedoctor/agent-plan.md`. An agent should follow this protocol:
+
+1. Run the appropriate scan.
+2. Read `completeness.status`, `toolStatuses`, `skippedTools`, and `recoveryActions` in `.vibedoctor/report.json`.
+3. Recover required scanners before treating findings or scores as authoritative.
+4. Fix only the ranked, in-scope findings and preserve unrelated user changes.
+5. Run `vibedoctor verify` after edits.
+6. Report remaining findings and any incomplete evidence; never claim success from a `PARTIAL` or `INVALID` scan.
+
+For repeated agent use, install repository-scoped instructions, skills, policy, and supported editor wiring:
+
+```bash
+vibedoctor agent init --targets all
+vibedoctor agent doctor --targets all
+```
+
+This can generate `AGENTS.md`, `.agents/skills/`, target-specific skills for Claude and GitHub, Cursor rules and MCP config, and `.vibedoctor/agent-policy.yml`.
+
+To create installable Codex and Claude plugin bundles under `plugins/vibedoctor/`:
+
+```bash
+vibedoctor agent plugin --targets all --force
+```
+
+### MCP server
+
+Start the MCP server over standard input/output:
+
+```bash
+vibedoctor mcp
+```
+
+It exposes structured operations for changed and full scans, report retrieval, finding explanations, safe fixes, repair plans, verification, privacy review, and DPDP technical readiness. Generated agent configs include MCP wiring where the target supports it.
+
+## Privacy Review
+
+Privacy Review is deterministic-first and advisory by default. Evidence stored in reports is masked or classified instead of preserving raw PII.
+
+```bash
+vibedoctor scan --category privacy --report json
+vibedoctor privacy-review --refresh --format markdown
+```
+
+The second command writes a structured review artifact to `.vibedoctor/privacy-review.json`. Optional AI adjudication runs only when explicitly enabled and the configured API-key environment variables are present.
+
+To make high-confidence privacy findings blocking, opt in:
+
+```yaml
+checks:
+  privacy:
+    fail_on_regulated_identifiers: true
+    fail_on_sensitive_attributes: true
+```
+
+## DPDP technical readiness
+
+VibeDoctor includes an engineering-focused module for India's Digital Personal Data Protection framework. It maps apparent personal-data processing, evaluates visible technical controls, identifies deterministic technical risks, and creates a human-review queue.
+
+It provides **technical readiness evidence, not legal compliance or certification**. Static analysis cannot establish legal applicability, production behavior, contractual adequacy, notice quality, or organisational policy implementation.
+
+```bash
+vibedoctor dpdp init
+vibedoctor dpdp scan --full
+```
+
+Common commands:
 
 | Goal | Command |
 | --- | --- |
-| Initialize config | `vibedoctor init` |
-| Plan scanner setup | `vibedoctor setup` |
-| Install automatable recommended tools | `vibedoctor setup --apply` |
-| Fast local triage | `vibedoctor scan --quick` |
-| Review changed files | `vibedoctor scan --changed` |
-| Full repository scan | `vibedoctor scan --full` |
-| Scan selected categories | `vibedoctor scan --category dead_code,leftovers --report json` |
-| Scan privacy findings only | `vibedoctor scan --category privacy --report json` |
-| Render reports | `vibedoctor report --html`, `--markdown`, `--sarif`, or `--agent` |
-| Apply safe tool fixes | `vibedoctor fix --safe` |
-| Create a baseline | `vibedoctor baseline create` |
-| Explain a finding | `vibedoctor explain <finding-id>` |
-| Verify after edits | `vibedoctor verify` |
-| Retry a timed-out scanner | `vibedoctor tool retry <tool-id> [--timeout 600]` |
-| Generate an agent repair plan | `vibedoctor agent-plan --format markdown` |
+| Scaffold optional context and evidence | `vibedoctor dpdp init` |
+| Full technical-readiness scan | `vibedoctor dpdp scan --full` |
+| Collect evidence from changed files | `vibedoctor dpdp scan --changed` |
+| Print the personal-data map | `vibedoctor dpdp map` |
+| Print questions requiring human review | `vibedoctor dpdp review-queue` |
+| Render a report | `vibedoctor dpdp report --json`, `--html`, or `--markdown` |
+| Generate an agent handoff | `vibedoctor dpdp handoff` |
+| Verify after changes | `vibedoctor dpdp verify` |
+| Explain a control or finding | `vibedoctor dpdp explain <id>` |
 
-`scan` and `verify` return exit code `1` when completed health gates fail and exit code `2` when required checks are incomplete. Reports label incomplete scores as `PARTIAL` or `INVALID` and include machine-readable `recoveryActions`.
+Artifacts are stored in `.vibedoctor/dpdp/`:
 
-Timeouts and required checks are configurable:
+```text
+data-map.json
+control-matrix.json
+evidence-ledger.json
+review-queue.md
+agent-handoff.md
+readiness-report.json
+readiness-report.md
+readiness-report.html
+```
+
+Controls distinguish repeatable `DETERMINISTIC` checks, uncertain `TECHNICAL_SIGNAL`s, human-supplied `DECLARED_EVIDENCE`, and `HUMAN_REVIEW`. Absence of evidence is never marked `VERIFIED`, and skipped optional scanners are never passes.
+
+`dpdp scan` always refreshes the artifacts. `map`, `report`, `review-queue`, `handoff`, and `explain` reuse cached artifacts unless passed `--refresh`; `verify` always performs a live changed-scope scan. If Git has no changed-file delta, changed-scope collection falls back to the full repository and records a capability warning.
+
+Presidio and Semgrep evidence collection are on by default and can be independently disabled under `checks.dpdp`. Normal scans also include DPDP privacy findings when `checks.dpdp.enabled` is true.
+
+## Configuration
+
+`vibedoctor init` writes `vibedoctor.yml`. Editing is optional. The most useful settings are:
 
 ```yaml
+score:
+  minimum: 80
+
+baseline:
+  fail_only_on_new_issues: true
+
 runtime:
   default_timeout_seconds: 120
   tool_timeouts:
@@ -88,100 +243,52 @@ runtime:
     - biome
     - semgrep
   fail_on_incomplete_scan: true
+
+paths:
+  include:
+    - src/**
+  exclude:
+    - dist/**
+    - coverage/**
 ```
 
-## Privacy Review
+- `score.minimum` sets the passing health score.
+- `baseline.fail_only_on_new_issues` limits gates to debt introduced after the baseline.
+- `runtime.required_tools` defines which scanners must complete.
+- `runtime.tool_timeouts` sets scanner-specific deadlines.
+- `checks.*` enables categories and their gates.
+- `checks.privacy.*` controls privacy detection, masking, optional AI review, and blocking behavior.
+- `checks.dpdp.*` controls technical-readiness evidence, organisation context, optional scanners, and deterministic gates.
+- `paths.include` and `paths.exclude` scope the scan.
 
-Privacy Review is deterministic-first and advisory by default. The built-in privacy detector finds regulated identifiers, personal-data fields, sensitive attributes, and combination-risk patterns while storing masked evidence in reports.
+Human-review-only DPDP items do not fail CI. Configure `checks.dpdp.fail_on_severity` or `checks.dpdp.fail_on_violated_controls` when deterministic DPDP findings should block a build.
 
-```bash
-vibedoctor scan --category privacy --report json
-vibedoctor privacy-review --refresh --format markdown
-```
+## Command reference
 
-By default, privacy findings affect the privacy category score but do not lower the overall health score or fail CI. To make privacy findings blocking, opt in through config:
+| Goal | Command |
+| --- | --- |
+| Initialize configuration | `vibedoctor init` |
+| Plan or apply scanner setup | `vibedoctor setup` / `vibedoctor setup --apply` |
+| Quick, changed, or full scan | `vibedoctor scan --quick` / `--changed` / `--full` |
+| Scan selected categories | `vibedoctor scan --category dead_code,leftovers` |
+| Render a fresh full report | `vibedoctor report --json`, `--html`, `--markdown`, `--sarif`, or `--agent` |
+| Apply supported safe fixes | `vibedoctor fix --safe` |
+| Verify changed files | `vibedoctor verify` |
+| Create a baseline | `vibedoctor baseline create` |
+| Explain a finding | `vibedoctor explain <finding-id>` |
+| Retry a scanner | `vibedoctor tool retry <tool-id> [--timeout 600]` |
+| Generate an agent plan | `vibedoctor agent-plan --format markdown` |
+| Start MCP | `vibedoctor mcp` |
 
-- `checks.privacy.fail_on_regulated_identifiers`
-- `checks.privacy.fail_on_sensitive_attributes`
+`scan --report` supports `terminal`, `json`, `html`, `agent`, and `agent-json`. The separate `report` command performs a fresh full scan and can also render Markdown or SARIF to standard output.
 
-The `privacy-review` command writes `.vibedoctor/privacy-review.json` with structured review decisions and merge-back metadata. Optional AI adjudication only runs when `checks.privacy.ai.enabled` is true and the configured API-key environment variables are present.
+## Network and data behavior
 
-## Agent Skills And Plugins
+Core scanning and report generation run locally and do not require a hosted VibeDoctor service. Setup commands may download tools, dependency scanners may query their own data sources, and optional AI integrations may contact the configured service. Review an integration before enabling it if source code or findings may leave the machine.
 
-VibeDoctor has two agent surfaces.
+## Development
 
-Repo-local install:
-
-```bash
-vibedoctor agent init --targets all
-vibedoctor agent doctor --targets all
-```
-
-This writes repository-scoped guidance and skills:
-
-- `AGENTS.md`
-- `.agents/skills/<skill>/SKILL.md`
-- `.agents/skills/<skill>/agents/openai.yaml`
-- `.claude/skills/<skill>/SKILL.md`
-- `.github/skills/<skill>/SKILL.md`
-- `.github/copilot-instructions.md`
-- `.cursor/rules/vibedoctor.mdc`
-- `.cursor/mcp.json`
-- `.vibedoctor/agent-policy.yml`
-
-Plugin bundle:
-
-```bash
-vibedoctor agent plugin --target codex
-vibedoctor agent plugin --target claude
-vibedoctor agent plugin --targets all --force
-```
-
-This materializes an installable bundle under `plugins/vibedoctor/`:
-
-- `plugins/vibedoctor/.codex-plugin/plugin.json`
-- `plugins/vibedoctor/.claude-plugin/plugin.json`
-- `plugins/vibedoctor/skills/<skill>/SKILL.md`
-
-Codex discovers the plugin from `.codex-plugin/plugin.json`, which points to `./skills/`. Claude Code uses the plugin namespace for skill commands, for example:
-
-```text
-/vibedoctor:vibedoctor-health-scan
-/vibedoctor:vibedoctor-privacy-review
-```
-
-The canonical skill catalog is exported from the package root as `AGENT_SKILLS`, `DEFAULT_SKILL_NAMES`, and `SkillTemplate`, and the same templates generate repo skills, Claude skills, Copilot/Cursor shims, and packaged plugin skills.
-
-## MCP Server
-
-Start the MCP server over stdio:
-
-```bash
-vibedoctor mcp
-```
-
-The MCP server exposes structured tools for changed scans, full scans, safe fixes, report retrieval, agent-plan retrieval, finding explanations, and verification. Agent configs generated by `vibedoctor agent init --targets all` include target-specific MCP wiring where supported.
-
-## Configuration
-
-`vibedoctor init` writes `vibedoctor.yml`. Editing is optional, but these are the most common controls:
-
-- `score.minimum`: health score required for `scan` and `verify` to pass.
-- `baseline.fail_only_on_new_issues`: fail only on debt introduced after the baseline.
-- `checks.*`: enable categories and fail-fast gates for secrets, type errors, test failures, and vulnerabilities.
-- `checks.privacy.*`: tune deterministic privacy detection, masking, optional Presidio support, optional AI review, and CI blocking behavior.
-- `paths.include` and `paths.exclude`: scope scanned files.
-
-Use `vibedoctor baseline create` to snapshot existing debt, then fail builds only on new problems while you pay down the rest.
-
-## Development And Release
-
-Requirements:
-
-- Node.js 18 or newer
-- npm 10.x
-
-Run the local verification set:
+Requirements: Node.js 18 or newer and npm 10.x.
 
 ```bash
 npm test
@@ -190,7 +297,7 @@ npm run build
 npm pack --dry-run
 ```
 
-Useful development commands:
+Useful local commands:
 
 ```bash
 npm run dev -- scan --quick
@@ -198,21 +305,23 @@ npm run dev -- agent init --targets all
 npm run dev -- agent plugin --targets all --force
 ```
 
-`npm run build` emits production files into `dist/`. Plugin bundles under `plugins/` are generated on demand by `vibedoctor agent plugin ...` and are ignored in this repository by default.
-
-## Project Layout
-
 | Path | Purpose |
 | --- | --- |
-| `src/adapters` | Tool adapters and parsers |
-| `src/core` | Project detection, scan planning, scoring, baselines, and command execution |
+| `src/adapters` | Scanner adapters and parsers |
+| `src/core` | Project detection, scan planning, scoring, baselines, and execution |
 | `src/cli` | Command-line interface |
-| `src/agentPack` | Agent instructions, skills, policy, shims, and plugin generation |
-| `src/mcp` | MCP server and tools |
+| `src/agentPack` | Agent instructions, skills, policies, and plugin generation |
+| `src/dpdp` | DPDP evidence collection, controls, and reports |
+| `src/mcp` | MCP server and tool definitions |
 | `src/reporters` | Terminal, JSON, Markdown, HTML, SARIF, and agent reports |
-| `plugins/vibedoctor` | Generated Codex and Claude plugin bundle |
-| `fixtures` | Sample projects for tests |
+| `fixtures` | Sample repositories used by tests |
 | `tests` | Unit, integration, and snapshot tests |
+
+## Release demo
+
+<video src="docs/assets/vibedoctor-product-release-demo-v0.1.1.mp4" controls muted playsinline width="100%"></video>
+
+[Open the release demo](docs/assets/vibedoctor-product-release-demo-v0.1.1.mp4)
 
 ## License
 
