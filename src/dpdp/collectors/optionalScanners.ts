@@ -146,25 +146,49 @@ function capabilityFromExecution(
   mapped: number
 ): DpdpCapabilityStatus {
   const status = execution.status;
-  if (status?.status === "skipped") {
-    return {
-      id,
-      status: "skipped",
-      message: status.installHint ?? (status.stderr.trim() || `${id} was unavailable (never counted as pass)`)
-    };
-  }
   if (status?.status === "error" || status?.status === "timeout") {
     return {
       id,
       status: "error",
-      message: status.stderr.trim() || status.stdout.trim() || `${id} failed`
+      cause: status.status === "timeout" ? "timed_out" : "failed",
+      message: status.stderr.trim() || status.stdout.trim() || `${id} failed`,
+      remediation: `Run \`vibedoctor tool retry ${id}\` to see the full output.`
     };
   }
   return {
     id,
     status: "available",
-    message: `Reused ${id} scan; ${mapped} scoped finding(s) contributed to DPDP evidence`
+    cause: "ran",
+    message: `Reused ${id} scan; ${mapped} scoped finding(s) contributed to DPDP evidence`,
+    resolvedVia: status?.resolvedPath,
+    signalsContributed: mapped
   };
+}
+
+/**
+ * Whether a shared scan result can stand in for a DPDP-scoped run.
+ *
+ * DPDP runs these scanners under a context that forces privacy checks on, so a
+ * shared result that was skipped for a configuration reason says nothing about
+ * whether the scanner works — inheriting that skip is what reported an installed
+ * Presidio as unavailable for DPDP.
+ *
+ * A skip caused by the tool being absent is different: it is authoritative, and
+ * retrying under a different config would only spend time failing again.
+ */
+function canReuseExecution(execution: SharedToolExecution | undefined): execution is SharedToolExecution {
+  if (!execution) {
+    return false;
+  }
+  // An entry with no process status came from an adapter that did its work
+  // in-process, so the results stand.
+  if (!execution.status) {
+    return true;
+  }
+  if (execution.status.status !== "skipped") {
+    return true;
+  }
+  return Boolean(execution.status.installHint);
 }
 
 /**
@@ -191,8 +215,20 @@ export async function collectOptionalScannerSignals(
       signals,
       findings,
       capabilities: [
-        { id: "presidio", status: "skipped", message: "Skipped in quick mode" },
-        { id: "semgrep", status: "skipped", message: "Skipped in quick mode" }
+        {
+          id: "presidio",
+          status: "skipped",
+          cause: "quick_mode",
+          message: "Skipped in quick mode",
+          remediation: "Run `vibedoctor dpdp scan --full` for evidence from the optional scanners."
+        },
+        {
+          id: "semgrep",
+          status: "skipped",
+          cause: "quick_mode",
+          message: "Skipped in quick mode",
+          remediation: "Run `vibedoctor dpdp scan --full` for evidence from the optional scanners."
+        }
       ]
     };
   }
@@ -203,13 +239,27 @@ export async function collectOptionalScannerSignals(
     capabilities.push({
       id: "presidio",
       status: "skipped",
-      message: "Opted out (set checks.dpdp.use_presidio: true to re-enable for DPDP evidence)"
+      cause: "opted_out",
+      message: "Opted out (set checks.dpdp.use_presidio: true to re-enable for DPDP evidence)",
+      remediation: "Set checks.dpdp.use_presidio: true in vibedoctor.yml."
     });
   } else if (candidates.length === 0) {
-    capabilities.push({ id: "presidio", status: "skipped", message: "No DPDP candidate files in scope" });
+    capabilities.push({
+      id: "presidio",
+      status: "skipped",
+      cause: "nothing_in_scope",
+      message: "No DPDP candidate files in scope",
+      remediation: "Widen checks.dpdp.include or paths.include in vibedoctor.yml."
+    });
   } else {
     try {
-      const reused = ctx.sharedToolResults?.presidio;
+      const shared = ctx.sharedToolResults?.presidio;
+      const reused = canReuseExecution(shared) ? shared : undefined;
+      // Note why the shared result could not be reused, so a fresh attempt that
+      // also fails can report both facts instead of only the second one.
+      const sharedSkipReason =
+        shared && !reused ? shared.status?.installHint ?? shared.status?.stderr?.trim() : undefined;
+
       if (reused) {
         const scopedFindings = reused.findings.filter((finding) => inCandidateScope(finding, candidateSet));
         findings.push(...scopedFindings);
@@ -240,25 +290,33 @@ export async function collectOptionalScannerSignals(
           capabilities.push({
             id: "presidio",
             status: "skipped",
-            message: "Presidio not selected for this project"
+            cause: "not_applicable",
+            message: "Presidio not selected for this project",
+            remediation: "Set checks.privacy.enabled and checks.dpdp.use_presidio to true in vibedoctor.yml."
           });
         } else {
           const result = await presidioAdapter.runStandalone?.(presidioCtx);
           const status = result?.status;
           if (!result || status?.status === "skipped") {
+            const detail =
+              status?.installHint ?? status?.stderr?.trim() ?? "Presidio could not be started in the project Python environment.";
             capabilities.push({
               id: "presidio",
               status: "skipped",
-              message:
-                status?.installHint ??
-                status?.stderr?.trim() ??
-                "Presidio not installed or unavailable (never counted as pass)"
+              cause: "not_installed",
+              message: sharedSkipReason
+                ? `${detail} (the privacy scan also skipped Presidio: ${sharedSkipReason})`
+                : detail,
+              remediation:
+                "Install it in the interpreter the scanner uses: python -m pip install presidio-analyzer, then run `vibedoctor setup --apply` to confirm it resolves."
             });
           } else if (status?.status === "error" || status?.status === "timeout") {
             capabilities.push({
               id: "presidio",
               status: "error",
-              message: status.stderr?.trim() || status.stdout?.trim() || "Presidio failed"
+              cause: status.status === "timeout" ? "timed_out" : "failed",
+              message: status.stderr?.trim() || status.stdout?.trim() || "Presidio failed",
+              remediation: "Run `vibedoctor tool retry presidio` to see the full output."
             });
           } else {
             findings.push(...result.findings);
@@ -268,7 +326,10 @@ export async function collectOptionalScannerSignals(
             capabilities.push({
               id: "presidio",
               status: "available",
-              message: `Presidio contributed ${result.findings.length} finding(s) to DPDP evidence`
+              cause: "ran",
+              message: `Presidio contributed ${result.findings.length} finding(s) to DPDP evidence`,
+              resolvedVia: status?.resolvedPath,
+              signalsContributed: result.findings.length
             });
           }
         }
@@ -277,6 +338,7 @@ export async function collectOptionalScannerSignals(
       capabilities.push({
         id: "presidio",
         status: "error",
+        cause: "failed",
         message: error instanceof Error ? error.message : String(error)
       });
     }
@@ -287,13 +349,24 @@ export async function collectOptionalScannerSignals(
     capabilities.push({
       id: "semgrep",
       status: "skipped",
-      message: "Opted out (set checks.dpdp.use_semgrep: true to re-enable for DPDP evidence)"
+      cause: "opted_out",
+      message: "Opted out (set checks.dpdp.use_semgrep: true to re-enable for DPDP evidence)",
+      remediation: "Set checks.dpdp.use_semgrep: true in vibedoctor.yml."
     });
   } else if (candidates.length === 0) {
-    capabilities.push({ id: "semgrep", status: "skipped", message: "No DPDP candidate files in scope" });
+    capabilities.push({
+      id: "semgrep",
+      status: "skipped",
+      cause: "nothing_in_scope",
+      message: "No DPDP candidate files in scope",
+      remediation: "Widen checks.dpdp.include or paths.include in vibedoctor.yml."
+    });
   } else {
     try {
-      const reused = ctx.sharedToolResults?.semgrep;
+      const sharedSemgrep = ctx.sharedToolResults?.semgrep;
+      const reused = canReuseExecution(sharedSemgrep) ? sharedSemgrep : undefined;
+      const sharedSkipReason =
+        sharedSemgrep && !reused ? sharedSemgrep.status?.installHint ?? sharedSemgrep.status?.stderr?.trim() : undefined;
       if (reused) {
         const scopedFindings = reused.findings.filter((finding) => inCandidateScope(finding, candidateSet));
         findings.push(...scopedFindings);
@@ -311,31 +384,52 @@ export async function collectOptionalScannerSignals(
           capabilities.push({
             id: "semgrep",
             status: "skipped",
-            message: "Semgrep not applicable for this project"
+            cause: "not_applicable",
+            message: "Semgrep not applicable for this project",
+            remediation: "Semgrep needs source files in a language it supports; widen paths.include if that is wrong."
           });
         } else if (!semgrepAdapter.buildScanCommand || !semgrepAdapter.parseResult) {
           capabilities.push({
             id: "semgrep",
             status: "skipped",
-            message: "Semgrep adapter cannot run in this build"
+            cause: "not_applicable",
+            message: "Semgrep adapter cannot run in this build",
+            remediation: "This is a packaging problem, not a configuration one; please report it."
           });
         } else {
           const command = semgrepAdapter.buildScanCommand(semgrepCtx);
+          // Honour the configured budget here too. The adapter's own default is
+          // not the user's setting, and a DPDP scan that ignores
+          // runtime.tool_timeouts can outlast the whole scan it belongs to.
+          const timeoutSeconds =
+            ctx.config.runtime.toolTimeouts.semgrep ?? ctx.config.runtime.defaultTimeoutSeconds;
+          command.timeoutMs = Math.max(1, timeoutSeconds) * 1000;
           const toolResult = await runCommand(command, semgrepAdapter.installHint);
           if (toolResult.status === "skipped") {
             capabilities.push({
               id: "semgrep",
               status: "skipped",
-              message:
-                toolResult.installHint ??
-                toolResult.stderr?.trim() ??
-                "Semgrep not installed (never counted as pass)"
+              cause: "not_installed",
+              message: (() => {
+                const detail =
+                  toolResult.installHint ?? toolResult.stderr?.trim() ?? "Semgrep not installed (never counted as pass)";
+                return sharedSkipReason ? `${detail} (the main scan also skipped Semgrep: ${sharedSkipReason})` : detail;
+              })(),
+              remediation: "Install Semgrep (pipx install semgrep), then run `vibedoctor setup --apply` to confirm it resolves."
             });
           } else if (toolResult.status === "error" || toolResult.status === "timeout") {
             capabilities.push({
               id: "semgrep",
               status: "error",
-              message: toolResult.stderr?.trim() || "Semgrep failed"
+              cause: toolResult.status === "timeout" ? "timed_out" : "failed",
+              message:
+                toolResult.status === "timeout"
+                  ? `Semgrep exceeded its ${Math.round(toolResult.durationMs / 1000)}s budget, so its rules did not run over DPDP candidates.`
+                  : toolResult.stderr?.trim() || "Semgrep failed",
+              remediation:
+                toolResult.status === "timeout"
+                  ? "Raise runtime.tool_timeouts.semgrep in vibedoctor.yml, or narrow checks.dpdp.include."
+                  : "Run `vibedoctor tool retry semgrep` to see the full output."
             });
           } else {
             const semgrepFindings = semgrepAdapter.parseResult(toolResult, semgrepCtx);
@@ -351,7 +445,10 @@ export async function collectOptionalScannerSignals(
             capabilities.push({
               id: "semgrep",
               status: "available",
-              message: `Semgrep ran (${semgrepFindings.length} finding(s); ${mapped} privacy-relevant mapped to DPDP evidence)`
+              cause: "ran",
+              message: `Semgrep ran (${semgrepFindings.length} finding(s); ${mapped} privacy-relevant mapped to DPDP evidence)`,
+              resolvedVia: toolResult.resolvedPath,
+              signalsContributed: mapped
             });
           }
         }
@@ -360,6 +457,7 @@ export async function collectOptionalScannerSignals(
       capabilities.push({
         id: "semgrep",
         status: "error",
+        cause: "failed",
         message: error instanceof Error ? error.message : String(error)
       });
     }

@@ -13,6 +13,8 @@ coverage/
 .vibedoctor/report.html
 .vibedoctor/agent-plan.md
 .vibedoctor/privacy-review.json
+# Records which binary answered each tool probe on this machine; not portable.
+.vibedoctor/tool-verification.json
 .vibedoctor/dpdp/*
 !.vibedoctor/dpdp/context.yml
 !.vibedoctor/dpdp/evidence.yml

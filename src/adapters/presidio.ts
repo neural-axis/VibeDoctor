@@ -145,7 +145,10 @@ export const presidioAdapter: ToolAdapter = {
           cmd: "python",
           args: ["-c", PRESIDIO_SCRIPT, ctx.root],
           cwd: ctx.root,
-          timeoutMs: 120_000,
+          // Respect the configured budget rather than a fixed ceiling, so
+          // runtime.tool_timeouts governs every tool uniformly.
+          timeoutMs:
+            Math.max(1, ctx.config.runtime.toolTimeouts.presidio ?? ctx.config.runtime.defaultTimeoutSeconds) * 1000,
           env: {
             VIBEDOCTOR_PRESIDIO_FILES: JSON.stringify(files),
             VIBEDOCTOR_PRESIDIO_MAX_FILE_BYTES: String(ctx.config.checks.privacy.maxFileBytes)

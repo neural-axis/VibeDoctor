@@ -2,6 +2,8 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import YAML from "yaml";
 import { DEFAULT_EXCLUDES, pathExists } from "./paths";
+import { defaultRelevanceConfig } from "./relevance";
+import { SUPPRESSIONS_FILE } from "./suppressions";
 
 export type VibeDoctorConfig = {
   version: number;
@@ -27,6 +29,45 @@ export type VibeDoctorConfig = {
     toolTimeouts: Record<string, number>;
     requiredTools: string[];
     failOnIncompleteScan: boolean;
+    /** Wall-clock ceiling for the whole scan. 0 disables the ceiling. */
+    totalBudgetSeconds: number;
+    /**
+     * What to do when a tool exhausts its budget. `scoped_retry` reruns it over
+     * changed files only and reports the partial coverage, which beats losing
+     * the check entirely on a repository the tool cannot finish.
+     */
+    onTimeout: "scoped_retry" | "skip" | "fail";
+    /** Budget for the narrowed retry. */
+    scopedRetryTimeoutSeconds: number;
+    /** Tools deliberately not run, with the report saying so rather than implying they passed. */
+    deferredTools: string[];
+    /** Verify each tool resolves and runs before trusting its absence of findings. */
+    verifyToolsBeforeScan: boolean;
+  };
+  relevance: {
+    enabled: boolean;
+    minConfidence: "low" | "medium" | "high";
+    maxFindingsPerTool: number;
+    maxFindingsTotal: number;
+    syntheticFilePolicy: "keep" | "downgrade" | "drop";
+    validateSecrets: boolean;
+    perTool: Record<
+      string,
+      {
+        minConfidence?: "low" | "medium" | "high";
+        minEvidenceGrade?: "unproven" | "heuristic" | "observed" | "verified";
+        maxFindings?: number;
+        requireCorroboration?: boolean;
+      }
+    >;
+    /** Extra globs that classify files as tests, fixtures, generated, and so on. */
+    fileRoles: Partial<Record<"source" | "test" | "fixture" | "generated" | "vendor" | "config" | "docs", string[]>>;
+  };
+  suppressions: {
+    enabled: boolean;
+    file: string;
+    /** Reject acknowledgements with no expiry date. */
+    requireExpiry: boolean;
   };
   checks: {
     security: {
@@ -165,7 +206,27 @@ export const defaultConfig: VibeDoctorConfig = {
       semgrep: 300
     },
     requiredTools: [],
-    failOnIncompleteScan: false
+    failOnIncompleteScan: false,
+    totalBudgetSeconds: 0,
+    onTimeout: "scoped_retry",
+    scopedRetryTimeoutSeconds: 60,
+    deferredTools: [],
+    verifyToolsBeforeScan: true
+  },
+  relevance: {
+    enabled: true,
+    minConfidence: defaultRelevanceConfig.minConfidence,
+    maxFindingsPerTool: defaultRelevanceConfig.maxFindingsPerTool,
+    maxFindingsTotal: defaultRelevanceConfig.maxFindingsTotal,
+    syntheticFilePolicy: defaultRelevanceConfig.syntheticFilePolicy,
+    validateSecrets: defaultRelevanceConfig.validateSecrets,
+    perTool: defaultRelevanceConfig.perTool,
+    fileRoles: {}
+  },
+  suppressions: {
+    enabled: true,
+    file: SUPPRESSIONS_FILE,
+    requireExpiry: false
   },
   checks: {
     security: {
@@ -316,9 +377,91 @@ export async function findConfigFile(root: string): Promise<string | undefined> 
   return undefined;
 }
 
+function normalizeTimeoutPolicy(
+  value: unknown,
+  fallback: VibeDoctorConfig["runtime"]["onTimeout"]
+): VibeDoctorConfig["runtime"]["onTimeout"] {
+  return value === "scoped_retry" || value === "skip" || value === "fail" ? value : fallback;
+}
+
+function normalizeConfidence(
+  value: unknown,
+  fallback: "low" | "medium" | "high"
+): "low" | "medium" | "high" {
+  return value === "low" || value === "medium" || value === "high" ? value : fallback;
+}
+
+function normalizeRelevance(raw: Record<string, unknown>): VibeDoctorConfig["relevance"] {
+  const defaults = defaultConfig.relevance;
+  const rawPerTool = (raw.perTool ?? raw.per_tool ?? {}) as Record<string, Record<string, unknown>>;
+  const rawFileRoles = (raw.fileRoles ?? raw.file_roles ?? {}) as Record<string, unknown>;
+  const policy = raw.syntheticFilePolicy ?? raw.synthetic_file_policy;
+
+  const perTool: VibeDoctorConfig["relevance"]["perTool"] = { ...defaults.perTool };
+  for (const [tool, rawToolPolicy] of Object.entries(rawPerTool)) {
+    const existing = perTool[tool] ?? {};
+    const minConfidence = rawToolPolicy.minConfidence ?? rawToolPolicy.min_confidence;
+    const minEvidenceGrade = rawToolPolicy.minEvidenceGrade ?? rawToolPolicy.min_evidence_grade;
+    const maxFindings = rawToolPolicy.maxFindings ?? rawToolPolicy.max_findings;
+    const requireCorroboration = rawToolPolicy.requireCorroboration ?? rawToolPolicy.require_corroboration;
+
+    perTool[tool] = {
+      ...existing,
+      ...(minConfidence !== undefined ? { minConfidence: normalizeConfidence(minConfidence, "low") } : {}),
+      ...(minEvidenceGrade === "unproven" ||
+      minEvidenceGrade === "heuristic" ||
+      minEvidenceGrade === "observed" ||
+      minEvidenceGrade === "verified"
+        ? { minEvidenceGrade }
+        : {}),
+      ...(typeof maxFindings === "number" ? { maxFindings } : {}),
+      ...(typeof requireCorroboration === "boolean" ? { requireCorroboration } : {})
+    };
+  }
+
+  const fileRoles: VibeDoctorConfig["relevance"]["fileRoles"] = {};
+  for (const role of ["source", "test", "fixture", "generated", "vendor", "config", "docs"] as const) {
+    const patterns = normalizeStringArray(rawFileRoles[role], []);
+    if (patterns.length > 0) {
+      fileRoles[role] = patterns;
+    }
+  }
+
+  return {
+    enabled: (raw.enabled as boolean | undefined) ?? defaults.enabled,
+    minConfidence: normalizeConfidence(raw.minConfidence ?? raw.min_confidence, defaults.minConfidence),
+    maxFindingsPerTool:
+      (raw.maxFindingsPerTool as number | undefined) ??
+      (raw.max_findings_per_tool as number | undefined) ??
+      defaults.maxFindingsPerTool,
+    maxFindingsTotal:
+      (raw.maxFindingsTotal as number | undefined) ??
+      (raw.max_findings_total as number | undefined) ??
+      defaults.maxFindingsTotal,
+    syntheticFilePolicy:
+      policy === "keep" || policy === "downgrade" || policy === "drop" ? policy : defaults.syntheticFilePolicy,
+    validateSecrets:
+      (raw.validateSecrets as boolean | undefined) ??
+      (raw.validate_secrets as boolean | undefined) ??
+      defaults.validateSecrets,
+    perTool,
+    fileRoles
+  };
+}
+
 function normalizeRawConfig(raw: Partial<VibeDoctorConfig>): Partial<VibeDoctorConfig> {
-  const { baseline: _baseline, checks: _checks, output: _output, runtime: _runtime, ...rest } = raw;
+  const {
+    baseline: _baseline,
+    checks: _checks,
+    output: _output,
+    runtime: _runtime,
+    relevance: _relevance,
+    suppressions: _suppressions,
+    ...rest
+  } = raw;
   const rawChecks = raw.checks as Record<string, unknown> | undefined;
+  const rawRelevance = raw.relevance as Record<string, unknown> | undefined;
+  const rawSuppressions = raw.suppressions as Record<string, unknown> | undefined;
   const rawBaseline = raw.baseline as Record<string, unknown> | undefined;
   const rawOutput = raw.output as Record<string, unknown> | undefined;
   const rawRuntime = raw.runtime as Record<string, unknown> | undefined;
@@ -355,7 +498,40 @@ function normalizeRawConfig(raw: Partial<VibeDoctorConfig>): Partial<VibeDoctorC
             failOnIncompleteScan:
               (rawRuntime.failOnIncompleteScan as boolean | undefined) ??
               (rawRuntime.fail_on_incomplete_scan as boolean | undefined) ??
-              defaultConfig.runtime.failOnIncompleteScan
+              defaultConfig.runtime.failOnIncompleteScan,
+            totalBudgetSeconds:
+              (rawRuntime.totalBudgetSeconds as number | undefined) ??
+              (rawRuntime.total_budget_seconds as number | undefined) ??
+              defaultConfig.runtime.totalBudgetSeconds,
+            onTimeout: normalizeTimeoutPolicy(
+              rawRuntime.onTimeout ?? rawRuntime.on_timeout,
+              defaultConfig.runtime.onTimeout
+            ),
+            scopedRetryTimeoutSeconds:
+              (rawRuntime.scopedRetryTimeoutSeconds as number | undefined) ??
+              (rawRuntime.scoped_retry_timeout_seconds as number | undefined) ??
+              defaultConfig.runtime.scopedRetryTimeoutSeconds,
+            deferredTools: normalizeStringArray(
+              rawRuntime.deferredTools ?? rawRuntime.deferred_tools,
+              defaultConfig.runtime.deferredTools
+            ),
+            verifyToolsBeforeScan:
+              (rawRuntime.verifyToolsBeforeScan as boolean | undefined) ??
+              (rawRuntime.verify_tools_before_scan as boolean | undefined) ??
+              defaultConfig.runtime.verifyToolsBeforeScan
+          }
+        }
+      : {}),
+    ...(rawRelevance ? { relevance: normalizeRelevance(rawRelevance) } : {}),
+    ...(rawSuppressions
+      ? {
+          suppressions: {
+            enabled: (rawSuppressions.enabled as boolean | undefined) ?? defaultConfig.suppressions.enabled,
+            file: (rawSuppressions.file as string | undefined) ?? defaultConfig.suppressions.file,
+            requireExpiry:
+              (rawSuppressions.requireExpiry as boolean | undefined) ??
+              (rawSuppressions.require_expiry as boolean | undefined) ??
+              defaultConfig.suppressions.requireExpiry
           }
         }
       : {}),

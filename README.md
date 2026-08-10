@@ -64,6 +64,71 @@ Use the terminal report for quick triage, HTML for review, JSON for automation, 
 
 VibeDoctor detects the repository shape and discovers applicable local tools. A missing optional tool is marked `SKIPPED`; a failed or timed-out required tool can make the result `PARTIAL` or `INVALID`.
 
+## Know exactly what ran
+
+Every scan prints a coverage table with one row per tool, so "installed" is never confused with "completed":
+
+```
+TOOL COVERAGE
+TOOL      STATE           FINDINGS   TIME   DETAIL
+biome     completed       200 of 223 1.8s   Ran at node_modules/.bin/biome.cmd.
+semgrep   timed out       0          300.0s Exceeded its 300s budget and was stopped, so this check did not run.
+pyright   not applicable  0                 Nothing in this repository matches what pyright analyses.
+vulture   not installed   0                 vulture was not found on the scanner's PATH.
+
+TO RESTORE COVERAGE
+- semgrep: Raise runtime.tool_timeouts.semgrep, or run `vibedoctor scan --changed` for a diff-scoped run.
+```
+
+Each row separates the facts that used to be collapsed into "skipped":
+
+- **applicable** — is there anything here for this tool to analyse?
+- **installed** — did the executable resolve, and at which path?
+- **executed** — did it start, and did it finish inside its time budget?
+- **findings shown of reported** — a tool that ran but had output filtered shows `200 of 223`, so a short list is never mistaken for a clean one.
+
+States are `completed`, `partial`, `timed out`, `failed`, `not installed`, `runtime mismatch`, `deferred`, `disabled`, `not applicable`, and `not selected`. Only the first is treated as full coverage; deliberate exclusions do not count against you, and everything else is disclosed with a reason and a remediation.
+
+`vibedoctor setup --apply` verifies each tool by running it the way the scanner will, reports the resolved path and version, and **fails if a tool cannot be verified** — even when the install command itself succeeded. Tools that install but cannot run under the current runtime are reported as a runtime mismatch, with the option to defer them deliberately via `runtime.deferred_tools`.
+
+## Keeping the report readable
+
+Scanners are tuned for recall, so raw output buries the findings that matter. VibeDoctor applies uniform relevance controls and always discloses what they withheld:
+
+- **Ranking** puts new findings and findings in changed files first, so pre-existing debt does not hide a regression you just introduced.
+- **Per-tool caps** keep an exhaustive detector from dominating the report. What falls outside the cap is reported as a count with the setting to raise.
+- **Confidence floors** apply per tool.
+- **File roles** — tests, fixtures, generated, and vendored code are recognised, and findings there are downgraded rather than presented like production defects.
+- **Contextual validation** re-checks findings that claim to have found a credential. A match on an identifier like `format_key` is downgraded and marked as a likely false positive, with the reason given; a genuine high-entropy token keeps full severity.
+- **Evidence grades** — every finding records whether it was `verified` from code, `observed` at a location, inferred as a `heuristic`, or `unproven`, so a naming guess never reads like a traced code path.
+
+```
+REPORT FILTERING
+Relevance: showing 54 of 124 findings.
+- vulture: showing 50 of 120 — withheld 70 beyond the 50-finding cap.
+To see withheld findings:
+- Raise relevance.per_tool.vulture.max_findings in vibedoctor.yml.
+```
+
+## Acknowledging findings you have already decided about
+
+`.vibedoctor/suppressions.yml` records findings that are known and accepted. Unlike the baseline, which only answers "was this here before?", an acknowledgement carries a reason and an expiry:
+
+```yaml
+version: 1
+suppressions:
+  - id: fixture-credentials
+    reason: Synthetic credentials in test fixtures, never used against real systems.
+    classification: fixture      # false_positive | accepted_risk | deferred | fixture
+    owner: platform-team
+    expires: 2026-12-31
+    match:
+      tools: [gitleaks]
+      paths: ["fixtures/**"]
+```
+
+A reason is required, and a rule with no match criteria is rejected rather than silencing the report. When an acknowledgement lapses, its findings come back marked `resurfaced` instead of staying hidden. Acknowledgements apply to every finding, including DPDP ones.
+
 ## Understand the result before fixing code
 
 | Status | Meaning | What to do |
@@ -237,6 +302,23 @@ runtime:
     - biome
     - semgrep
   fail_on_incomplete_scan: true
+  on_timeout: scoped_retry     # scoped_retry | skip | fail
+  total_budget_seconds: 0      # 0 means no wall-clock ceiling
+  deferred_tools: []           # deliberately not run; reported as deferred
+
+relevance:
+  min_confidence: low
+  max_findings_per_tool: 200
+  synthetic_file_policy: downgrade   # keep | downgrade | drop
+  validate_secrets: true
+  per_tool:
+    vulture:
+      min_confidence: medium
+      max_findings: 50
+
+suppressions:
+  enabled: true
+  file: .vibedoctor/suppressions.yml
 
 paths:
   include:
@@ -250,6 +332,10 @@ paths:
 - `baseline.fail_only_on_new_issues` limits gates to debt introduced after the baseline.
 - `runtime.required_tools` defines which scanners must complete.
 - `runtime.tool_timeouts` sets scanner-specific deadlines.
+- `runtime.on_timeout: scoped_retry` reruns a tool that runs out of time over changed files only, and reports the partial coverage instead of losing the check.
+- `runtime.deferred_tools` marks tools you have deliberately chosen not to run, so the report says "deferred" rather than implying they passed.
+- `relevance.*` controls how much of what the tools report reaches the report. Nothing is dropped silently.
+- `suppressions.*` points at the acknowledgements file described above.
 - `checks.*` enables categories and their gates.
 - `checks.privacy.*` controls privacy detection, masking, optional AI review, and blocking behavior.
 - `checks.dpdp.*` controls technical-readiness evidence, organisation context, optional scanners, and deterministic gates.

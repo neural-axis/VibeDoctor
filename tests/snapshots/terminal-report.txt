@@ -23,8 +23,19 @@ LEFTOVERS
 DEAD CHAINS
 1. src/legacy.ts look isolated from active entrypoints.
 
-SKIPPED TOOLS
-1. semgrep — Install Semgrep
+TOOL COVERAGE
+TOOL      STATE      FINDINGS  TIME    DETAIL
+gitleaks  completed  1         1.2s    Ran 8.18.0 at C:\tools\gitleaks.exe.
+semgrep   timed out  0         300.0s  Exceeded its 300s budget and was stopped, so this check did not run.
+
+TO RESTORE COVERAGE
+- semgrep: Raise runtime.tool_timeouts.semgrep in vibedoctor.yml, scan fewer paths, or run `vibedoctor scan --changed` for a diff-scoped run.
+
+REPORT FILTERING
+Relevance: showing 54 of 124 findings.
+- vulture: showing 50 of 120 — withheld 70 beyond the 50-finding cap for vulture, ranked by severity, novelty, and evidence.
+To see withheld findings:
+- Raise relevance.per_tool.vulture.max_findings in vibedoctor.yml, or run `vibedoctor scan --category <category>` to see the full set.
 
 READY FOR AGENT
 Run:

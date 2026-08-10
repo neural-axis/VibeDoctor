@@ -15,10 +15,17 @@ export function renderJsonReport(scan: ScanOutput): string {
       privacyReview: scan.privacyReview,
       toolStatuses: scan.toolStatuses,
       skippedTools: scan.skippedTools,
+      capabilityMatrix: scan.capabilityMatrix,
+      relevance: scan.relevance,
+      suppressions: scan.suppressions,
+      suppressedFindings: scan.suppressedFindings,
+      verifications: scan.verifications,
       agentPlan: scan.agentPlan,
       notes: {
         dpdp:
-          "DPDP findings are technical readiness signals integrated into privacy findings. See .vibedoctor/dpdp/ for the control matrix and data map. Not legal compliance."
+          "DPDP findings are technical readiness signals integrated into privacy findings. See .vibedoctor/dpdp/ for the control matrix and data map. Not legal compliance.",
+        coverage:
+          "capabilityMatrix is authoritative for what actually ran: toolStatuses and skippedTools are views of it. relevance explains any difference between findings a tool reported and findings shown here, so a short report is never a clean one."
       }
     },
     null,

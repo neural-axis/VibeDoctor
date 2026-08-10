@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { biomeAdapter } from "../../src/adapters/biome";
 import { gitleaksAdapter } from "../../src/adapters/gitleaks";
 import { knipAdapter } from "../../src/adapters/knip";
 import { lizardAdapter } from "../../src/adapters/lizard";
@@ -121,6 +122,118 @@ describe("adapter parsing", () => {
       ctx
     );
     expect(findings[0].title).toBe("GHSA-test");
+  });
+
+  it("reads locations from the Biome reporter's current shape", () => {
+    const findings = biomeAdapter.parseResult!(
+      toolResult(
+        JSON.stringify({
+          diagnostics: [
+            {
+              severity: "error",
+              message: "Use const instead of let.",
+              category: "lint/style/useConst",
+              location: { path: "src/app.ts", start: { line: 41, column: 6 }, end: { line: 41, column: 9 } }
+            }
+          ]
+        })
+      ),
+      ctx
+    );
+
+    expect(findings).toHaveLength(1);
+    expect(findings[0].file).toBe("src/app.ts");
+    // Biome counts lines from zero; reports and editors count from one.
+    expect(findings[0].startLine).toBe(42);
+    expect(findings[0].startColumn).toBe(7);
+    expect(findings[0].message).toBe("Use const instead of let.");
+    expect(findings[0].title).toBe("lint/style/useConst");
+  });
+
+  it("recovers Biome output containing unescaped Windows path separators", () => {
+    // Biome writes `"src\core\finding.ts"` into JSON, which is not valid JSON.
+    // Parsing used to throw and the whole check silently reported nothing.
+    const raw = '{"diagnostics":[{"severity":"error","message":"Formatter would have printed different content.","category":"format","location":{"path":"src\\core\\finding.ts","start":{"line":0,"column":0}}}]}';
+
+    expect(() => JSON.parse(raw)).toThrow();
+
+    const findings = biomeAdapter.parseResult!(toolResult(raw), ctx);
+    expect(findings).toHaveLength(1);
+    expect(findings[0].file).toBe("src/core/finding.ts");
+    expect(findings[0].startLine).toBe(1);
+  });
+
+  it("still reads the older Biome span shape and hands offsets to the normalizer", () => {
+    const findings = biomeAdapter.parseResult!(
+      toolResult(
+        JSON.stringify({
+          diagnostics: [
+            {
+              severity: "warn",
+              description: "Older reporter field.",
+              category: "lint/suspicious/noExplicitAny",
+              location: { path: { file: "src/old.ts" }, span: [120, 130] }
+            }
+          ]
+        })
+      ),
+      ctx
+    );
+
+    expect(findings[0].file).toBe("src/old.ts");
+    expect(findings[0].message).toBe("Older reporter field.");
+    expect(findings[0].evidence?.startOffset).toBe(120);
+    // Rules that can change behaviour are not offered as safe autofixes.
+    expect(findings[0].safeToAutofix).toBe(false);
+  });
+
+  it("classifies dependency advisories by runtime exposure and names the fix version", () => {
+    const report = {
+      results: [
+        {
+          source: { path: "package-lock.json" },
+          packages: [
+            {
+              package: { name: "vite", version: "5.0.0", ecosystem: "npm" },
+              vulnerabilities: [
+                {
+                  id: "GHSA-dev",
+                  summary: "Dev server flaw",
+                  severity: [{ score: "9.8" }],
+                  affected: [{ ranges: [{ events: [{ introduced: "0" }, { fixed: "5.4.6" }] }] }]
+                }
+              ]
+            },
+            {
+              package: { name: "pdf-render", version: "1.2.0", ecosystem: "npm" },
+              vulnerabilities: [{ id: "GHSA-runtime", summary: "Parser flaw", severity: [{ score: "9.8" }] }]
+            }
+          ]
+        }
+      ]
+    };
+
+    const findings = osvScannerAdapter.parseResult!(toolResult(JSON.stringify(report)), {
+      ...ctx,
+      project: {
+        ...ctx.project,
+        declaredDependencies: { runtime: ["pdf-render"], dev: ["vite"], optional: [] }
+      }
+    });
+
+    const dev = findings.find((finding) => finding.title === "GHSA-dev")!;
+    const runtime = findings.find((finding) => finding.title === "GHSA-runtime")!;
+
+    expect(dev.package?.scope).toBe("dev");
+    expect(dev.package?.fixedIn).toBe("5.4.6");
+    expect(dev.message).toContain("Fixed in 5.4.6");
+    expect(runtime.package?.scope).toBe("runtime");
+
+    // The same CVSS score must not read the same when only one of them ships.
+    expect(runtime.severity).toBe("critical");
+    expect(dev.severity).not.toBe("critical");
+    expect(dev.evidence?.reasons?.join(" ")).toContain("does not ship to production");
+    expect(runtime.remediation?.kind).toBe("dependency");
   });
 
   it("marks knip Node version incompatibility output as skipped", () => {

@@ -52,6 +52,33 @@ runtime:
     - biome
     - semgrep
   fail_on_incomplete_scan: true
+  # A tool that runs out of time is retried over changed files only, and the
+  # result is reported as partial coverage rather than lost.
+  on_timeout: scoped_retry
+  scoped_retry_timeout_seconds: 60
+  deferred_tools: []
+  verify_tools_before_scan: true
+
+relevance:
+  enabled: true
+  min_confidence: low
+  max_findings_per_tool: 200
+  max_findings_total: 1000
+  synthetic_file_policy: downgrade
+  validate_secrets: true
+  per_tool:
+    vulture:
+      min_confidence: medium
+      max_findings: 50
+    pyright:
+      max_findings: 150
+    tsc:
+      max_findings: 150
+
+suppressions:
+  enabled: true
+  file: .vibedoctor/suppressions.yml
+  require_expiry: false
 
 checks:
   security:

@@ -1,8 +1,9 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { defaultConfig } from "../../core/config";
-import { ensureDir } from "../../core/paths";
+import { ensureDir, pathExists } from "../../core/paths";
 import { detectProject } from "../../core/projectDetector";
+import { SUPPRESSIONS_TEMPLATE } from "../../core/suppressions";
 
 function buildYaml(detectedLanguages: string[]): string {
   const languagesBlock =
@@ -51,11 +52,57 @@ score:
 
 runtime:
   default_timeout_seconds: ${defaultConfig.runtime.defaultTimeoutSeconds}
+  # Per-tool time budgets. A tool that exceeds its budget is reported as timed
+  # out, never as passing.
   tool_timeouts:
     biome: ${defaultConfig.runtime.toolTimeouts.biome}
     semgrep: ${defaultConfig.runtime.toolTimeouts.semgrep}
   required_tools: []
   fail_on_incomplete_scan: false
+  # Wall-clock ceiling for the whole scan; 0 means no ceiling.
+  total_budget_seconds: ${defaultConfig.runtime.totalBudgetSeconds}
+  # On timeout: scoped_retry reruns the tool over changed files only and reports
+  # the partial coverage. Alternatives: skip, fail.
+  on_timeout: ${defaultConfig.runtime.onTimeout}
+  scoped_retry_timeout_seconds: ${defaultConfig.runtime.scopedRetryTimeoutSeconds}
+  # Tools deliberately not run. The report says they were deferred rather than
+  # implying they passed — use this for tools this environment cannot support.
+  deferred_tools: []
+  verify_tools_before_scan: true
+
+# Controls how much of what the tools report actually reaches the report.
+# Nothing is dropped silently: every filter states what it withheld and why.
+relevance:
+  enabled: true
+  min_confidence: ${defaultConfig.relevance.minConfidence}
+  max_findings_per_tool: ${defaultConfig.relevance.maxFindingsPerTool}
+  max_findings_total: ${defaultConfig.relevance.maxFindingsTotal}
+  # Findings in tests, fixtures, generated, and vendored files: keep, downgrade,
+  # or drop.
+  synthetic_file_policy: ${defaultConfig.relevance.syntheticFilePolicy}
+  # Check that findings claiming to be credentials look like credentials.
+  validate_secrets: true
+  per_tool:
+    vulture:
+      min_confidence: medium
+      max_findings: 50
+    pyright:
+      max_findings: 150
+    tsc:
+      max_findings: 150
+  # Correct a file-role misclassification without disabling the defaults.
+  # file_roles:
+  #   source: ["fixtures/real/**"]
+
+# Acknowledged findings live in this file. Each entry needs a reason; an expiry
+# date is strongly recommended, because a lapsed acknowledgement resurfaces its
+# findings instead of hiding them forever.
+suppressions:
+  enabled: true
+  file: ${defaultConfig.suppressions.file}
+  # Turn this on to reject acknowledgements that have no expiry date: they are
+  # listed as rejected in the report and hide nothing.
+  require_expiry: false
 
 checks:
   security:
@@ -128,5 +175,15 @@ export async function runInit(root: string): Promise<string> {
   await ensureDir(baselineDir);
   await fs.writeFile(configPath, buildYaml(project.languages), "utf8");
   await fs.writeFile(path.join(baselineDir, "baseline.json"), JSON.stringify({ createdAt: new Date().toISOString(), findings: [] }, null, 2), "utf8");
+
+  // Scaffold the acknowledgements file with its rules explained, so the first
+  // person who needs to suppress a false positive finds the format waiting for
+  // them instead of inventing one. Never overwrite an existing file.
+  const suppressionsPath = path.join(root, defaultConfig.suppressions.file);
+  if (!(await pathExists(suppressionsPath))) {
+    await ensureDir(path.dirname(suppressionsPath));
+    await fs.writeFile(suppressionsPath, SUPPRESSIONS_TEMPLATE, "utf8");
+  }
+
   return configPath;
 }

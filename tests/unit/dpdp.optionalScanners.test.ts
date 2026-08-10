@@ -87,6 +87,70 @@ describe("DPDP optional scanner orchestration", () => {
     expect(result.capabilities.find((item) => item.id === "semgrep")?.message).toContain("Reused semgrep scan");
   });
 
+  it("retries a scanner the main scan skipped for a configuration reason", async () => {
+    const ctx = context();
+    ctx.config.checks.dpdp.usePresidio = false;
+    // The main scan skipped Semgrep because its category was turned off, not
+    // because Semgrep is missing. Inheriting that skip reported an available
+    // scanner as unavailable for DPDP, with no way to tell the cases apart.
+    ctx.sharedToolResults = {
+      semgrep: {
+        findings: [],
+        status: {
+          command: "semgrep",
+          stdout: "",
+          stderr: "",
+          exitCode: null,
+          durationMs: 0,
+          status: "skipped"
+        }
+      }
+    };
+
+    const result = await collectOptionalScannerSignals(ctx, ["src/a.ts"]);
+    const semgrep = result.capabilities.find((item) => item.id === "semgrep");
+    expect(semgrep?.message).not.toContain("Reused semgrep scan");
+    expect(semgrep?.cause).toBeDefined();
+  });
+
+  it("keeps inheriting a skip when the tool is genuinely absent", async () => {
+    const ctx = context();
+    ctx.config.checks.dpdp.usePresidio = false;
+    ctx.sharedToolResults = {
+      semgrep: {
+        findings: [],
+        status: {
+          command: "semgrep",
+          stdout: "",
+          stderr: "",
+          exitCode: null,
+          durationMs: 0,
+          status: "skipped",
+          // An install hint means the tool was not found; rerunning it under a
+          // different config cannot make it appear.
+          installHint: "Install Semgrep with: pipx install semgrep"
+        }
+      }
+    };
+
+    const result = await collectOptionalScannerSignals(ctx, ["src/a.ts"]);
+    const semgrep = result.capabilities.find((item) => item.id === "semgrep");
+    expect(semgrep?.status).toBe("available");
+    expect(semgrep?.message).toContain("Reused semgrep scan");
+  });
+
+  it("explains every skip with a cause and a remediation", async () => {
+    const ctx = context();
+    ctx.config.checks.dpdp.usePresidio = false;
+    ctx.config.checks.dpdp.useSemgrep = false;
+
+    const result = await collectOptionalScannerSignals(ctx, ["src/a.ts"]);
+    for (const capability of result.capabilities) {
+      expect(capability.cause).toBe("opted_out");
+      expect(capability.remediation).toBeTruthy();
+    }
+  });
+
   it("never falls back to the whole project for an empty candidate scope", async () => {
     const ctx = context();
     ctx.sharedToolResults = {

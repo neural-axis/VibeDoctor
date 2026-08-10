@@ -126,6 +126,11 @@ checks:
     enabled: false
   privacy:
     enabled: false
+  # This test is about dead-chain confidence. Writing a whole config here would
+  # otherwise re-enable DPDP, whose optional scanners run Semgrep over the
+  # fixture and dominate the runtime.
+  dpdp:
+    enabled: false
 `;
     await fs.writeFile(path.join(root, "vibedoctor.yml"), yml, "utf8");
 

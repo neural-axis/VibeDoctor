@@ -1,7 +1,9 @@
 import path from "node:path";
-import { existsSync, readdirSync } from "node:fs";
 import { spawn } from "node:child_process";
 import { execFile } from "node:child_process";
+import { buildCommandEnv, getLocalToolSearchPaths, resolveExecutable } from "./executable";
+
+export { buildCommandEnv, getLocalToolSearchPaths };
 
 export type CommandSpec = {
   cmd: string;
@@ -19,122 +21,92 @@ export type ToolResult = {
   durationMs: number;
   status: "ok" | "error" | "skipped" | "timeout";
   installHint?: string;
+  /** Absolute path of the executable that ran, so reports can prove what was invoked. */
+  resolvedPath?: string;
+  /** Set when the run covered less than the requested scope (scoped timeout fallback). */
+  coverage?: ToolCoverage;
 };
 
-const LOCAL_TOOL_PATHS = [
-  ["node_modules", ".bin"],
-  [".venv", "Scripts"],
-  [".venv", "bin"],
-  ["venv", "Scripts"],
-  ["venv", "bin"]
-];
-
-function ancestorDirs(startDir: string | undefined): string[] {
-  if (!startDir) {
-    return [];
-  }
-
-  const dirs: string[] = [];
-  let current = path.resolve(startDir);
-
-  while (true) {
-    dirs.push(current);
-    const parent = path.dirname(current);
-    if (parent === current) {
-      return dirs;
-    }
-    current = parent;
-  }
-}
-
-function getPathKey(env: NodeJS.ProcessEnv): string {
-  return Object.keys(env).find((key) => key.toLowerCase() === "path") ?? "PATH";
-}
-
-export function getLocalToolSearchPaths(cwd: string | undefined): string[] {
-  const paths = ancestorDirs(cwd).flatMap((dir) => LOCAL_TOOL_PATHS.map((segments) => path.join(dir, ...segments)));
-  return Array.from(new Set(paths));
-}
-
-function getUserToolSearchPaths(env: NodeJS.ProcessEnv): string[] {
-  const paths: string[] = [];
-
-  if (process.platform === "win32" && env.APPDATA) {
-    const pythonRoot = path.join(env.APPDATA, "Python");
-    try {
-      for (const entry of readdirSync(pythonRoot, { withFileTypes: true })) {
-        if (entry.isDirectory() && /^Python\d+$/i.test(entry.name)) {
-          paths.push(path.join(pythonRoot, entry.name, "Scripts"));
-        }
-      }
-    } catch {
-      // Python user packages have not been installed for this account.
-    }
-  } else if (env.HOME) {
-    paths.push(path.join(env.HOME, ".local", "bin"));
-  }
-
-  return paths;
-}
-
-export function buildCommandEnv(cwd: string | undefined, overrides: NodeJS.ProcessEnv | undefined): NodeJS.ProcessEnv {
-  const env: NodeJS.ProcessEnv = { ...process.env, ...overrides };
-  const pathKey = getPathKey(env);
-  const existingPath = env[pathKey];
-  env[pathKey] = [...getLocalToolSearchPaths(cwd), ...getUserToolSearchPaths(env), existingPath].filter(Boolean).join(path.delimiter);
-  return env;
-}
-
-function findWindowsCommandOnPath(command: string, env: NodeJS.ProcessEnv): string | undefined {
-  const pathValue = env[getPathKey(env)] ?? "";
-  const extensions = (env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD")
-    .split(";")
-    .map((extension) => extension.toLowerCase());
-
-  for (const directory of pathValue.split(path.delimiter).filter(Boolean)) {
-    for (const extension of extensions) {
-      const candidate = path.join(directory, `${command}${extension}`);
-      if (existsSync(candidate)) {
-        return candidate;
-      }
-    }
-  }
-
-  return undefined;
-}
+export type ToolCoverage = {
+  scope: "full" | "scoped" | "none";
+  detail: string;
+  targetsRequested?: number;
+  targetsScanned?: number;
+};
 
 export function commandExistsOnWindowsPath(command: string, cwd?: string): boolean {
-  return findWindowsCommandOnPath(command, buildCommandEnv(cwd, undefined)) !== undefined;
+  return resolveExecutable(command, cwd) !== undefined;
 }
 
-function resolveWindowsCommand(command: string, env: NodeJS.ProcessEnv): { command: string; useShell: boolean } {
-  if (process.platform !== "win32" || path.isAbsolute(command) || path.extname(command)) {
-    return { command, useShell: false };
-  }
+function resolveLaunchTarget(
+  command: string,
+  cwd: string | undefined,
+  env: NodeJS.ProcessEnv
+): { command: string; useShell: boolean; resolvedPath?: string } {
+  const resolved = resolveExecutable(command, cwd, env);
 
-  const candidate = findWindowsCommandOnPath(command, env);
-  if (candidate) {
-    if (/\.(?:cmd|bat)$/i.test(candidate)) {
+  if (resolved) {
+    if (resolved.requiresShell) {
       // cmd.exe scripts must run through the shell; quote the resolved path so
       // directories with spaces (e.g. "Program Files") do not break parsing.
-      return { command: candidate.includes(" ") ? `"${candidate}"` : candidate, useShell: true };
+      return {
+        command: resolved.path.includes(" ") ? `"${resolved.path}"` : resolved.path,
+        useShell: true,
+        resolvedPath: resolved.path
+      };
     }
-    return { command: candidate, useShell: false };
+    return { command: resolved.path, useShell: false, resolvedPath: resolved.path };
   }
 
-  // Not found via PATH/PATHEXT probing. Fall back to the shell so commands that
-  // are only reachable through cmd.exe mechanisms (App Execution Aliases,
-  // App Paths registry entries) still launch, matching the previous behavior.
-  return { command, useShell: true };
+  if (process.platform === "win32" && !path.isAbsolute(command)) {
+    // Not found via PATH/PATHEXT probing. Fall back to the shell so commands that
+    // are only reachable through cmd.exe mechanisms (App Execution Aliases,
+    // App Paths registry entries) still launch, matching the previous behavior.
+    return { command, useShell: true };
+  }
+
+  return { command, useShell: false };
+}
+
+/**
+ * Quotes one argument for a cmd.exe command line.
+ *
+ * Node's `shell: true` joins the command and arguments with spaces and hands the
+ * result to cmd.exe verbatim (the behaviour deprecated as DEP0190), so an
+ * argument containing a space, a quote, or a shell metacharacter — a repository
+ * path under "Program Files", a glob, a rule id with a pipe — arrives split or
+ * partly interpreted by the shell. Arguments with nothing special in them are
+ * left exactly as they were, so this only changes the cases that were broken.
+ */
+export function quoteForWindowsShell(argument: string): string {
+  if (argument === "") {
+    return '""';
+  }
+  if (!/[\s"&|<>^()%!]/.test(argument)) {
+    return argument;
+  }
+
+  // Double any backslashes that precede a quote or end the argument, so the
+  // receiving program's argv parser sees them as literal backslashes.
+  const escaped = argument.replace(/(\\*)"/g, '$1$1\\"').replace(/(\\*)$/, "$1$1");
+  // Quoting stops cmd.exe interpreting &, |, <, >, ^ and parentheses, but %VAR%
+  // still expands inside quotes and has no in-quote escape, so each % is moved
+  // outside the quoted run where a caret does escape it.
+  return `"${escaped}"`.split("%").join('"^%"');
 }
 
 export async function runCommand(spec: CommandSpec, installHint?: string): Promise<ToolResult> {
   const startedAt = Date.now();
   const env = buildCommandEnv(spec.cwd, spec.env);
-  const resolved = resolveWindowsCommand(spec.cmd, env);
+  const resolved = resolveLaunchTarget(spec.cmd, spec.cwd, env);
+  // Build the shell command line here instead of letting spawn concatenate the
+  // arguments for us, which it does without any escaping.
+  const launch = resolved.useShell
+    ? { command: [resolved.command, ...spec.args.map(quoteForWindowsShell)].join(" "), args: [] as string[] }
+    : { command: resolved.command, args: spec.args };
 
   return new Promise<ToolResult>((resolve) => {
-    const child = spawn(resolved.command, spec.args, {
+    const child = spawn(launch.command, launch.args, {
       cwd: spec.cwd,
       env,
       shell: resolved.useShell,
@@ -185,7 +157,8 @@ export async function runCommand(spec: CommandSpec, installHint?: string): Promi
         exitCode: null,
         durationMs: Date.now() - startedAt,
         status: /ENOENT|not recognized/i.test(error.message) ? "skipped" : "error",
-        installHint
+        installHint,
+        resolvedPath: resolved.resolvedPath
       });
     });
 
@@ -209,7 +182,8 @@ export async function runCommand(spec: CommandSpec, installHint?: string): Promi
             : /not recognized|not found|is not installed|no such file/i.test(stderr)
               ? "skipped"
               : "error",
-        installHint
+        installHint,
+        resolvedPath: resolved.resolvedPath
       });
     });
 
@@ -235,7 +209,8 @@ export async function runCommand(spec: CommandSpec, installHint?: string): Promi
           exitCode: null,
           durationMs: Date.now() - startedAt,
           status: "timeout",
-          installHint
+          installHint,
+          resolvedPath: resolved.resolvedPath
         });
       }, spec.timeoutMs);
     }

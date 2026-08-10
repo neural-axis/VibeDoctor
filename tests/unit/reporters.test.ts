@@ -1,7 +1,8 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import type { ScanOutput } from "../../src/core/engine";
+import { filterScanByCategories, type ScanOutput } from "../../src/core/engine";
+import { buildCapabilityMatrix } from "../../src/core/capability";
 import type { Finding } from "../../src/core/finding";
 import { renderJsonReport } from "../../src/reporters/json";
 import { renderTerminalReport } from "../../src/reporters/terminal";
@@ -156,7 +157,80 @@ function makeScan(): ScanOutput {
         }
       ]
     },
-    configPath: "D:\\repo\\vibedoctor.yml"
+    configPath: "D:\\repo\\vibedoctor.yml",
+    capabilityMatrix: buildCapabilityMatrix(
+      [
+        {
+          id: "gitleaks",
+          category: "security",
+          state: "completed",
+          planned: true,
+          applicable: true,
+          discovered: true,
+          executed: true,
+          resolvedPath: "C:\\tools\\gitleaks.exe",
+          version: "8.18.0",
+          command: "gitleaks detect --no-banner",
+          durationMs: 1200,
+          findingsReported: 1,
+          findingsSurfaced: 1,
+          reason: "Ran 8.18.0 at C:\\tools\\gitleaks.exe.",
+          trust: "authoritative"
+        },
+        {
+          id: "semgrep",
+          category: "security",
+          state: "timed_out",
+          planned: true,
+          applicable: true,
+          discovered: true,
+          executed: true,
+          timeoutSeconds: 300,
+          durationMs: 300_000,
+          findingsReported: 0,
+          findingsSurfaced: 0,
+          reason: "Exceeded its 300s budget and was stopped, so this check did not run.",
+          remediation: "Raise runtime.tool_timeouts.semgrep in vibedoctor.yml, scan fewer paths, or run `vibedoctor scan --changed` for a diff-scoped run.",
+          trust: "absent"
+        }
+      ],
+      []
+    ),
+    relevance: {
+      enabled: true,
+      perTool: [
+        {
+          tool: "vulture",
+          reported: 120,
+          surfaced: 50,
+          adjusted: 0,
+          withheld: [
+            {
+              reason: "over_tool_cap",
+              count: 70,
+              detail: "beyond the 50-finding cap for vulture, ranked by severity, novelty, and evidence",
+              remediation: "Raise relevance.per_tool.vulture.max_findings in vibedoctor.yml, or run `vibedoctor scan --category <category>` to see the full set."
+            }
+          ]
+        }
+      ],
+      totalReported: 124,
+      totalSurfaced: 54,
+      notes: ["vulture: showing 50 of 120 — withheld 70 beyond the 50-finding cap for vulture, ranked by severity, novelty, and evidence."]
+    },
+    suppressions: {
+      file: ".vibedoctor/suppressions.yml",
+      active: [],
+      expired: [],
+      invalid: [],
+      permanent: [],
+      hits: {},
+      expiredHits: {},
+      unused: [],
+      resurfaced: 0
+    },
+    suppressedFindings: [],
+    verifications: []
   };
 }
 
@@ -183,6 +257,27 @@ describe("reporters", () => {
       message: "MISSING DEPENDENCY Cannot find dependency @vitest/coverage-v8",
       command: "vitest run --coverage.enabled=true"
     });
+    scan.capabilityMatrix = buildCapabilityMatrix(
+      [
+        ...scan.capabilityMatrix.tools,
+        {
+          id: "vitest",
+          category: "tests",
+          state: "failed",
+          planned: true,
+          applicable: true,
+          discovered: true,
+          executed: true,
+          command: "vitest run --coverage.enabled=true",
+          findingsReported: 0,
+          findingsSurfaced: 0,
+          reason: "MISSING DEPENDENCY Cannot find dependency @vitest/coverage-v8",
+          remediation: "Run `vibedoctor tool retry vitest` to see the full output.",
+          trust: "absent"
+        }
+      ],
+      []
+    );
 
     const json = JSON.parse(renderJsonReport(scan)) as ScanOutput;
 
@@ -192,6 +287,40 @@ describe("reporters", () => {
       message: "MISSING DEPENDENCY Cannot find dependency @vitest/coverage-v8",
       command: "vitest run --coverage.enabled=true"
     });
-    expect(renderTerminalReport(scan)).toContain("vitest — MISSING DEPENDENCY Cannot find dependency @vitest/coverage-v8");
+    expect(renderTerminalReport(scan)).toContain("MISSING DEPENDENCY Cannot find dependency @vitest/coverage-v8");
+  });
+
+  it("reports a tool that ran but had every finding filtered out as distinct from one that found nothing", () => {
+    const scan = makeScan();
+    const terminal = renderTerminalReport(scan);
+
+    // The matrix must show 50 of 120, not a bare 50, so a capped tool is never
+    // mistaken for a tool with nothing to report.
+    expect(terminal).toContain("TOOL COVERAGE");
+    expect(terminal).toContain("REPORT FILTERING");
+    expect(terminal).toContain("showing 54 of 124 findings");
+    expect(terminal).toContain("Raise relevance.per_tool.vulture.max_findings");
+  });
+
+  it("separates a timed-out tool from a completed one in the coverage table", () => {
+    const scan = makeScan();
+    const terminal = renderTerminalReport(scan);
+
+    expect(terminal).toContain("semgrep");
+    expect(terminal).toContain("timed out");
+    expect(terminal).toContain("TO RESTORE COVERAGE");
+    expect(terminal).toContain("Raise runtime.tool_timeouts.semgrep");
+  });
+
+  it("says so when a category-filtered report shows scan-wide filtering totals", () => {
+    const scan = makeScan();
+    const security = filterScanByCategories(scan, ["security"]);
+
+    // The totals still describe the whole scan, because a withheld finding is no
+    // longer available to attribute to a category. Saying which they cover keeps
+    // "showing 54 of 124" from reading as a claim about security alone.
+    expect(security.relevance.totalReported).toBe(scan.relevance.totalReported);
+    expect(security.relevance.scopeNote).toContain("whole scan");
+    expect(renderTerminalReport(security)).toContain("Counted across the whole scan");
   });
 });

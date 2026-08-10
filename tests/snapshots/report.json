@@ -133,6 +133,97 @@
       "installHint": "Install Semgrep"
     }
   ],
+  "capabilityMatrix": {
+    "tools": [
+      {
+        "id": "gitleaks",
+        "category": "security",
+        "state": "completed",
+        "planned": true,
+        "applicable": true,
+        "discovered": true,
+        "executed": true,
+        "resolvedPath": "C:\\tools\\gitleaks.exe",
+        "version": "8.18.0",
+        "command": "gitleaks detect --no-banner",
+        "durationMs": 1200,
+        "findingsReported": 1,
+        "findingsSurfaced": 1,
+        "reason": "Ran 8.18.0 at C:\\tools\\gitleaks.exe.",
+        "trust": "authoritative"
+      },
+      {
+        "id": "semgrep",
+        "category": "security",
+        "state": "timed_out",
+        "planned": true,
+        "applicable": true,
+        "discovered": true,
+        "executed": true,
+        "timeoutSeconds": 300,
+        "durationMs": 300000,
+        "findingsReported": 0,
+        "findingsSurfaced": 0,
+        "reason": "Exceeded its 300s budget and was stopped, so this check did not run.",
+        "remediation": "Raise runtime.tool_timeouts.semgrep in vibedoctor.yml, scan fewer paths, or run `vibedoctor scan --changed` for a diff-scoped run.",
+        "trust": "absent"
+      }
+    ],
+    "counts": {
+      "completed": 1,
+      "partial": 0,
+      "timed_out": 1,
+      "failed": 0,
+      "not_installed": 0,
+      "runtime_incompatible": 0,
+      "deferred": 0,
+      "disabled": 0,
+      "not_applicable": 0,
+      "not_selected": 0
+    },
+    "gaps": [
+      "semgrep"
+    ],
+    "requiredGaps": [],
+    "fullCoverage": false
+  },
+  "relevance": {
+    "enabled": true,
+    "perTool": [
+      {
+        "tool": "vulture",
+        "reported": 120,
+        "surfaced": 50,
+        "adjusted": 0,
+        "withheld": [
+          {
+            "reason": "over_tool_cap",
+            "count": 70,
+            "detail": "beyond the 50-finding cap for vulture, ranked by severity, novelty, and evidence",
+            "remediation": "Raise relevance.per_tool.vulture.max_findings in vibedoctor.yml, or run `vibedoctor scan --category <category>` to see the full set."
+          }
+        ]
+      }
+    ],
+    "totalReported": 124,
+    "totalSurfaced": 54,
+    "notes": [
+      "vulture: showing 50 of 120 — withheld 70 beyond the 50-finding cap for vulture, ranked by severity, novelty, and evidence."
+    ]
+  },
+  "suppressions": {
+    "file": ".vibedoctor/suppressions.yml",
+    "active": [],
+    "expired": [],
+    "invalid": [],
+    "permanent": [],
+    "hits": {},
+    "expiredHits": {},
+    "unused": [],
+    "resurfaced": 0
+  },
+  "suppressedFindings": [],
+  "verifications": [],
   "agentPlan": {
     "goal": "Raise health score from 71 to 85",
     "status": "partial",
@@ -193,6 +284,7 @@
     ]
   },
   "notes": {
-    "dpdp": "DPDP findings are technical readiness signals integrated into privacy findings. See .vibedoctor/dpdp/ for the control matrix and data map. Not legal compliance."
+    "dpdp": "DPDP findings are technical readiness signals integrated into privacy findings. See .vibedoctor/dpdp/ for the control matrix and data map. Not legal compliance.",
+    "coverage": "capabilityMatrix is authoritative for what actually ran: toolStatuses and skippedTools are views of it. relevance explains any difference between findings a tool reported and findings shown here, so a short report is never a clean one."
   }
 }

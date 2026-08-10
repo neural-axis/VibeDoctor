@@ -128,7 +128,21 @@ describe("DPDP deterministic scan", () => {
 
     expect(result.disclaimer.toLowerCase()).toContain("not legal");
     expect(result.scores.labels.technicalPosture.toLowerCase()).toContain("not legal compliance");
-    expect(result.scores.technicalPostureScore).toBeGreaterThanOrEqual(50);
+
+    // The posture score is only allowed to credit "nothing bad was found" when
+    // something was actually looking. Presidio and Semgrep are not installed in
+    // the test environment, so the score is held back and the label says why.
+    const optionalRan = result.capabilities.some(
+      (capability) => (capability.id === "presidio" || capability.id === "semgrep") && capability.status === "available"
+    );
+    if (optionalRan) {
+      expect(result.scores.technicalPostureScore).toBeGreaterThanOrEqual(50);
+      expect(result.scores.labels.technicalPosture.toLowerCase()).not.toContain("reduced coverage");
+    } else {
+      expect(result.scores.technicalPostureScore).toBeGreaterThanOrEqual(40);
+      expect(result.scores.labels.technicalPosture.toLowerCase()).toContain("reduced coverage");
+    }
+
     expect(result.controlMatrix.controls.length).toBe(DPDP_CONTROLS.length);
     expect(result.dataMap.stores.length).toBeGreaterThan(0);
     expect(result.controlMatrix.controls.some((item) => item.controlId === "DPDP-CONSENT-001" && item.status !== "VIOLATED")).toBe(

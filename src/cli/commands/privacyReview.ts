@@ -1,7 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { ensureOutputArtifacts, getConfig } from "./shared";
-import { runScan, type ScanOutput } from "../../core/engine";
+import { runScan, withReportingDefaults, type ScanOutput } from "../../core/engine";
 import type { Finding } from "../../core/finding";
 import { pathExists } from "../../core/paths";
 import {
@@ -67,10 +67,9 @@ async function loadOrRefreshScan(root: string, refresh: boolean): Promise<ScanOu
     const parsed = JSON.parse(await fs.readFile(reportPath, "utf8")) as Partial<ScanOutput>;
     if (Array.isArray(parsed.findings)) {
       const privacyFindings = parsed.privacyFindings ?? parsed.findings.filter((finding) => finding.category === "privacy");
-      return {
-        ...(parsed as ScanOutput),
-        privacyFindings
-      };
+      // A cached report may predate fields this version expects, so fill the gaps
+      // rather than handing downstream code a half-built scan.
+      return withReportingDefaults({ ...parsed, findings: parsed.findings, privacyFindings });
     }
   }
 

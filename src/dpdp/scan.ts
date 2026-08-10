@@ -118,7 +118,7 @@ export async function runDpdpScan(
 
   const generatedAt = new Date().toISOString();
   const evidenceById = new Map(evidence.map((item) => [item.id, item]));
-  let findings = controlResultsToFindings(controlResults, evidenceById);
+  let findings = controlResultsToFindings(controlResults, evidenceById, capabilities);
 
   // Apply shared baseline fingerprints, then sync control isNew from findings.
   if (config.baseline.enabled) {
@@ -127,7 +127,7 @@ export async function runDpdpScan(
   }
   controlResults = syncControlIsNewFromFindings(controlResults, findings, config.baseline.enabled);
 
-  const scores = buildDpdpScores(controlResults);
+  const scores = buildDpdpScores(controlResults, capabilities);
   const dataMap = buildPersonalDataMap(signals, evidence, controlResults, generatedAt);
   const reviewQueue = buildReviewQueue(controlResults);
 

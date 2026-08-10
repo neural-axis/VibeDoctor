@@ -1,6 +1,6 @@
 import type { Severity } from "../core/finding";
 import { getControlById } from "./catalogue";
-import type { ControlResult, ControlStatusCounts, DpdpScores } from "./types";
+import type { ControlResult, ControlStatusCounts, DpdpCapabilityStatus, DpdpScores } from "./types";
 
 /**
  * Controls that expect an implementation signal when personal data is processed.
@@ -117,8 +117,23 @@ export function countStatuses(controls: ControlResult[]): ControlStatusCounts {
   return counts;
 }
 
+/**
+ * Whether the scanners a control depends on actually ran.
+ *
+ * "Nothing bad was found" and "nothing looked" produce the same control status,
+ * and a gap detector's silence was credited at 0.85 either way. That let a
+ * posture score climb because a scanner was missing, which is exactly backwards.
+ */
+export function hasSupportingCoverage(capabilities: DpdpCapabilityStatus[]): boolean {
+  const optional = capabilities.filter((capability) => capability.id === "presidio" || capability.id === "semgrep");
+  if (optional.length === 0) {
+    return true;
+  }
+  return optional.some((capability) => capability.status === "available");
+}
+
 /** Points contributed by one control status toward technical posture (0–1). */
-export function posturePointsForControl(control: ControlResult): number {
+export function posturePointsForControl(control: ControlResult, coverageComplete = true): number {
   switch (control.status) {
     case "VERIFIED":
       return 1;
@@ -137,10 +152,12 @@ export function posturePointsForControl(control: ControlResult): number {
         return 0.25;
       }
       if (isGapControl(control)) {
-        return 0.85;
+        // Silence only earns credit when something was actually looking. Without
+        // the supporting scanners it is an unknown, scored like NEEDS_CONTEXT.
+        return coverageComplete ? 0.85 : 0.4;
       }
       // Inventory, processors, cross-border, SDF, etc. — neutral-good silence
-      return 0.7;
+      return coverageComplete ? 0.7 : 0.4;
     default:
       return 0.5;
   }
@@ -153,8 +170,10 @@ export function posturePointsForControl(control: ControlResult): number {
  * Scoring table:
  * - VERIFIED 1.0 · PARTIAL 0.5 · VIOLATED 0.0 · ERROR 0.15 · NEEDS_CONTEXT 0.4
  * - NOT_OBSERVED: 0.25 (positive control), 0.85 (gap detector), 0.7 (other)
+ * - When supporting scanners did not run, unobserved controls score 0.4 instead,
+ *   because their silence carries no information.
  */
-export function computeTechnicalPostureScore(controls: ControlResult[]): number {
+export function computeTechnicalPostureScore(controls: ControlResult[], capabilities: DpdpCapabilityStatus[] = []): number {
   const observable = controls.filter(
     (control) =>
       control.applicable &&
@@ -167,9 +186,11 @@ export function computeTechnicalPostureScore(controls: ControlResult[]): number 
     return 100;
   }
 
+  const coverageComplete = hasSupportingCoverage(capabilities);
+
   let points = 0;
   for (const control of observable) {
-    points += posturePointsForControl(control);
+    points += posturePointsForControl(control, coverageComplete);
   }
 
   return Math.max(0, Math.min(100, Math.round((points / observable.length) * 100)));
@@ -213,14 +234,21 @@ export function openRiskBySeverity(controls: ControlResult[]): Record<Severity, 
   return counts;
 }
 
-export function buildDpdpScores(controls: ControlResult[]): DpdpScores {
+export function buildDpdpScores(controls: ControlResult[], capabilities: DpdpCapabilityStatus[] = []): DpdpScores {
+  const coverageComplete = hasSupportingCoverage(capabilities);
+  const missing = capabilities
+    .filter((capability) => capability.status !== "available")
+    .map((capability) => capability.id);
+
   return {
-    technicalPostureScore: computeTechnicalPostureScore(controls),
+    technicalPostureScore: computeTechnicalPostureScore(controls, capabilities),
     evidenceCompletenessPercent: computeEvidenceCompleteness(controls),
     openRiskBySeverity: openRiskBySeverity(controls),
     statusCounts: countStatuses(controls),
     labels: {
-      technicalPosture: "DPDP technical posture (not legal compliance)",
+      technicalPosture: coverageComplete
+        ? "DPDP technical posture (not legal compliance)"
+        : `DPDP technical posture — reduced coverage, ${missing.join(" and ")} did not run (not legal compliance)`,
       evidenceCompleteness: "Evidence completeness (technical observability)",
       openRisk: "Open technical risk counts by severity"
     }

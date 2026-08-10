@@ -1,15 +1,25 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 import { getChangedFiles, isGitRepo } from "./git";
 import { filterPaths, listProjectFiles, pathExists } from "./paths";
-import { buildCommandEnv } from "./toolRunner";
-
-const execFileAsync = promisify(execFile);
+import { commandExists as resolveCommandExists } from "./executable";
+import { registryExecutables } from "./toolRegistry";
 
 export type ProjectLanguage = "python" | "javascript" | "typescript";
 export type PackageManager = "npm" | "pnpm" | "yarn" | "bun" | "pip" | "uv" | "poetry" | "pdm";
+
+/**
+ * Dependencies the project declares, split by how they reach production.
+ *
+ * Vulnerability findings arrive from lockfiles, which flatten that distinction
+ * away. Without it, an advisory in a build-time dev server is presented as
+ * equivalent to one in a library that handles user input.
+ */
+export type DeclaredDependencies = {
+  runtime: string[];
+  dev: string[];
+  optional: string[];
+};
 
 export type ProjectContext = {
   root: string;
@@ -24,6 +34,7 @@ export type ProjectContext = {
   frameworkHints: string[];
   entryFiles: string[];
   projectFiles: string[];
+  declaredDependencies?: DeclaredDependencies;
 };
 
 const KNOWN_CONFIG_FILES = [
@@ -53,14 +64,14 @@ const KNOWN_CONFIG_FILES = [
 const KNOWN_LOCKFILES = ["pnpm-lock.yaml", "package-lock.json", "yarn.lock", "bun.lockb", "uv.lock", "poetry.lock", "pdm.lock"] as const;
 const KNOWN_TOOLS = ["ruff", "biome", "knip", "vulture", "gitleaks", "osv-scanner", "semgrep", "tsc", "pyright", "eslint", "jest", "vitest", "coverage"] as const;
 
+/**
+ * Availability uses the same resolution the scanner uses to launch tools.
+ * Shelling out to `where`/`which` answered a subtly different question — it
+ * ignored the local `node_modules/.bin` and virtualenv directories the scanner
+ * adds to PATH — so a tool could be "unavailable" here and run fine in a scan.
+ */
 async function commandExists(command: string, root: string): Promise<boolean> {
-  const locator = process.platform === "win32" ? "where" : "which";
-  try {
-    await execFileAsync(locator, [command], { cwd: root, env: buildCommandEnv(root, undefined), windowsHide: true });
-    return true;
-  } catch {
-    return false;
-  }
+  return resolveCommandExists(command, root);
 }
 
 function packageScriptCommand(packageManager: PackageManager | undefined, name: string): string {
@@ -92,7 +103,7 @@ function pythonTestCommand(packageManagers: Set<PackageManager>): string {
 async function readPackageMetadata(
   root: string,
   packageManager: PackageManager | undefined
-): Promise<{ testCommands: string[]; frameworkHints: string[] }> {
+): Promise<{ testCommands: string[]; frameworkHints: string[]; declaredDependencies?: DeclaredDependencies }> {
   const packagePath = path.join(root, "package.json");
   if (!(await pathExists(packagePath))) {
     return { testCommands: [], frameworkHints: [] };
@@ -102,6 +113,8 @@ async function readPackageMetadata(
     scripts?: Record<string, string>;
     dependencies?: Record<string, string>;
     devDependencies?: Record<string, string>;
+    optionalDependencies?: Record<string, string>;
+    peerDependencies?: Record<string, string>;
     workspaces?: string[] | { packages?: string[] };
   };
 
@@ -133,7 +146,98 @@ async function readPackageMetadata(
     frameworkHints.push("monorepo");
   }
 
-  return { testCommands, frameworkHints };
+  return {
+    testCommands,
+    frameworkHints,
+    declaredDependencies: {
+      runtime: Object.keys(pkg.dependencies ?? {}),
+      dev: Object.keys(pkg.devDependencies ?? {}),
+      optional: Object.keys({ ...(pkg.optionalDependencies ?? {}), ...(pkg.peerDependencies ?? {}) })
+    }
+  };
+}
+
+/**
+ * Reads Python dependency declarations. Covers the shapes projects actually use:
+ * PEP 621 `project.dependencies`, PEP 735 `dependency-groups`, Poetry's groups,
+ * and plain requirements files.
+ */
+async function readPythonDependencies(root: string, projectFiles: string[]): Promise<DeclaredDependencies | undefined> {
+  const runtime = new Set<string>();
+  const dev = new Set<string>();
+
+  function addSpec(target: Set<string>, spec: string) {
+    // Strip version constraints, extras, and markers to leave the package name.
+    const name = spec
+      .trim()
+      .replace(/^-[er]\s+/, "")
+      .split(/[\s;]/)[0]
+      .split(/[<>=!~[]/)[0]
+      .trim();
+    if (name && !name.startsWith("#") && !name.startsWith("-")) {
+      target.add(name.toLowerCase());
+    }
+  }
+
+  const pyproject = path.join(root, "pyproject.toml");
+  if (await pathExists(pyproject)) {
+    const content = await fs.readFile(pyproject, "utf8");
+    // A dependency-aware TOML parse is more than this needs: dependency arrays
+    // are flat lists of strings, and misreading one only costs scope precision.
+    for (const match of content.matchAll(/^\s*(dependencies|optional-dependencies|dev-dependencies)\s*=\s*\[([^\]]*)\]/gms)) {
+      const target = match[1] === "dependencies" ? runtime : dev;
+      for (const spec of match[2].split(",")) {
+        const quoted = /["']([^"']+)["']/.exec(spec);
+        if (quoted) {
+          addSpec(target, quoted[1]);
+        }
+      }
+    }
+    for (const match of content.matchAll(/^\s*\[(?:tool\.poetry\.group\.[\w-]+\.dependencies|dependency-groups)\]/gm)) {
+      // Group tables list one package per line after the header.
+      const start = match.index! + match[0].length;
+      const block = content.slice(start).split(/^\s*\[/m)[0];
+      for (const line of block.split(/\r?\n/)) {
+        const entry = /^\s*([A-Za-z0-9_.-]+)\s*=/.exec(line);
+        if (entry) {
+          addSpec(dev, entry[1]);
+        }
+      }
+    }
+  }
+
+  for (const file of projectFiles.filter((candidate) => /(^|\/)requirements[\w.-]*\.txt$/i.test(candidate))) {
+    const target = /dev|test|lint|ci/i.test(file) ? dev : runtime;
+    try {
+      const content = await fs.readFile(path.join(root, file), "utf8");
+      for (const line of content.split(/\r?\n/)) {
+        addSpec(target, line);
+      }
+    } catch {
+      // Unreadable requirements file: scope stays unknown for its packages.
+    }
+  }
+
+  if (runtime.size === 0 && dev.size === 0) {
+    return undefined;
+  }
+
+  return { runtime: Array.from(runtime), dev: Array.from(dev), optional: [] };
+}
+
+function mergeDeclaredDependencies(
+  ...sources: Array<DeclaredDependencies | undefined>
+): DeclaredDependencies | undefined {
+  const present = sources.filter((source): source is DeclaredDependencies => Boolean(source));
+  if (present.length === 0) {
+    return undefined;
+  }
+
+  return {
+    runtime: Array.from(new Set(present.flatMap((source) => source.runtime))),
+    dev: Array.from(new Set(present.flatMap((source) => source.dev))),
+    optional: Array.from(new Set(present.flatMap((source) => source.optional)))
+  };
 }
 
 function isFrameworkEntryFile(file: string): boolean {
@@ -213,7 +317,12 @@ export async function detectProject(root: string, excludePatterns?: string[]): P
     packageMetadata.testCommands.push(pythonTestCommand(packageManagers));
   }
 
-  const toolPairs = await Promise.all(KNOWN_TOOLS.map(async (tool) => [tool, await commandExists(tool, root)] as const));
+  // Probe every executable the registry knows about, not a hand-maintained
+  // subset. Tools missing from that subset always looked unavailable, so setup
+  // reinstalled them on every run and the scan could never confirm them.
+  const probeTargets = Array.from(new Set<string>([...KNOWN_TOOLS, ...registryExecutables()]));
+  const toolPairs = await Promise.all(probeTargets.map(async (tool) => [tool, await commandExists(tool, root)] as const));
+  const pythonDependencies = await readPythonDependencies(root, detectionFiles);
   const entryFiles = detectionFiles.filter((file) =>
     /(^|\/)(main|index|app|server|cli)\.(ts|tsx|js|jsx|py)$/.test(file) || isFrameworkEntryFile(file) || file.endsWith("package.json")
   );
@@ -236,6 +345,7 @@ export async function detectProject(root: string, excludePatterns?: string[]): P
     toolsAvailable: Object.fromEntries(toolPairs),
     frameworkHints: Array.from(frameworkHints).sort(),
     entryFiles,
-    projectFiles
+    projectFiles,
+    declaredDependencies: mergeDeclaredDependencies(packageMetadata.declaredDependencies, pythonDependencies)
   };
 }

@@ -313,7 +313,12 @@ export type DpdpScores = {
   openRiskBySeverity: Record<Severity, number>;
   statusCounts: ControlStatusCounts;
   labels: {
-    technicalPosture: "DPDP technical posture (not legal compliance)";
+    /**
+     * Names the figure and, when supporting scanners did not run, says so in the
+     * label itself — a posture number quoted without its coverage caveat is the
+     * thing that overstates the evidence.
+     */
+    technicalPosture: string;
     evidenceCompleteness: "Evidence completeness (technical observability)";
     openRisk: "Open technical risk counts by severity";
   };
@@ -335,6 +340,28 @@ export type DpdpCapabilityStatus = {
   id: string;
   status: "available" | "skipped" | "error";
   message?: string;
+  /**
+   * Which decision produced this status. "Skipped" previously covered opting
+   * out, having nothing in scope, and not being installed — three situations with
+   * nothing in common, so a user could not tell whether a scanner they had
+   * installed was actually contributing evidence.
+   */
+  cause?:
+    | "opted_out"
+    | "disabled"
+    | "quick_mode"
+    | "nothing_in_scope"
+    | "not_installed"
+    | "not_applicable"
+    | "failed"
+    | "timed_out"
+    | "ran";
+  /** What to change to make this capability available. */
+  remediation?: string;
+  /** Absolute path or interpreter that answered, when the capability did run. */
+  resolvedVia?: string;
+  /** How many signals this capability contributed to the evidence ledger. */
+  signalsContributed?: number;
 };
 
 export type DpdpScanResult = {
