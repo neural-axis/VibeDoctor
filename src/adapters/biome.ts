@@ -98,8 +98,9 @@ function readMessage(item: BiomeDiagnostic): string | undefined {
 }
 
 function readFile(item: BiomeDiagnostic): string | undefined {
-  const path = item.location?.path;
-  return typeof path === "string" ? path : path?.file;
+  const locationPath = item.location?.path;
+  const file = typeof locationPath === "string" ? locationPath : locationPath?.file;
+  return file?.replaceAll("\\", "/");
 }
 
 function mapSeverity(level: BiomeDiagnostic["severity"]): Finding["severity"] {

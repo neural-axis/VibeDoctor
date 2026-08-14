@@ -61,11 +61,12 @@ Drafts (`draft: true`) stay off the index. MDX can be added later with `@astrojs
 
 The workflow `.github/workflows/pages.yml` builds `website/` on pushes to `main` that touch the site, then deploys the `website/dist` artifact with official GitHub Pages actions.
 
-One-time repository settings:
+One-time repository settings (required; a 404 from `deploy-pages` means this is still off):
 
-1. Repo **Settings → Pages**.
-2. Source: **GitHub Actions**.
-3. After the first green `Deploy website` run, the site is at `https://<owner>.github.io/VibeDoctor/`.
+1. Open [Settings → Pages](https://github.com/neural-axis/VibeDoctor/settings/pages).
+2. **Build and deployment → Source** → **GitHub Actions** (not “Deploy from a branch”).
+3. If the org has locked Pages, an owner must allow it under the org’s Pages / Actions policies.
+4. Re-run **Actions → Deploy website**. After a green deploy job, the site is at `https://neural-axis.github.io/VibeDoctor/`.
 
 Operational loop: edit → commit → push → Pages publishes. No Vercel, Netlify, or extra host.
 

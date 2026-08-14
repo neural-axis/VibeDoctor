@@ -627,6 +627,25 @@ function commandText(command: { cmd: string; args: string[] }): string {
   return [command.cmd, ...command.args].join(" ");
 }
 
+/** A verification miss is still a result DPDP can reuse instead of launching the same missing tool again. */
+function skippedForVerification(
+  adapter: (typeof ALL_ADAPTERS)[number],
+  verification: ToolVerification
+): AdapterRun {
+  return {
+    findings: [],
+    status: {
+      command: adapter.id,
+      stdout: "",
+      stderr: verification.reason,
+      exitCode: null,
+      durationMs: 0,
+      status: "skipped",
+      installHint: verification.remediation ?? adapter.installHint
+    }
+  };
+}
+
 async function runAdapter(
   adapter: (typeof ALL_ADAPTERS)[number],
   ctx: ToolAdapterContext,
@@ -871,7 +890,17 @@ export async function runScan(root: string, mode: ScanMode = "default"): Promise
   );
 
   if (runnableAdapters.some((adapter) => adapter.id === "dpdp")) {
-    const sharedToolResults = Object.fromEntries(adapterResults.map(({ adapter, result }) => [adapter.id, result]));
+    const blockedShares = selectedAdapters
+      .filter((adapter) => adapter.id !== "dpdp" && !runnableAdapters.includes(adapter))
+      .map((adapter) => {
+        const verification = verifications.get(adapter.id);
+        return verification ? ([adapter.id, skippedForVerification(adapter, verification)] as const) : undefined;
+      })
+      .filter((entry): entry is readonly [string, AdapterRun] => Boolean(entry));
+    const sharedToolResults = Object.fromEntries([
+      ...adapterResults.map(({ adapter, result }) => [adapter.id, result] as const),
+      ...blockedShares
+    ]);
     const dpdpCtx: ToolAdapterContext = { ...ctx, sharedToolResults };
     adapterResults.push({ adapter: dpdpAdapter, result: await runAdapter(dpdpAdapter, dpdpCtx, deadline) });
   }

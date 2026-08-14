@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyBaseline, dedupeFindings, fingerprintFinding, type Finding } from "../../src/core/finding";
+import { applyBaseline, dedupeFindings, fingerprintFinding, normalizeFilePath, type Finding } from "../../src/core/finding";
 
 const baseFinding: Finding = {
   id: "a",
@@ -53,5 +53,10 @@ describe("finding helpers", () => {
     );
 
     expect(moved[0].isNew).toBe(false);
+  });
+
+  it("normalizes Windows separators to POSIX report paths", () => {
+    expect(normalizeFilePath(String.raw`src\core\finding.ts`, String.raw`D:\repo`)).toBe("src/core/finding.ts");
+    expect(normalizeFilePath("src/core/finding.ts", String.raw`D:\repo`)).toBe("src/core/finding.ts");
   });
 });

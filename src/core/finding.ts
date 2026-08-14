@@ -252,8 +252,12 @@ export function normalizeFilePath(file: string | undefined, root: string): strin
     return undefined;
   }
 
-  const normalized = file.replaceAll("/", path.sep);
-  const relative = path.isAbsolute(normalized) ? path.relative(root, normalized) : normalized;
+  // Scanners emit both separators (Biome on Windows even writes unescaped `\`
+  // into JSON). Reports always use POSIX-style relative paths, so treat `\` as
+  // a separator first rather than hoping `path.sep` matches the input.
+  const withPosix = file.replaceAll("\\", "/");
+  const asNative = withPosix.replaceAll("/", path.sep);
+  const relative = path.isAbsolute(asNative) ? path.relative(root, asNative) : asNative;
   return relative.split(path.sep).join("/");
 }
 

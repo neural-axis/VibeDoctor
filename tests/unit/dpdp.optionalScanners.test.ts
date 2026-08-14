@@ -206,6 +206,11 @@ checks:
     use_semgrep: true
 paths:
   include: [src/**]
+runtime:
+  # The mock must be the process that runs. Pre-scan verification would skip
+  # Semgrep on machines where it is not installed, and DPDP would then launch
+  # the mock as a "fresh" run instead of reusing a shared result.
+  verify_tools_before_scan: false
 `,
       "utf8"
     );
