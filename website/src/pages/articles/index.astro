@@ -1,0 +1,107 @@
+---
+import { getCollection } from "astro:content";
+import Base from "../../layouts/Base.astro";
+import { withBase } from "../../lib/paths";
+
+const published = (await getCollection("articles", ({ data }) => !data.draft)).sort((a, b) => {
+  const rank = (a.data.rank ?? 99) - (b.data.rank ?? 99);
+  if (rank !== 0) return rank;
+  return b.data.pubDate.valueOf() - a.data.pubDate.valueOf();
+});
+
+const stages = [
+  {
+    id: "problem" as const,
+    label: "01 / The problem",
+    title: "What quietly goes wrong.",
+    body: "The gap is not that models write malware. They write the happy path, then you point a domain at it."
+  },
+  {
+    id: "tool" as const,
+    label: "02 / Your stack",
+    title: "Does this tool have that problem?",
+    body: "Lovable, Bolt.new, Cursor, and Supabase fail in related ways. The checks are not interchangeable."
+  },
+  {
+    id: "check" as const,
+    label: "03 / Before you ship",
+    title: "How to look, then how to measure.",
+    body: "Checklists first. Then a local scan of the exported repository, not a vibe."
+  }
+];
+---
+
+<Base
+  title="Articles"
+  description="A small pre-launch library for vibe-coded apps: security checklists for Lovable, Bolt.new, Cursor, and Supabase, plus how to test an AI-generated app before it is public."
+  path={withBase("/articles/")}
+>
+  <div class="site-wrap folio article-index">
+    <header class="page-hero">
+      <div>
+        <p class="section-id">Articles · {published.length} filed</p>
+        <h1>Notes for the hour before you ship.</h1>
+      </div>
+      <p class="lede">
+        Early-stage SEO should sit next to a purchase, not next to a textbook. These ten notes
+        are a funnel, not a junk drawer: the problem, the tool, the check, then a local scan.
+      </p>
+    </header>
+
+    {
+      published.length === 0 ? (
+        <div class="empty-index">
+          <p class="kicker">
+            <span>Queue</span>
+            <span>0 filed</span>
+          </p>
+          <h2 style="margin:0.6rem 0 0.45rem">No articles published.</h2>
+          <p class="note">
+            An empty index is more honest than a placeholder essay. When there is a finding worth
+            writing down, drop a <code>.md</code> file in
+            <code>website/src/content/articles/</code> with <code>title</code>,
+            <code>description</code>, and <code>pubDate</code>.
+          </p>
+        </div>
+      ) : (
+        stages.map((stage) => {
+          const rows = published.filter((post) => post.data.stage === stage.id);
+          if (rows.length === 0) return null;
+          return (
+            <section class="section" aria-labelledby={`${stage.id}-title`}>
+              <div class="section-head split">
+                <div>
+                  <p class="section-id">{stage.label}</p>
+                  <h2 id={`${stage.id}-title`}>{stage.title}</h2>
+                </div>
+                <p class="prose">{stage.body}</p>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>No.</th>
+                      <th>Title</th>
+                      <th>Summary</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((post) => (
+                      <tr>
+                        <td class="mono">{String(post.data.rank ?? "—").padStart(2, "0")}</td>
+                        <td>
+                          <a href={withBase(`/articles/${post.id}/`)}>{post.data.title}</a>
+                        </td>
+                        <td>{post.data.description}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          );
+        })
+      )
+    }
+  </div>
+</Base>

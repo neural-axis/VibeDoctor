@@ -1,0 +1,23 @@
+---
+import Base from "../layouts/Base.astro";
+import { withBase } from "../lib/paths";
+---
+
+<Base
+  title="Not found"
+  description="This path is not in the VibeDoctor site index."
+  path={withBase("/404/")}
+>
+  <div class="site-wrap folio">
+    <header class="page-hero">
+      <div>
+        <p class="section-id">404 / Invalid</p>
+        <h1>No record at this path.</h1>
+      </div>
+      <p class="lede">
+        The index has no article or page here. That is a missing document, not a clean bill of health.
+      </p>
+    </header>
+    <p><a href={withBase("/")}>Return to the diagnosis →</a></p>
+  </div>
+</Base>

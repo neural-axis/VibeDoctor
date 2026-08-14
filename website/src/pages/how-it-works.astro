@@ -1,0 +1,245 @@
+---
+import Base from "../layouts/Base.astro";
+import Command from "../components/Command.astro";
+import {
+  product,
+  commands,
+  completeness,
+  evidenceGrades,
+  exitCodes,
+  tools,
+  toolStates,
+  specimen,
+  languageMatrix,
+  orchestration
+} from "../data/product";
+import { withBase } from "../lib/paths";
+---
+
+<Base
+  title="How it works"
+  description="How VibeDoctor scans, scores completeness, normalizes specialist tools, and turns evidence into a ranked repair plan."
+  path={withBase("/how-it-works/")}
+>
+  <div class="site-wrap folio">
+    <header class="page-hero">
+      <div>
+        <p class="section-id">Method</p>
+        <h1>Scan, measure, prescribe, verify.</h1>
+      </div>
+      <p class="lede">
+        {product.name} is a normalizer, not a single linter. It plans which tools apply,
+        runs them locally, records whether they actually finished, and refuses to treat
+        a missing check as a clean result.
+      </p>
+    </header>
+
+    <section class="section" aria-labelledby="loop-h">
+      <p class="section-id">01 / Loop</p>
+      <h2 id="loop-h">The same four steps, every time.</h2>
+      <div class="loop" style="margin-top:1.25rem">
+        <article class="loop-step">
+          <strong>Scan</strong>
+          <p><code>scan --changed</code>, <code>--quick</code>, or <code>--full</code>. Category filters are supported.</p>
+        </article>
+        <article class="loop-step">
+          <strong>Diagnose</strong>
+          <p>Read <code>completeness.status</code>, the coverage table, and ranked findings.</p>
+        </article>
+        <article class="loop-step">
+          <strong>Prescribe</strong>
+          <p><code>agent-plan</code>, <code>explain &lt;id&gt;</code>, optional <code>fix --safe</code>.</p>
+        </article>
+        <article class="loop-step">
+          <strong>Verify</strong>
+          <p><code>verify</code> re-runs a changed-scope scan. Review every generated edit.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="modes-h">
+      <p class="section-id">02 / Scan modes</p>
+      <h2 id="modes-h">Pick the smallest honest scope.</h2>
+      <div class="table-wrap" style="margin-top:1.25rem">
+        <table>
+          <thead>
+            <tr>
+              <th>Goal</th>
+              <th>Command</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>Files changed in Git</td><td class="mono">{commands.scanChanged}</td></tr>
+            <tr><td>Fast repository check</td><td class="mono">{commands.scanQuick}</td></tr>
+            <tr><td>Most complete check</td><td class="mono">{commands.scanFull}</td></tr>
+            <tr><td>Selected categories</td><td class="mono">scan --category dead_code,leftovers</td></tr>
+            <tr><td>Fresh full report</td><td class="mono">report --json | --html | --markdown | --sarif | --agent</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="evidence-h">
+      <p class="section-id">03 / Evidence</p>
+      <h2 id="evidence-h">Completeness is a first-class result.</h2>
+      <div class="states" style="margin-top:1.25rem">
+        {completeness.map((row) => (
+          <article class="state">
+            <div class={`badge ${row.status.toLowerCase()}`}>{row.status}</div>
+            <p style="margin-top:0.55rem">{row.meaning}</p>
+            <p class="note" style="margin-top:0.4rem">{row.action}</p>
+          </article>
+        ))}
+      </div>
+      <div class="table-wrap" style="margin-top:1.25rem">
+        <table>
+          <thead>
+            <tr><th>Exit</th><th>Meaning</th></tr>
+          </thead>
+          <tbody>
+            {exitCodes.map((row) => (
+              <tr>
+                <td class="mono">{row.code}</td>
+                <td>{row.meaning}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p class="note" style="margin-top:0.85rem">
+        Tool states: {toolStates.join(" · ")}. Only <strong>completed</strong> is full coverage.
+      </p>
+    </section>
+
+    <section class="section" aria-labelledby="grades-h">
+      <p class="section-id">04 / Finding grades</p>
+      <h2 id="grades-h">Severity is not the same as evidence.</h2>
+      <p class="lede" style="margin:1rem 0 1.25rem">
+        A naming guess must not read like a traced code path. Each finding can carry
+        an evidence grade independent of how bad the claim would be if true.
+      </p>
+      <div class="matrix">
+        {evidenceGrades.map((row) => (
+          <article>
+            <div class="id">{row.id}</div>
+            <p>{row.meaning}</p>
+          </article>
+        ))}
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="matrix-h">
+      <p class="section-id">05 / Language matrix</p>
+      <h2 id="matrix-h">What applies where.</h2>
+      <p class="note" style="margin:1rem 0 1.25rem">
+        Cells are the tools VibeDoctor actually wires for that language. Mixed
+        repositories get the union of applicable rows. A dash means no dedicated tool.
+      </p>
+      <div class="table-wrap">
+        <table>
+          <caption class="visually-hidden">Language and capability matrix</caption>
+          <thead>
+            <tr>
+              <th>Check</th>
+              <th>JavaScript</th>
+              <th>TypeScript</th>
+              <th>Python</th>
+            </tr>
+          </thead>
+          <tbody>
+            {languageMatrix.map((row) => (
+              <tr>
+                <td>{row.check}</td>
+                <td class="mono">{row.js}</td>
+                <td class="mono">{row.ts}</td>
+                <td class="mono">{row.py}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="tools-h">
+      <p class="section-id">06 / Orchestration</p>
+      <h2 id="tools-h">Specialist tools, one record format.</h2>
+      <ol class="orch" style="margin:1.25rem 0">
+        {orchestration.map((step) => (
+          <li>
+            <span class="orch-id">{step.id}</span>
+            <strong>{step.title}</strong>
+            <p>{step.body}</p>
+          </li>
+        ))}
+      </ol>
+      <p class="note" style="margin:0 0 1.25rem">
+        Built-in detectors always apply. External tools run when they are applicable
+        and resolvable. A missing optional tool is disclosed, not imagined as a pass.
+      </p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Tool</th>
+              <th>Ecosystem</th>
+              <th>Languages</th>
+              <th>Role</th>
+            </tr>
+          </thead>
+          <tbody>
+            {tools.map((tool) => (
+              <tr>
+                <td class="mono">{tool.id}</td>
+                <td>{tool.ecosystem}</td>
+                <td>{tool.langs}</td>
+                <td>{tool.role}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="filter-h">
+      <p class="section-id">07 / Readability</p>
+      <h2 id="filter-h">Nothing is dropped silently.</h2>
+      <div class="matrix" style="margin-top:1.25rem">
+        <article>
+          <h3>Ranking</h3>
+          <p class="note">New findings and findings in changed files first. Pre-existing debt does not hide a regression.</p>
+        </article>
+        <article>
+          <h3>Per-tool caps</h3>
+          <p class="note">What falls outside the cap is reported as a count, with the setting to raise.</p>
+        </article>
+        <article>
+          <h3>File roles</h3>
+          <p class="note">Tests, fixtures, generated, and vendored code are downgraded rather than presented like production defects.</p>
+        </article>
+        <article>
+          <h3>Acknowledgements</h3>
+          <p class="note"><code>.vibedoctor/suppressions.yml</code> requires a reason. Lapsed rules resurface instead of staying hidden.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="setup-h">
+      <p class="section-id">08 / Setup</p>
+      <h2 id="setup-h">Install what you intend to trust.</h2>
+      <div class="stack" style="margin-top:1.25rem">
+        <Command command={commands.setup} />
+        <p>
+          <code>setup --apply</code> installs supported recommended tools, then verifies
+          each one the way the scanner will. It fails if a tool cannot be verified —
+          even when the install command itself succeeded.
+        </p>
+        <p class="note">
+          Timed-out tools can be retried: <code>{commands.toolRetry}</code>
+        </p>
+        <p class="note">
+          Specimen coverage row for this idea: {specimen.coverage[1].tool} {specimen.coverage[1].state}.
+        </p>
+      </div>
+    </section>
+  </div>
+</Base>

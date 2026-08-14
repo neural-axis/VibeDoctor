@@ -1,0 +1,55 @@
+---
+import { product, links, nav } from "../data/product";
+import { withBase } from "../lib/paths";
+
+const year = new Date().getUTCFullYear();
+---
+
+<footer class="site-footer">
+  <div class="site-wrap footer-grid">
+    <div>
+      <img
+        class="footer-mark"
+        src={withBase("logo-portrait.png")}
+        alt={`${product.name}, a ${product.maker} product`}
+        width="220"
+        height="161"
+      />
+      <p class="muted" style="margin-top:0.75rem">
+        {product.tagline} Deterministic, evidence-backed diagnostics for JavaScript,
+        TypeScript, Python, and mixed repositories.
+      </p>
+      <div class="footer-lockup">
+        <span class="kicker" style="justify-content:flex-start">A NeuralAxis product</span>
+        <a class="footer-maker" href={links.neuralaxis} rel="noreferrer">NeuralAxis</a>
+        <span class="note">Powered by NeuralAxis</span>
+      </div>
+    </div>
+    <div class="footer-lists">
+      <div class="footer-col">
+        <h2>Product</h2>
+        <ul>
+          <li><a href={withBase("/")}>Home</a></li>
+          {nav.map((item) => (
+            <li><a href={withBase(item.href)}>{item.label}</a></li>
+          ))}
+          <li><a href={withBase("/company/")}>Company</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h2>Elsewhere</h2>
+        <ul>
+          <li><a href={links.github} rel="noreferrer">GitHub</a></li>
+          <li><a href={links.npm} rel="noreferrer">npm · {product.package}</a></li>
+          <li><a href={links.neuralaxis} rel="noreferrer">neuralaxis.ai</a></li>
+          <li><a href={links.benki} rel="noreferrer">Benki</a></li>
+          <li><a href={links.issues} rel="noreferrer">Issues</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="site-wrap footer-end">
+    <span>© {year} NeuralAxis. {product.name} is {product.license}.</span>
+    <span>Build {product.version} · Doc VD-WEB</span>
+  </div>
+</footer>

@@ -1,0 +1,61 @@
+---
+import Base from "../layouts/Base.astro";
+import { links, product } from "../data/product";
+import { withBase } from "../lib/paths";
+---
+
+<Base
+  title="Products"
+  description="NeuralAxis product family: VibeDoctor, Benki, and room for what comes next."
+  path={withBase("/products/")}
+>
+  <div class="site-wrap folio">
+    <header class="page-hero">
+      <div>
+        <p class="section-id">Products</p>
+        <h1>NeuralAxis products.</h1>
+      </div>
+      <p class="lede">
+        {product.name} is Product 01. Benki lives at benki.tech. This index is built
+        so another product can be added without redesigning the site.
+      </p>
+    </header>
+
+    <div class="products" style="margin-top:0.5rem">
+      <a class="product" href={withBase("/")}>
+        <p class="kicker"><span>01</span><span>Current</span></p>
+        <h3>VibeDoctor</h3>
+        <p class="note">
+          Deterministic code-health analysis for JavaScript, TypeScript, Python,
+          and mixed repositories. CLI, agent pack, MCP.
+        </p>
+        <p class="note" style="margin-top:0.6rem">{product.package}</p>
+      </a>
+      <a class="product" href={links.benki} rel="noreferrer">
+        <p class="kicker"><span>External</span><span>benki.tech</span></p>
+        <h3>Benki</h3>
+        <p class="note">
+          A NeuralAxis product. This site does not restate Benki’s marketing —
+          it points at the official product URL.
+        </p>
+      </a>
+      <div class="product slot">
+        <p class="kicker"><span>02+</span><span>Reserved</span></p>
+        <h3>Unannounced</h3>
+        <p class="note">
+          Empty slot. When a third product ships, add a row here. No invented names.
+        </p>
+      </div>
+    </div>
+
+    <section class="section">
+      <p class="section-id">Maker</p>
+      <p>
+        All of the above are NeuralAxis products.
+        <a href={links.neuralaxis} rel="noreferrer">neuralaxis.ai</a>
+        {" · "}
+        <a href={withBase("/company/")}>Company</a>
+      </p>
+    </section>
+  </div>
+</Base>

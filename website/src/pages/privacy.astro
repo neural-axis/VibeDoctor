@@ -1,0 +1,113 @@
+---
+import Base from "../layouts/Base.astro";
+import Command from "../components/Command.astro";
+import { product, commands } from "../data/product";
+import { withBase } from "../lib/paths";
+---
+
+<Base
+  title="Privacy"
+  description="How VibeDoctor stays local-first, how Privacy Review works, and what DPDP technical readiness means — not legal compliance."
+  path={withBase("/privacy/")}
+>
+  <div class="site-wrap folio">
+    <header class="page-hero">
+      <div>
+        <p class="section-id">Privacy</p>
+        <h1>Local-first. Technically ready. Not a legal certificate.</h1>
+      </div>
+      <p class="lede">
+        {product.name} inspects source on the developer machine. It can surface
+        personal-data signals and map apparent processing for India’s DPDP framework.
+        It cannot certify legal compliance.
+      </p>
+    </header>
+
+    <section class="section" aria-labelledby="local-h">
+      <p class="section-id">01 / Local-first</p>
+      <h2 id="local-h">What runs where.</h2>
+      <div class="local-split" style="margin-top:1.25rem">
+        <article>
+          <p class="kicker"><span>On the machine</span></p>
+          <ul>
+            <li>Core scanning and report generation.</li>
+            <li>Built-in privacy-detector. No external service required.</li>
+            <li>HTML, JSON, Markdown, SARIF, and agent reports written under <code>.vibedoctor/</code>.</li>
+            <li>Evidence stored in reports is masked or classified instead of preserving raw PII.</li>
+          </ul>
+        </article>
+        <article>
+          <p class="kicker"><span>Optional network</span></p>
+          <ul>
+            <li><code>setup</code> may download scanner tools.</li>
+            <li>Dependency scanners (for example OSV-Scanner) may query their own data sources.</li>
+            <li>Optional AI adjudication for Privacy Review runs only when explicitly enabled and the configured API-key environment variables are present.</li>
+            <li>There is no hosted {product.name} service required to produce a diagnosis.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="review-h">
+      <p class="section-id">02 / Privacy Review</p>
+      <h2 id="review-h">Deterministic first. Advisory by default.</h2>
+      <div class="stack" style="margin-top:1.25rem">
+        <Command command={commands.privacyReview} />
+        <p>
+          Category scan: <code>vibedoctor scan --category privacy --report json</code>.
+          The review command writes <code>.vibedoctor/privacy-review.json</code>.
+        </p>
+        <p>
+          Privacy findings affect the privacy category score by default, but do not
+          lower the overall score or fail CI unless you opt into privacy gates.
+        </p>
+        <pre><code>{`checks:
+  privacy:
+    fail_on_regulated_identifiers: true
+    fail_on_sensitive_attributes: true`}</code></pre>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="dpdp-h">
+      <p class="section-id">03 / DPDP technical readiness</p>
+      <h2 id="dpdp-h">Engineering evidence. Not certification.</h2>
+      <div class="stack" style="margin-top:1.25rem">
+        <p>
+          The DPDP module maps apparent personal-data processing, evaluates visible
+          technical controls, identifies deterministic technical risks, and creates
+          a human-review queue.
+        </p>
+        <p>
+          <strong>It provides technical readiness evidence, not legal compliance or
+          certification.</strong> Static analysis cannot establish legal applicability,
+          production behavior, contractual adequacy, notice quality, or organisational
+          policy implementation.
+        </p>
+        <Command command={commands.dpdpScan} />
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Command</th><th>Purpose</th></tr>
+            </thead>
+            <tbody>
+              <tr><td class="mono">dpdp init</td><td>Scaffold optional context and evidence.</td></tr>
+              <tr><td class="mono">dpdp scan --full</td><td>Full technical-readiness scan.</td></tr>
+              <tr><td class="mono">dpdp scan --changed</td><td>Evidence from changed files.</td></tr>
+              <tr><td class="mono">dpdp map</td><td>Print the personal-data map.</td></tr>
+              <tr><td class="mono">dpdp review-queue</td><td>Questions requiring human review.</td></tr>
+              <tr><td class="mono">dpdp report</td><td>JSON, HTML, or Markdown.</td></tr>
+              <tr><td class="mono">dpdp handoff</td><td>Agent handoff.</td></tr>
+              <tr><td class="mono">dpdp verify</td><td>Live changed-scope verification.</td></tr>
+              <tr><td class="mono">dpdp explain &lt;id&gt;</td><td>Explain a control or finding.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="note">
+          Controls distinguish DETERMINISTIC checks, TECHNICAL_SIGNAL, DECLARED_EVIDENCE,
+          and HUMAN_REVIEW. Absence of evidence is never marked VERIFIED. Skipped optional
+          scanners are never passes.
+        </p>
+      </div>
+    </section>
+  </div>
+</Base>

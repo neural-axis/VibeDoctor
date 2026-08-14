@@ -1,0 +1,47 @@
+---
+import { product, nav, links } from "../data/product";
+import { withBase } from "../lib/paths";
+
+const path = Astro.url.pathname.replace(/\/+$/, "") || "/";
+
+function current(href: string): boolean {
+  const clean = href.replace(/\/+$/, "") || "/";
+  if (clean === "/") return path === "" || path === "/" || path.endsWith("/VibeDoctor");
+  return path.endsWith(clean) || path.includes(`${clean}/`);
+}
+---
+
+<header class="site-header">
+  <div class="site-wrap header-inner">
+    <a class="brand" href={withBase("/")}>
+      <img
+        class="brand-mark"
+        src={withBase("logo-lockup.png")}
+        alt={`${product.name}, a ${product.maker} product`}
+        width="240"
+        height="68"
+      />
+    </a>
+    <nav class="nav" aria-label="Primary">
+      {nav.map((item) => (
+        <a href={withBase(item.href)} aria-current={current(item.href) ? "page" : undefined}>
+          {item.label}
+        </a>
+      ))}
+      <a href={links.github} rel="noreferrer">GitHub</a>
+      <a class="nav-cta" href={withBase("/#install")}>Get VibeDoctor</a>
+    </nav>
+    <details class="header-index">
+      <summary>Index</summary>
+      <nav aria-label="Primary compact">
+        {nav.map((item) => (
+          <a href={withBase(item.href)} aria-current={current(item.href) ? "page" : undefined}>
+            {item.label}
+          </a>
+        ))}
+        <a href={links.github} rel="noreferrer">GitHub</a>
+        <a href={withBase("/#install")}>Get VibeDoctor</a>
+      </nav>
+    </details>
+  </div>
+</header>

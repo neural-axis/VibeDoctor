@@ -1,5 +1,9 @@
 # VibeDoctor
 
+<p align="center">
+  <img src="website/public/logo-lockup.png" alt="VibeDoctor, a NeuralAxis product" width="360" />
+</p>
+
 **A local health check for code you did not write line by line.**
 
 VibeDoctor scans JavaScript, TypeScript, Python, and mixed repositories for code-health, security, privacy, testing, and maintainability problems. It combines repository-local scanner output into one ranked report, one normalized finding format, and a fix-next plan that humans and coding agents can use without interpreting a wall of unrelated logs.
@@ -9,6 +13,8 @@ npx @neuralaxis/vibedoctor scan --changed
 ```
 
 VibeDoctor runs locally by default. Missing or failed scanners are reported as incomplete evidence, never silently counted as a clean result.
+
+The public product site lives in [`website/`](website/README.md) and deploys from GitHub Pages.
 
 ## Start here
 

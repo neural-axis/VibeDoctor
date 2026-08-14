@@ -1,0 +1,122 @@
+---
+import Base from "../layouts/Base.astro";
+import Command from "../components/Command.astro";
+import { product, commands, agentTargets, pluginTargets, mcpTools } from "../data/product";
+import { withBase } from "../lib/paths";
+---
+
+<Base
+  title="Agents"
+  description="How VibeDoctor hands ranked, evidence-backed work to coding agents via agent-plan, AGENTS.md, editor wiring, and an MCP server."
+  path={withBase("/agents/")}
+>
+  <div class="site-wrap folio">
+    <header class="page-hero">
+      <div>
+        <p class="section-id">Agents</p>
+        <h1>Give agents evidence, not intuition.</h1>
+      </div>
+      <p class="lede">
+        {product.name} writes machine-readable reports and an ordered repair plan.
+        Agents are told to recover incomplete scanners before they treat a score
+        as authoritative.
+      </p>
+    </header>
+
+    <section class="section" aria-labelledby="handoff-h">
+      <p class="section-id">01 / One-off handoff</p>
+      <h2 id="handoff-h">Start with the plan file.</h2>
+      <div class="stack" style="margin-top:1.25rem">
+        <Command command={commands.agentPlan} />
+        <p>Default artifacts under <code>.vibedoctor/</code>:</p>
+        <pre><code>{`.vibedoctor/
+├── report.json       # automation and agents
+├── report.html       # human review
+└── agent-plan.md     # ordered repair work`}</code></pre>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="protocol-h">
+      <p class="section-id">02 / Protocol</p>
+      <h2 id="protocol-h">What an agent is supposed to do.</h2>
+      <ol class="stack" style="margin-top:1.25rem; padding-left:1.2rem">
+        <li>Run the appropriate scan.</li>
+        <li>Read <code>completeness.status</code>, <code>toolStatuses</code>, <code>skippedTools</code>, and <code>recoveryActions</code> in <code>report.json</code>.</li>
+        <li>Recover required scanners before treating findings or scores as authoritative.</li>
+        <li>Fix only the ranked, in-scope findings. Preserve unrelated user changes.</li>
+        <li>Run <code>vibedoctor verify</code> after edits.</li>
+        <li>Report remaining findings and any incomplete evidence. Never claim success from a PARTIAL or INVALID scan.</li>
+      </ol>
+    </section>
+
+    <section class="section" aria-labelledby="pack-h">
+      <p class="section-id">03 / Agent pack</p>
+      <h2 id="pack-h">Repository-scoped instructions.</h2>
+      <div class="stack" style="margin-top:1.25rem">
+        <Command command={commands.agentInit} />
+        <p>
+          Targets: {agentTargets.join(", ")}. This can generate <code>AGENTS.md</code>,
+          <code>.agents/skills/</code>, target-specific skills for Claude and GitHub,
+          Cursor rules and MCP config, and <code>.vibedoctor/agent-policy.yml</code>.
+        </p>
+        <p class="note">
+          Check the wiring with <code>{commands.agentDoctor}</code>.
+        </p>
+        <p>
+          Installable plugin bundles for {pluginTargets.join(" and ")}:
+        </p>
+        <Command command={commands.agentPlugin} />
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="order-h">
+      <p class="section-id">04 / Fix order</p>
+      <h2 id="order-h">The pack is opinionated on purpose.</h2>
+      <div class="table-wrap" style="margin-top:1.25rem">
+        <table>
+          <thead>
+            <tr><th>#</th><th>Fix first</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="mono">1</td><td>Security blockers</td></tr>
+            <tr><td class="mono">2</td><td>Failing tests</td></tr>
+            <tr><td class="mono">3</td><td>Type errors</td></tr>
+            <tr><td class="mono">4</td><td>Dependency vulnerabilities</td></tr>
+            <tr><td class="mono">5</td><td>Privacy Review findings with regulated identifiers or sensitive attributes</td></tr>
+            <tr><td class="mono">6</td><td>High-confidence dead code</td></tr>
+            <tr><td class="mono">7</td><td>Leftovers and legacy baggage</td></tr>
+            <tr><td class="mono">8</td><td>Refactor-readiness items</td></tr>
+            <tr><td class="mono">9</td><td>Efficiency suggestions</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="note" style="margin-top:0.85rem">
+        Do not delete dead code unless it is high confidence and independently verified.
+        Do not send raw personal data to an AI service unless config and the user allow it.
+      </p>
+    </section>
+
+    <section class="section" aria-labelledby="mcp-h">
+      <p class="section-id">05 / MCP</p>
+      <h2 id="mcp-h">Structured operations over stdio.</h2>
+      <div class="stack" style="margin-top:1.25rem">
+        <Command command={commands.mcp} />
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Tool</th><th>Does</th></tr>
+            </thead>
+            <tbody>
+              {mcpTools.map((tool) => (
+                <tr>
+                  <td class="mono">{tool.name}</td>
+                  <td>{tool.does}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+</Base>

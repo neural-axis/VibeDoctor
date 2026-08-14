@@ -1,0 +1,155 @@
+---
+import { getCollection, render } from "astro:content";
+import Base from "../../layouts/Base.astro";
+import Command from "../../components/Command.astro";
+import { product, commands } from "../../data/product";
+import { withBase } from "../../lib/paths";
+
+export async function getStaticPaths() {
+  const published = await getCollection("articles", ({ data }) => !data.draft);
+  return published.map((post) => ({
+    params: { slug: post.id },
+    props: { post }
+  }));
+}
+
+const { post } = Astro.props;
+const { Content } = await render(post);
+const published = await getCollection("articles", ({ data }) => !data.draft);
+const related = post.data.related
+  .map((id) => published.find((entry) => entry.id === id))
+  .filter((entry): entry is (typeof published)[number] => Boolean(entry));
+
+const canonicalPath = withBase(`/articles/${post.id}/`);
+const canonical = new URL(canonicalPath, Astro.site);
+const date = post.data.pubDate.toISOString();
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Article",
+      headline: post.data.title,
+      description: post.data.description,
+      datePublished: date,
+      dateModified: date,
+      mainEntityOfPage: canonical.toString(),
+      author: {
+        "@type": "Organization",
+        name: product.maker,
+        url: "https://neuralaxis.ai"
+      },
+      image: new URL(withBase("og.png"), Astro.site).toString(),
+      publisher: {
+        "@type": "Organization",
+        name: product.name,
+        url: new URL(withBase("/"), Astro.site).toString(),
+        logo: {
+          "@type": "ImageObject",
+          url: new URL(withBase("logo-lockup.png"), Astro.site).toString()
+        }
+      }
+    },
+    {
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        {
+          "@type": "ListItem",
+          position: 1,
+          name: product.name,
+          item: new URL(withBase("/"), Astro.site).toString()
+        },
+        {
+          "@type": "ListItem",
+          position: 2,
+          name: "Articles",
+          item: new URL(withBase("/articles/"), Astro.site).toString()
+        },
+        {
+          "@type": "ListItem",
+          position: 3,
+          name: post.data.title,
+          item: canonical.toString()
+        }
+      ]
+    }
+  ]
+};
+---
+
+<Base
+  title={post.data.title}
+  description={post.data.description}
+  path={canonicalPath}
+  ogType="article"
+  jsonLd={jsonLd}
+>
+  <Fragment slot="head">
+    <meta property="article:published_time" content={date} />
+    <meta property="article:modified_time" content={date} />
+  </Fragment>
+  <article class="site-wrap folio article-page">
+    <header class="page-hero">
+      <div>
+        <p class="section-id">
+          Article · {post.data.pubDate.toISOString().slice(0, 10)}
+          {post.data.stage ? ` · ${post.data.stage}` : ""}
+        </p>
+        <h1>{post.data.title}</h1>
+      </div>
+      <p class="lede">{post.data.description}</p>
+    </header>
+    <div class="section prose article-body">
+      <Content />
+    </div>
+
+    <aside class="article-cta" aria-labelledby="article-cta-title">
+      <p class="section-id">Prescription</p>
+      <h2 id="article-cta-title">Run the local check on the repo you are about to ship.</h2>
+      <p>
+        {product.name} is a local health check for JavaScript, TypeScript, Python, and mixed
+        repositories. It will not replace a human abuse-case pass. It will tell you whether
+        secrets, vulnerable dependencies, leftover “skip auth” comments, and incomplete scanners
+        are still sitting in the tree.
+      </p>
+      <Command command={commands.scanFull} />
+      <p class="note">
+        <a href={withBase("/how-it-works/")}>How a scan is scored →</a>
+        {" · "}
+        <a href={withBase("/agents/")}>Hand the report to an agent →</a>
+      </p>
+    </aside>
+
+    {
+      related.length > 0 && (
+        <nav class="article-related" aria-labelledby="related-title">
+          <p class="section-id">Also filed</p>
+          <h2 id="related-title">Keep walking the funnel.</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Title</th>
+                  <th>Summary</th>
+                </tr>
+              </thead>
+              <tbody>
+                {related.map((entry) => (
+                  <tr>
+                    <td>
+                      <a href={withBase(`/articles/${entry.id}/`)}>{entry.data.title}</a>
+                    </td>
+                    <td>{entry.data.description}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </nav>
+      )
+    }
+
+    <p class="note">
+      <a href={withBase("/articles/")}>← Articles index</a>
+    </p>
+  </article>
+</Base>
