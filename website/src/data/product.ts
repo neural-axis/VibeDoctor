@@ -299,7 +299,7 @@ export const agentSteps = [
   {
     id: "01",
     title: "Scan",
-    body: "Run scan --changed or a full scan. Completeness is part of the result."
+    body: "Run scan --full first. Completeness is part of the result."
   },
   {
     id: "02",
@@ -323,6 +323,5 @@ export const nav = [
   { href: "/how-it-works/", label: "How it works" },
   { href: "/agents/", label: "Agents" },
   { href: "/privacy/", label: "Privacy" },
-  { href: "/articles/", label: "Articles" },
-  { href: "/products/", label: "Products" }
+  { href: "/articles/", label: "Articles" }
 ] as const;

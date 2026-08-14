@@ -106,13 +106,13 @@ A generated test that instantiates the handler with a fake admin user will stay 
 2. Tell the agent the constraint in the same bubble as the feature: *Do not add secrets to files. Do not weaken auth to make the UI work. List new dependencies and wait.*
 3. Accept in hunks. Auth and env hunks get a slower eye than CSS.
 4. Run the app as two users if data is personal.
-5. Scan what changed.
+5. Scan the tree you are about to keep.
 
 ```bash
-npx @neuralaxis/vibedoctor scan --changed
+npx @neuralaxis/vibedoctor scan --full
 ```
 
-`--changed` is the Cursor-native mode: you do not need a full-repo sermon after a 20-line edit. Before a release, use `--full`.
+That is the release command. After a 20-line edit on an existing baseline, `scan --changed` is enough. Do not treat a changed-scope pass as a ship diagnosis.
 
 VibeDoctor can also write an agent protocol into the repo:
 

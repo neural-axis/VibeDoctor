@@ -25,8 +25,8 @@ Astro prints a local URL. Pages:
 | `/agents/` | Agent pack, protocol, MCP |
 | `/privacy/` | Local-first + DPDP technical readiness |
 | `/articles/` | Pre-launch article library (10 notes) |
-| `/products/` | NeuralAxis product family |
-| `/company/` | Bridge to neuralaxis.ai |
+| `/products/` | Shipped products only (footer, not primary nav) |
+| `/company/` | Bridge to neuralaxis.ai (footer) |
 
 ```bash
 npm run check    # astro check

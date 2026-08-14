@@ -33,6 +33,7 @@ const year = new Date().getUTCFullYear();
           {nav.map((item) => (
             <li><a href={withBase(item.href)}>{item.label}</a></li>
           ))}
+          <li><a href={withBase("/products/")}>Other products</a></li>
           <li><a href={withBase("/company/")}>Company</a></li>
         </ul>
       </div>

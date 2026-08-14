@@ -5,12 +5,7 @@ import {
   product,
   commands,
   languages,
-  categories,
-  completeness,
   specimen,
-  artifacts,
-  languageMatrix,
-  agentSteps,
   links
 } from "../data/product";
 import { withBase } from "../lib/paths";
@@ -37,9 +32,10 @@ import { withBase } from "../lib/paths";
           Deterministic code-health analysis for software written by humans and AI.
           No vibes about the diagnosis.
         </p>
-        <Command command={commands.scanChanged} />
+        <Command command={commands.scanFull} />
         <p class="note">
-          Local by default. Missing scanners are incomplete evidence, never a silent pass.
+          Full-repository scan. Local by default. Missing scanners are incomplete
+          evidence, never a silent pass.
         </p>
       </div>
 
@@ -100,8 +96,8 @@ import { withBase } from "../lib/paths";
           </p>
           <p>
             {product.name} is a local health check for code you did not write line by line.
-            It combines repository-local scanner output into one ranked report, one
-            normalized finding format, and a fix-next plan that humans and agents can use.
+            One ranked report. One finding format. A fix-next plan a person or an agent
+            can follow.
           </p>
         </div>
       </div>
@@ -180,247 +176,66 @@ import { withBase } from "../lib/paths";
       </div>
     </section>
 
-    <section class="section" id="decides" aria-labelledby="decides-title">
-      <div class="section-head split">
-        <div>
-          <p class="section-id">03 / How it decides</p>
-          <h2 id="decides-title">A result is not an LLM opinion.</h2>
-        </div>
-        <div class="prose">
-          <p>
-            {product.name} orchestrates specialist scanners, then normalizes what they
-            actually produced. Static rule matched; evidence preserved; source location
-            known; result reproducible on the same tree.
-          </p>
-          <p>
-            Only <span class="mono">completed</span> is treated as full coverage.
-            Deliberate exclusions do not count against you. Everything else is
-            disclosed with a reason and a recovery command.
-          </p>
-        </div>
-      </div>
-      <div class="states">
-        {completeness.map((row) => (
-          <article class="state">
-            <div class={`badge ${row.status.toLowerCase()}`}>{row.status}</div>
-            <h3 style="margin-top:0.55rem">{row.meaning}</h3>
-            <p class="note" style="margin-top:0.45rem">{row.action}</p>
-          </article>
-        ))}
-      </div>
-      <div class="table-wrap" style="margin-top:1.25rem">
-        <table>
-          <caption class="visually-hidden">Specimen tool coverage</caption>
-          <thead>
-            <tr>
-              <th>Tool</th>
-              <th>State</th>
-              <th>Findings</th>
-              <th>Time</th>
-              <th>Detail</th>
-            </tr>
-          </thead>
-          <tbody>
-            {specimen.coverage.map((row) => (
-              <tr>
-                <td class="mono">{row.tool}</td>
-                <td>{row.state}</td>
-                <td>{row.findings}</td>
-                <td class="mono">{row.time}</td>
-                <td>{row.detail}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <p class="note" style="margin-top:0.75rem">
-        Exit codes: 0 gates passed · 1 health gates failed · 2 required checks incomplete.
-      </p>
-    </section>
-
     <section class="section" id="looks-for" aria-labelledby="looks-title">
       <div class="section-head split">
         <div>
-          <p class="section-id">04 / What it looks for</p>
-          <h2 id="looks-title">Ten categories. One ranked report.</h2>
+          <p class="section-id">03 / What a full scan covers</p>
+          <h2 id="looks-title">The report you get from one command.</h2>
         </div>
         <div class="prose">
           <p>
-            Languages: {languages.join(" · ")}. The engine detects the repository shape
+            Languages: {languages.join(" · ")}. The engine detects the repository
             and runs the applicable local tools. Built-in detectors cover leftovers,
-            dead chains, refactor-readiness, and privacy even when no extra binary is installed.
+            dead chains, refactor-readiness, and privacy even when no extra binary
+            is installed.
+          </p>
+          <p>
+            Secrets, types, lint, tests, unused code, vulnerable dependencies,
+            complexity, and personal-data signals land in one ranked list — with a
+            completeness grade so a skipped scanner cannot look like a clean bill
+            of health.
+          </p>
+          <p>
+            <a href={withBase("/how-it-works/")}>How scoring and the tool matrix work →</a>
           </p>
         </div>
       </div>
-      <div class="matrix">
-        {categories.map((cat) => (
-          <article>
-            <div class="id">{cat.id}</div>
-            <h3>{cat.label}</h3>
-            <p class="note">{cat.looksFor}</p>
-          </article>
-        ))}
-      </div>
-      <div class="table-wrap" style="margin-top:1.35rem">
-        <table>
-          <caption class="visually-hidden">Language and capability matrix</caption>
-          <thead>
-            <tr>
-              <th>Check</th>
-              <th>JavaScript</th>
-              <th>TypeScript</th>
-              <th>Python</th>
-            </tr>
-          </thead>
-          <tbody>
-            {languageMatrix.slice(0, 8).map((row) => (
-              <tr>
-                <td>{row.check}</td>
-                <td class="mono">{row.js}</td>
-                <td class="mono">{row.ts}</td>
-                <td class="mono">{row.py}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <p class="note" style="margin-top:0.85rem">
-        Secrets, vulns, privacy, and the rest of the matrix are on
-        <a href={withBase("/how-it-works/")}>How it works</a>.
-      </p>
-    </section>
-
-    <section class="section" id="loop" aria-labelledby="loop-title">
-      <div class="section-head">
-        <div>
-          <p class="section-id">05 / Repair loop</p>
-          <h2 id="loop-title">Scan. Diagnose. Prescribe. Verify.</h2>
-        </div>
-      </div>
-      <div class="loop">
-        <article class="loop-step">
-          <strong>01 Scan</strong>
-          <p>{commands.scanChanged}</p>
-        </article>
-        <article class="loop-step">
-          <strong>02 Diagnose</strong>
-          <p>Read completeness, coverage, and ranked findings before editing.</p>
-        </article>
-        <article class="loop-step">
-          <strong>03 Prescribe</strong>
-          <p>{commands.agentPlan}</p>
-        </article>
-        <article class="loop-step">
-          <strong>04 Verify</strong>
-          <p>{commands.verify} after edits. Review generated changes.</p>
-        </article>
-      </div>
-      <div class="table-wrap" style="margin-top:1.25rem">
-        <table>
-          <thead>
-            <tr>
-              <th>Artifact</th>
-              <th>Use</th>
-            </tr>
-          </thead>
-          <tbody>
-            {artifacts.map((row) => (
-              <tr>
-                <td class="mono">{row.path}</td>
-                <td>{row.use}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <section class="section" id="agents" aria-labelledby="agents-title">
-      <div class="section-head split">
-        <div>
-          <p class="section-id">06 / Agents</p>
-          <h2 id="agents-title">Give agents evidence, not intuition.</h2>
-        </div>
-        <div class="prose">
-          <p>
-            The one-off handoff is <span class="mono">.vibedoctor/agent-plan.md</span>.
-            For repeated use, <span class="mono">agent init</span> writes repository-scoped
-            instructions for Codex, Copilot, Claude, and Cursor, plus MCP wiring where
-            the target supports it.
-          </p>
-          <p>
-            An agent that sees <span class="mono">PARTIAL</span> or
-            <span class="mono">INVALID</span> is instructed to recover scanners first —
-            never to claim a clean bill of health.
-          </p>
-          <p>
-            <a href={withBase("/agents/")}>Agent and MCP workflows →</a>
-          </p>
-        </div>
-      </div>
-      <ol class="orch">
-        {agentSteps.map((step) => (
-          <li>
-            <span class="orch-id">{step.id}</span>
-            <strong>{step.title}</strong>
-            <p>{step.body}</p>
-          </li>
-        ))}
-      </ol>
-    </section>
-
-    <section class="section" id="local" aria-labelledby="local-title">
-      <div class="section-head">
-        <div>
-          <p class="section-id">07 / Local-first</p>
-          <h2 id="local-title">The diagnosis runs on your machine.</h2>
-        </div>
-      </div>
-      <div class="local-split">
-        <article>
-          <p class="kicker"><span>Stays local</span></p>
-          <p>
-            Core scanning and report generation run locally. There is no hosted
-            {product.name} service required to produce a report. Built-in privacy
-            detection does not send source to an external service.
-          </p>
-        </article>
-        <article>
-          <p class="kicker"><span>May leave the machine</span></p>
-          <p>
-            <span class="mono">setup</span> may download tools. Dependency scanners may
-            query their own data sources. Optional AI adjudication for Privacy Review
-            runs only when explicitly enabled and API keys are present.
-          </p>
-        </article>
-      </div>
-      <p class="note" style="margin-top:0.85rem">
-        <a href={withBase("/privacy/")}>Privacy and DPDP technical readiness →</a>
-      </p>
     </section>
 
     <section class="section" id="install" aria-labelledby="install-title">
       <div class="section-head split">
         <div>
-          <p class="section-id">08 / Install</p>
-          <h2 id="install-title">One command. Then a report.</h2>
+          <p class="section-id">04 / Run it</p>
+          <h2 id="install-title">This is the command.</h2>
         </div>
         <div class="prose">
           <p>Requires Node.js {product.node}. Package {product.package}@{product.version}.</p>
         </div>
       </div>
       <div class="stack">
-        <Command command={commands.scanChanged} />
+        <Command command={commands.scanFull} />
+        <p>
+          That is a full-repository diagnosis. After you have a baseline, use
+          <code>verify</code> or <code>scan --changed</code> for later edits —
+          those modes are documented on
+          <a href={withBase("/how-it-works/")}>How it works</a>.
+        </p>
+        <p>First time on a machine, install the recommended scanners, then scan again:</p>
         <pre><code>{`npx @neuralaxis/vibedoctor init
 npx @neuralaxis/vibedoctor setup
 npx @neuralaxis/vibedoctor setup --apply
-npx @neuralaxis/vibedoctor scan --quick`}</code></pre>
+npx @neuralaxis/vibedoctor scan --full`}</code></pre>
         <p class="note">
-          <code>setup --apply</code> installs supported recommended tools. Review the plan first.
-          Global binary: <code>{commands.globalInstall}</code>
+          <code>setup --apply</code> installs supported recommended tools. Review the
+          plan first. Global binary: <code>{commands.globalInstall}</code>
         </p>
-        <p class="note">
-          <a href={withBase("/articles/")}>Pre-launch notes for Lovable, Bolt, Cursor, and Supabase →</a>
+        <p>
+          After the report:
+          <a href={withBase("/agents/")}>hand it to an agent</a>
+          {" · "}
+          <a href={withBase("/privacy/")}>what stays on the machine</a>
+          {" · "}
+          <a href={withBase("/articles/")}>pre-ship checklists</a>
         </p>
         <p>
           <a href={links.github} rel="noreferrer">GitHub</a>
@@ -429,52 +244,5 @@ npx @neuralaxis/vibedoctor scan --quick`}</code></pre>
         </p>
       </div>
     </section>
-
-    <section class="section" id="neuralaxis" aria-labelledby="na-title">
-      <div class="section-head split">
-        <div>
-          <p class="section-id">09 / NeuralAxis</p>
-          <h2 id="na-title">A NeuralAxis product.</h2>
-        </div>
-        <div class="prose">
-          <p>
-            {product.name} is built by NeuralAxis. The company site lives at
-            <a href={links.neuralaxis} rel="noreferrer">neuralaxis.ai</a>.
-            This page is the product. That site is the maker.
-          </p>
-          <p>
-            <a href={withBase("/company/")}>Company bridge →</a>
-          </p>
-        </div>
-      </div>
-    </section>
-
-    <section class="section" id="products" aria-labelledby="products-title">
-      <div class="section-head">
-        <div>
-          <p class="section-id">10 / Products</p>
-          <h2 id="products-title">The family, so far.</h2>
-        </div>
-      </div>
-      <div class="products">
-        <a class="product" href={withBase("/")}>
-          <p class="kicker"><span>Product 01</span><span>This site</span></p>
-          <h3>VibeDoctor</h3>
-          <p class="note">Deterministic code-health for AI-built and inherited software.</p>
-        </a>
-        <a class="product" href={links.benki} rel="noreferrer">
-          <p class="kicker"><span>Product</span><span>benki.tech</span></p>
-          <h3>Benki</h3>
-          <p class="note">A NeuralAxis product. Opens on benki.tech.</p>
-        </a>
-        <div class="product slot">
-          <p class="kicker"><span>Reserved</span><span>Later</span></p>
-          <h3>Next product</h3>
-          <p class="note">Slot kept open. No announcement to invent.</p>
-        </div>
-      </div>
-    </section>
   </div>
 </Base>
-
-

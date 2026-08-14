@@ -30,8 +30,11 @@ import { withBase } from "../lib/paths";
       <p class="lede">
         {product.name} is a normalizer, not a single linter. It plans which tools apply,
         runs them locally, records whether they actually finished, and refuses to treat
-        a missing check as a clean result.
+        a missing check as a clean result. Start with a full scan.
       </p>
+      <div style="margin-top:1.15rem">
+        <Command command={commands.scanFull} />
+      </div>
     </header>
 
     <section class="section" aria-labelledby="loop-h">
@@ -40,7 +43,7 @@ import { withBase } from "../lib/paths";
       <div class="loop" style="margin-top:1.25rem">
         <article class="loop-step">
           <strong>Scan</strong>
-          <p><code>scan --changed</code>, <code>--quick</code>, or <code>--full</code>. Category filters are supported.</p>
+          <p>First run is <code>scan --full</code>. Then <code>--changed</code> or <code>--quick</code> for later edits.</p>
         </article>
         <article class="loop-step">
           <strong>Diagnose</strong>
@@ -59,7 +62,7 @@ import { withBase } from "../lib/paths";
 
     <section class="section" aria-labelledby="modes-h">
       <p class="section-id">02 / Scan modes</p>
-      <h2 id="modes-h">Pick the smallest honest scope.</h2>
+      <h2 id="modes-h">First run is --full. Narrow later.</h2>
       <div class="table-wrap" style="margin-top:1.25rem">
         <table>
           <thead>
@@ -69,9 +72,9 @@ import { withBase } from "../lib/paths";
             </tr>
           </thead>
           <tbody>
-            <tr><td>Files changed in Git</td><td class="mono">{commands.scanChanged}</td></tr>
+            <tr><td>First diagnosis, or before you ship</td><td class="mono">{commands.scanFull}</td></tr>
             <tr><td>Fast repository check</td><td class="mono">{commands.scanQuick}</td></tr>
-            <tr><td>Most complete check</td><td class="mono">{commands.scanFull}</td></tr>
+            <tr><td>Files changed in Git after a baseline</td><td class="mono">{commands.scanChanged}</td></tr>
             <tr><td>Selected categories</td><td class="mono">scan --category dead_code,leftovers</td></tr>
             <tr><td>Fresh full report</td><td class="mono">report --json | --html | --markdown | --sarif | --agent</td></tr>
           </tbody>
@@ -239,6 +242,10 @@ import { withBase } from "../lib/paths";
         <p class="note">
           Specimen coverage row for this idea: {specimen.coverage[1].tool} {specimen.coverage[1].state}.
         </p>
+        <p>
+          Then run the diagnosis you came for:
+        </p>
+        <Command command={commands.scanFull} />
       </div>
     </section>
   </div>

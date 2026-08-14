@@ -811,7 +811,7 @@ th.mono {
 
 @media (min-width: 800px) {
   .products {
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: 1fr 1fr;
   }
 }
 

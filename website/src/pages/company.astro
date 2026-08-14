@@ -6,7 +6,7 @@ import { withBase } from "../lib/paths";
 
 <Base
   title="Company"
-  description="VibeDoctor is a NeuralAxis product. This page is a bridge to neuralaxis.ai, not a second company website."
+  description="VibeDoctor is a NeuralAxis product. This page points at neuralaxis.ai."
   path={withBase("/company/")}
 >
   <div class="site-wrap folio">
@@ -16,8 +16,8 @@ import { withBase } from "../lib/paths";
         <h1>NeuralAxis makes {product.name}.</h1>
       </div>
       <p class="lede">
-        This is a bridge page, not a second company site. Product documentation
-        stays here. Company narrative stays at neuralaxis.ai.
+        Use this site to run the product. Company narrative lives at
+        <a href={links.neuralaxis} rel="noreferrer">neuralaxis.ai</a>.
       </p>
     </header>
 
@@ -38,24 +38,21 @@ import { withBase } from "../lib/paths";
             Deterministic code-health system. CLI, reports, agent pack, MCP.
             You are on the product site.
           </p>
+          <p style="margin-top:0.85rem">
+            <a href={withBase("/#install")}>Run a full scan →</a>
+          </p>
         </article>
         <article>
           <p class="kicker"><span>Maker</span></p>
           <h3>NeuralAxis</h3>
           <p class="note">
-            The organisation that builds {product.name}, Benki, and future products.
+            The organisation that builds {product.name} and
+            <a href={links.benki} rel="noreferrer">Benki</a>.
             Continue at
             <a href={links.neuralaxis} rel="noreferrer">neuralaxis.ai</a>.
           </p>
         </article>
       </div>
-      <p style="margin-top:1.5rem">
-        Powered by NeuralAxis.
-        {" "}
-        <a href={withBase("/products/")}>Product family</a>
-        {" · "}
-        <a href={links.benki} rel="noreferrer">Benki</a>
-      </p>
     </section>
   </div>
 </Base>

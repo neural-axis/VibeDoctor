@@ -17,7 +17,7 @@ You already have something that runs. A login works. A table fills. A preview UR
 
 That is the most dangerous moment in vibe coding. The model optimized for “it works when I click around.” Production is what happens when someone who is not you clicks around, then stops clicking and starts sending requests.
 
-This is the flagship [vibe coding security checklist](../vibe-coding-security-checklist/). Fifteen checks, in the order that usually saves you. It is written for people who built with Lovable, Bolt.new, Cursor, Claude Code, Replit, v0, or a mix — and are about to put a hostname on it.
+Fifteen checks, in the order that usually saves you. It is written for people who built with Lovable, Bolt.new, Cursor, Claude Code, Replit, v0, or a mix — and are about to put a hostname on it.
 
 If you want the “why is this even a category” piece first, read [Is vibe coding safe?](../is-vibe-coding-safe/). If you already know the answer and just need to look, stay here.
 
