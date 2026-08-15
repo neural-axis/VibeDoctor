@@ -36,6 +36,10 @@ export async function createTempFixtureCopy(name: string): Promise<string> {
       enabled: config.checks?.dpdp?.enabled === true,
       usePresidio: config.checks?.dpdp?.usePresidio === true || config.checks?.dpdp?.use_presidio === true,
       useSemgrep: config.checks?.dpdp?.useSemgrep === true || config.checks?.dpdp?.use_semgrep === true
+    },
+    flowAnalysis: {
+      ...(config.checks?.flowAnalysis ?? config.checks?.flow_analysis ?? {}),
+      enabled: config.checks?.flowAnalysis?.enabled === true || config.checks?.flow_analysis?.enabled === true
     }
   };
   await fs.writeFile(configPath, YAML.stringify(config), "utf8");

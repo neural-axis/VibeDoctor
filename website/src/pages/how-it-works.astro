@@ -28,12 +28,13 @@ import { withBase } from "../lib/paths";
         <h1>Scan, measure, prescribe, verify.</h1>
       </div>
       <p class="lede">
-        {product.name} is a normalizer, not a single linter. It plans which tools apply,
-        runs them locally, records whether they actually finished, and refuses to treat
-        a missing check as a clean result. Start with a full scan.
+        {product.name} is a diagnosis layer, not a single linter. It detects the
+        repository, builds shared context, runs applicable engines and native
+        detectors, analyzes flows, correlates evidence, ranks root causes, and
+        produces a report. A missing check is never a silent pass.
       </p>
       <div style="margin-top:1.15rem">
-        <Command command={commands.scanFull} />
+        <Command command={commands.scan} />
       </div>
     </header>
 
@@ -43,7 +44,7 @@ import { withBase } from "../lib/paths";
       <div class="loop" style="margin-top:1.25rem">
         <article class="loop-step">
           <strong>Scan</strong>
-          <p>First run is <code>scan --full</code>. Then <code>--changed</code> or <code>--quick</code> for later edits.</p>
+          <p>First run is <code>scan</code> (full applicable diagnosis). Then <code>--changed</code> or <code>--quick</code> to narrow.</p>
         </article>
         <article class="loop-step">
           <strong>Diagnose</strong>
@@ -62,7 +63,7 @@ import { withBase } from "../lib/paths";
 
     <section class="section" aria-labelledby="modes-h">
       <p class="section-id">02 / Scan modes</p>
-      <h2 id="modes-h">First run is --full. Narrow later.</h2>
+      <h2 id="modes-h">First run is scan. Narrow later.</h2>
       <div class="table-wrap" style="margin-top:1.25rem">
         <table>
           <thead>
@@ -72,7 +73,7 @@ import { withBase } from "../lib/paths";
             </tr>
           </thead>
           <tbody>
-            <tr><td>First diagnosis, or before you ship</td><td class="mono">{commands.scanFull}</td></tr>
+            <tr><td>First diagnosis, or before you ship</td><td class="mono">{commands.scan}</td></tr>
             <tr><td>Fast repository check</td><td class="mono">{commands.scanQuick}</td></tr>
             <tr><td>Files changed in Git after a baseline</td><td class="mono">{commands.scanChanged}</td></tr>
             <tr><td>Selected categories</td><td class="mono">scan --category dead_code,leftovers</td></tr>
@@ -175,6 +176,11 @@ import { withBase } from "../lib/paths";
           </li>
         ))}
       </ol>
+      <p class="note" style="margin:0 0 1.25rem">
+        VibeDoctor owns detection, context, correlation, ranking, completeness, and
+        Flow Doctor. Ruff, Semgrep, Gitleaks, and the other engines remain
+        analysis engines behind that layer — they are not the product.
+      </p>
       <p class="note" style="margin:0 0 1.25rem">
         Built-in detectors always apply. External tools run when they are applicable
         and resolvable. A missing optional tool is disclosed, not imagined as a pass.

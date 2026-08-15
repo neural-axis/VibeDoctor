@@ -1,10 +1,15 @@
 export * from "./agentPack/generateAgentPack";
 export * from "./agentPack/policy";
 export { AGENT_SKILLS, DEFAULT_SKILL_NAMES, type SkillTemplate } from "./agentPack/templates";
+export * from "./core/agentDiagnosis";
 export * from "./core/config";
 export * from "./core/engine";
 export * from "./core/finding";
+export * from "./core/findingCorrelator";
 export * from "./core/privacyReview";
 export * from "./core/projectDetector";
+export * from "./core/scanContext";
+export * from "./core/scanPlanner";
+export * from "./core/toolRuntime";
 export * from "./mcp/server";
 export * from "./dpdp";

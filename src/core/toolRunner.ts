@@ -2,15 +2,19 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import { execFile } from "node:child_process";
 import { buildCommandEnv, getLocalToolSearchPaths, resolveExecutable } from "./executable";
+import { createToolRuntime, type ToolRuntime } from "./toolRuntime";
 
 export { buildCommandEnv, getLocalToolSearchPaths };
 
 export type CommandSpec = {
   cmd: string;
+  /** Request a named engine; ToolRuntime resolves the executable. */
+  tool?: string;
   args: string[];
   cwd?: string;
   timeoutMs?: number;
   env?: NodeJS.ProcessEnv;
+  runtime?: ToolRuntime;
 };
 
 export type ToolResult = {
@@ -97,6 +101,23 @@ export function quoteForWindowsShell(argument: string): string {
 
 export async function runCommand(spec: CommandSpec, installHint?: string): Promise<ToolResult> {
   const startedAt = Date.now();
+  if (spec.tool) {
+    const runtime = spec.runtime ?? createToolRuntime({ projectRoot: spec.cwd });
+    const resolvedTool = await runtime.resolve(spec.tool, { projectRoot: spec.cwd });
+    if (!resolvedTool.executablePath) {
+      const failedHard = resolvedTool.status === "checksum_mismatch" || resolvedTool.status === "failed";
+      return {
+        command: [spec.tool, ...spec.args].join(" "),
+        stdout: "",
+        stderr: resolvedTool.reason,
+        exitCode: null,
+        durationMs: Date.now() - startedAt,
+        status: failedHard ? "error" : "skipped",
+        installHint: resolvedTool.remediation ?? installHint
+      };
+    }
+    spec = { ...spec, cmd: resolvedTool.executablePath };
+  }
   const env = buildCommandEnv(spec.cwd, spec.env);
   const resolved = resolveLaunchTarget(spec.cmd, spec.cwd, env);
   // Build the shell command line here instead of letting spawn concatenate the

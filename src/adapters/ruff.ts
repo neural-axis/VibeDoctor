@@ -40,10 +40,12 @@ export const ruffAdapter: ToolAdapter = {
     const targets = adapterTargets(ctx, /\.py$/i);
     const excludePatterns = ctx.config.paths.exclude.length > 0 ? ["--exclude", ctx.config.paths.exclude.join(",")] : [];
     return {
+      tool: "ruff",
       cmd: "ruff",
       args: ["check", ...targets, "--output-format", "json", ...excludePatterns],
       cwd: ctx.root,
-      timeoutMs: 60_000
+      timeoutMs: 60_000,
+      runtime: ctx.toolRuntime
     };
   },
   parseResult(result, ctx) {
@@ -76,11 +78,13 @@ export const ruffAdapter: ToolAdapter = {
   },
   buildFixCommand(ctx) {
     return {
+      tool: "ruff",
       cmd: "ruff",
       args: ["check", ".", "--fix"],
       cwd: ctx.root,
-      timeoutMs: 60_000
+      timeoutMs: 60_000,
+      runtime: ctx.toolRuntime
     };
   },
-  installHint: "Install Ruff with: pipx install ruff, uv tool install ruff, or add it to your project."
+  installHint: "VibeDoctor provisions a pinned Ruff into ~/.cache/vibedoctor when needed. To use a project-local copy, install it in the environment."
 };

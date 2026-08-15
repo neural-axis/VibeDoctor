@@ -63,6 +63,7 @@ const DEFAULT_EVIDENCE_GRADE: Partial<Record<FindingSource, EvidenceGrade>> = {
   "custom-leftovers": "observed",
   "custom-refactor": "verified",
   "custom-dead-chain": "heuristic",
+  "flow-doctor": "verified",
   dpdp: "heuristic"
 };
 

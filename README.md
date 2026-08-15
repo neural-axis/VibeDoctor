@@ -5,44 +5,41 @@
 </p>
 
 **A local health check for code you did not write line by line.**
+**Give VibeDoctor a repository. It figures out what applies, runs the diagnosis, and tells you or your coding agent what to fix first.**
 
-VibeDoctor scans JavaScript, TypeScript, Python, and mixed repositories for code-health, security, privacy, testing, and maintainability problems. It combines repository-local scanner output into one ranked report, one normalized finding format, and a fix-next plan that humans and coding agents can use without interpreting a wall of unrelated logs.
+VibeDoctor scans JavaScript, TypeScript, Python, and mixed repositories for code-health, security, privacy, testing, and maintainability problems. It combines engine output into one ranked report, one normalized finding format, and a fix-next plan that humans and coding agents can use without interpreting a wall of unrelated logs.
 
 ```bash
-npx @neuralaxis/vibedoctor scan --changed
+npx @neuralaxis/vibedoctor scan
 ```
 
-VibeDoctor runs locally by default. Missing or failed scanners are reported as incomplete evidence, never silently counted as a clean result.
+That is the default path: full applicable diagnosis, local by default. Missing or failed scanners are reported as incomplete evidence, never silently counted as a clean result.
 
 The public product site lives in [`website/`](website/README.md) and deploys from GitHub Pages.
 
 ## Start here
 
-Choose the shortest path for what you are doing:
+```bash
+npx @neuralaxis/vibedoctor scan
+```
+
+That is enough for a first diagnosis. VibeDoctor detects the repository, runs the capabilities that apply, correlates overlapping evidence, and ranks what to fix first.
+
+For an AI coding agent:
+
+```bash
+npx @neuralaxis/vibedoctor scan --report agent-json
+```
+
+Optional narrower runs:
 
 | Goal | Command |
 | --- | --- |
-| Check files changed in Git | `npx @neuralaxis/vibedoctor scan --changed` |
-| Run a fast repository check | `npx @neuralaxis/vibedoctor scan --quick` |
-| Run the most complete check | `npx @neuralaxis/vibedoctor scan --full` |
-| Prepare local scanner tools | `npx @neuralaxis/vibedoctor setup` |
-| Get a repair plan for an AI agent | `npx @neuralaxis/vibedoctor agent-plan --format markdown` |
-| Check India DPDP technical readiness | `npx @neuralaxis/vibedoctor dpdp scan --full` |
-
-For a new repository, initialize the config and review the scanner setup plan:
-
-```bash
-npx @neuralaxis/vibedoctor init
-npx @neuralaxis/vibedoctor setup
-npx @neuralaxis/vibedoctor setup --apply
-npx @neuralaxis/vibedoctor scan --quick
-```
-
-`setup --apply` installs supported recommended tools, so review the plan before applying it. To use the shorter `vibedoctor` command everywhere:
-
-```bash
-npm install -g @neuralaxis/vibedoctor
-```
+| Fast profile | `npx @neuralaxis/vibedoctor scan --quick` |
+| Git-changed files | `npx @neuralaxis/vibedoctor scan --changed` |
+| Explicit full alias | `npx @neuralaxis/vibedoctor scan --full` |
+| Agent repair plan file | `npx @neuralaxis/vibedoctor agent-plan --format markdown` |
+| India DPDP technical readiness | `npx @neuralaxis/vibedoctor dpdp scan --full` |
 
 ## What you get
 
@@ -57,7 +54,29 @@ Default artifacts are written under `.vibedoctor/`:
 └── agent-plan.md     # ordered repair work
 ```
 
-Use the terminal report for quick triage, HTML for review, JSON for automation, and `agent-plan.md` for a coding agent.
+Use the terminal report for quick triage, HTML for review, JSON for automation, `agent-json` for a coding agent, and `agent-plan.md` for a file-based handoff.
+
+## Advanced setup and troubleshooting
+
+You do not need to install Ruff, Gitleaks, or OSV-Scanner just to run VibeDoctor. The default scan uses built-in detectors plus managed copies of those three engines when they apply. Other engines are used when they are already on PATH or installed in the project; missing ones are reported as incomplete evidence.
+
+To install extra project-local scanners, or to debug a tool that did not run:
+
+```bash
+npx @neuralaxis/vibedoctor init
+npx @neuralaxis/vibedoctor setup
+npx @neuralaxis/vibedoctor setup --apply
+```
+
+`setup --apply` can mutate the scanned project (it installs recommended tools there), so review the plan first. Managed Ruff, Gitleaks, and OSV-Scanner are cached under `~/.cache/vibedoctor/` and do not edit `package.json`, lockfiles, or Python manifests.
+
+To use the shorter `vibedoctor` command everywhere:
+
+```bash
+npm install -g @neuralaxis/vibedoctor
+```
+
+Override the tool cache with `VIBEDOCTOR_TOOL_CACHE`. Disable downloads with `VIBEDOCTOR_ALLOW_NETWORK=0`.
 
 ## What VibeDoctor checks
 
@@ -355,7 +374,8 @@ Human-review-only DPDP items do not fail CI. Configure `checks.dpdp.fail_on_seve
 | --- | --- |
 | Initialize configuration | `vibedoctor init` |
 | Plan or apply scanner setup | `vibedoctor setup` / `vibedoctor setup --apply` |
-| Quick, changed, or full scan | `vibedoctor scan --quick` / `--changed` / `--full` |
+| Full applicable diagnosis | `vibedoctor scan` |
+| Quick, changed, or explicit full | `vibedoctor scan --quick` / `--changed` / `--full` |
 | Scan selected categories | `vibedoctor scan --category dead_code,leftovers` |
 | Render a fresh full report | `vibedoctor report --json`, `--html`, `--markdown`, `--sarif`, or `--agent` |
 | Apply supported safe fixes | `vibedoctor fix --safe` |

@@ -9,7 +9,7 @@ export const product = {
   package: "@neuralaxis/vibedoctor",
   version: "0.2.1",
   license: "GPL-3.0-or-later",
-  tagline: "A local health check for code you did not write line by line.",
+  tagline: "Give VibeDoctor a repository. It figures out what applies, runs the diagnosis, and tells you or your coding agent what to fix first.",
   cliTagline: "Brutally simple repo health diagnosis.",
   description:
     "Health diagnosis and fix planning for JS, TS, Python, and mixed repositories.",
@@ -27,6 +27,8 @@ export const links = {
 } as const;
 
 export const commands = {
+  scan: "npx @neuralaxis/vibedoctor scan",
+  scanAgentJson: "npx @neuralaxis/vibedoctor scan --report agent-json",
   scanChanged: "npx @neuralaxis/vibedoctor scan --changed",
   scanQuick: "npx @neuralaxis/vibedoctor scan --quick",
   scanFull: "npx @neuralaxis/vibedoctor scan --full",
@@ -111,6 +113,7 @@ export const tools = [
   { id: "custom-refactor", ecosystem: "built-in", langs: "any", role: "Large or complex files that need tests before refactor work." },
   { id: "privacy-detector", ecosystem: "built-in", langs: "any", role: "Personal-data and Privacy Review signals. Stays on the machine." },
   { id: "telemetry-detector", ecosystem: "built-in", langs: "JS / TS", role: "Optional telemetry opt-out signal for frameworks that collect it." },
+  { id: "flow-doctor", ecosystem: "built-in", langs: "JS / TS / Python", role: "Structural flow checks: route/handler wiring, swallowed errors, high-confidence unreachable handlers." },
   { id: "tsc", ecosystem: "npm", langs: "TypeScript", role: "TypeScript correctness." },
   { id: "biome", ecosystem: "npm", langs: "JS / TS", role: "Lint and safe formatting." },
   { id: "knip", ecosystem: "npm", langs: "JS / TS", role: "Unused files, exports, and dependencies." },
@@ -121,8 +124,8 @@ export const tools = [
   { id: "deptry", ecosystem: "python", langs: "Python", role: "Dependency hygiene." },
   { id: "radon", ecosystem: "python", langs: "Python", role: "Complexity." },
   { id: "coverage.py", ecosystem: "python", langs: "Python", role: "Coverage." },
-  { id: "gitleaks", ecosystem: "manual", langs: "any", role: "Secret detection." },
-  { id: "osv-scanner", ecosystem: "manual", langs: "any", role: "Known-vulnerability detection from lockfiles." },
+  { id: "gitleaks", ecosystem: "managed", langs: "any", role: "Secret detection. VibeDoctor can provision a pinned copy." },
+  { id: "osv-scanner", ecosystem: "managed", langs: "any", role: "Known-vulnerability detection from lockfiles. VibeDoctor can provision a pinned copy." },
   { id: "semgrep", ecosystem: "manual", langs: "any", role: "Additional security and correctness rules." },
   { id: "lizard", ecosystem: "manual", langs: "any", role: "Function-level complexity and size." },
   { id: "presidio", ecosystem: "manual", langs: "any", role: "Optional external PII analyzer. Skipped if missing." },
@@ -259,57 +262,73 @@ export const languageMatrix = [
   { check: "Privacy signals", js: "privacy-detector", ts: "privacy-detector", py: "privacy-detector" },
   { check: "Optional PII analyzer", js: "presidio", ts: "presidio", py: "presidio" },
   { check: "Refactor size", js: "custom-refactor", ts: "custom-refactor", py: "custom-refactor" },
-  { check: "Telemetry opt-out", js: "telemetry-detector", ts: "telemetry-detector", py: "—" }
+  { check: "Telemetry opt-out", js: "telemetry-detector", ts: "telemetry-detector", py: "—" },
+  { check: "Flow contracts (V1)", js: "flow-doctor", ts: "flow-doctor", py: "flow-doctor" }
 ] as const;
 
 export const orchestration = [
   {
     id: "01",
-    title: "Detect",
-    body: "Read the tree: language, lockfiles, configs. Decide which registry tools apply."
+    title: "Detect repo",
+    body: "Read the tree: language, lockfiles, configs. Decide which capabilities apply."
   },
   {
     id: "02",
-    title: "Plan",
-    body: "Pick the scan mode. Required tools are planned; the rest are selected or disclosed as not selected."
+    title: "Build shared context",
+    body: "Index files, git delta, file roles, and the tool runtime. Later graphs attach here."
   },
   {
     id: "03",
-    title: "Run locally",
-    body: "Invoke each planned tool on the machine. Timeouts, misses, and failures are recorded, not ignored."
+    title: "Run applicable engines",
+    body: "Native detectors plus engines such as Ruff or Semgrep. Irrelevant tools are NOT_APPLICABLE, not failures."
   },
   {
     id: "04",
-    title: "Normalize",
-    body: "Fold specialist output into one finding record: id, severity, confidence, location, evidence."
+    title: "Analyze flows",
+    body: "Flow Doctor binds routes to handlers and flags missing wiring plus high-confidence unreachable handlers. Dynamic paths stay heuristic."
   },
   {
     id: "05",
-    title: "Score coverage",
-    body: "Derive COMPLETE / PARTIAL / INVALID from what actually finished. Missing checks are gaps."
+    title: "Correlate evidence",
+    body: "Overlapping scanner output becomes one diagnosis, not five unrelated warnings."
   },
   {
     id: "06",
-    title: "Prescribe",
-    body: "Rank remaining work. Write report.json, report.html, and agent-plan.md."
+    title: "Rank root causes",
+    body: "Real bugs and secrets outrank unused-import noise. Completeness stays a first-class result."
+  },
+  {
+    id: "07",
+    title: "Produce the report",
+    body: "A prioritized report a human or coding agent can act on immediately."
   }
 ] as const;
 
 export const agentSteps = [
   {
     id: "01",
-    title: "Scan",
-    body: "Run scan --full first. Completeness is part of the result."
+    title: "Read completeness",
+    body: "If the scan is PARTIAL or INVALID, recover tools before treating the score as authoritative."
   },
   {
     id: "02",
-    title: "Hand off the plan",
-    body: "agent-plan writes an ordered file. agent init wires Codex, Copilot, Claude, and Cursor."
+    title: "Fix the top-ranked issue",
+    body: "Use topIssues[0]: location, likely root cause, repair, and verification guidance."
   },
   {
     id: "03",
+    title: "Preserve unrelated changes",
+    body: "Do not rewrite files the finding does not name."
+  },
+  {
+    id: "04",
     title: "Verify",
-    body: "Agents must recover PARTIAL/INVALID scanners, then run verify. No silent success."
+    body: "Re-run the named tests and `vibedoctor scan --changed --report agent-json`."
+  },
+  {
+    id: "05",
+    title: "Continue",
+    body: "Take the next recommended issue. Never claim success from incomplete evidence."
   }
 ] as const;
 

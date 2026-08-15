@@ -4,33 +4,18 @@ import Base from "../../layouts/Base.astro";
 import Command from "../../components/Command.astro";
 import { commands } from "../../data/product";
 import { withBase } from "../../lib/paths";
+import { fileNumber, sortArticles, stageMeta, stages } from "../../lib/articles";
 
-const published = (await getCollection("articles", ({ data }) => !data.draft)).sort((a, b) => {
-  const rank = (a.data.rank ?? 99) - (b.data.rank ?? 99);
-  if (rank !== 0) return rank;
-  return b.data.pubDate.valueOf() - a.data.pubDate.valueOf();
-});
-
-const stages = [
-  {
-    id: "problem" as const,
-    label: "01 / The problem",
-    title: "What quietly goes wrong.",
-    body: "The gap is not that models write malware. They write the happy path, then you point a domain at it."
-  },
-  {
-    id: "tool" as const,
-    label: "02 / Your stack",
-    title: "Does this tool have that problem?",
-    body: "Lovable, Bolt.new, Cursor, and Supabase fail in related ways. The checks are not interchangeable."
-  },
-  {
-    id: "check" as const,
-    label: "03 / Before you ship",
-    title: "How to look, then how to measure.",
-    body: "Checklists first. Then a local scan of the exported repository, not a vibe."
-  }
-];
+const published = sortArticles(await getCollection("articles", ({ data }) => !data.draft));
+const lead = published.find((post) => post.data.rank === 1) ?? published[0];
+const startHere = stages
+  .map((stage) => {
+    const first = published.find((post) => post.data.stage === stage.id);
+    return first ? { stage, post: first } : null;
+  })
+  .filter((entry): entry is { stage: (typeof stages)[number]; post: (typeof published)[number] } =>
+    Boolean(entry)
+  );
 ---
 
 <Base
@@ -39,17 +24,17 @@ const stages = [
   path={withBase("/articles/")}
 >
   <div class="site-wrap folio article-index">
-    <header class="page-hero">
+    <header class="page-hero article-index-hero">
       <div>
-        <p class="section-id">Articles · {published.length} filed</p>
+        <p class="section-id">Articles · {String(published.length).padStart(2, "0")} filed</p>
         <h1>Notes for the hour before you ship.</h1>
       </div>
-      <p class="lede">
-        Checklists for the hour before you point a domain at an AI-built app.
-        Read what you need, then scan the exported repository. Do not collect
-        the whole library first.
-      </p>
-      <div style="margin-top:1.15rem">
+      <div class="article-index-lede">
+        <p class="lede">
+          Checklists for the hour before you point a domain at an AI-built app.
+          Open one note, then scan the exported repository. Do not collect the
+          whole library first.
+        </p>
         <Command command={commands.scanFull} />
       </div>
     </header>
@@ -70,43 +55,73 @@ const stages = [
           </p>
         </div>
       ) : (
-        stages.map((stage) => {
-          const rows = published.filter((post) => post.data.stage === stage.id);
-          if (rows.length === 0) return null;
-          return (
-            <section class="section" aria-labelledby={`${stage.id}-title`}>
-              <div class="section-head split">
+        <>
+          {lead && (
+            <section class="section article-lead-section" aria-labelledby="lead-title">
+              <p class="section-id">Open first · File {fileNumber(lead)}</p>
+              <a class="article-lead" href={withBase(`/articles/${lead.id}/`)}>
                 <div>
-                  <p class="section-id">{stage.label}</p>
-                  <h2 id={`${stage.id}-title`}>{stage.title}</h2>
+                  <p class="article-lead-kicker">
+                    {stageMeta(lead.data.stage)?.label ?? "Note"} · if you are shipping tonight
+                  </p>
+                  <h2 id="lead-title">{lead.data.title}</h2>
+                  <p>{lead.data.description}</p>
                 </div>
-                <p class="prose">{stage.body}</p>
-              </div>
-              <div class="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>No.</th>
-                      <th>Title</th>
-                      <th>Summary</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.map((post) => (
-                      <tr>
-                        <td class="mono">{String(post.data.rank ?? "—").padStart(2, "0")}</td>
-                        <td>
-                          <a href={withBase(`/articles/${post.id}/`)}>{post.data.title}</a>
-                        </td>
-                        <td>{post.data.description}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                <span class="article-lead-go">Read the note →</span>
+              </a>
             </section>
-          );
-        })
+          )}
+
+          <nav class="article-start" aria-labelledby="start-title">
+            <div class="section-head">
+              <div>
+                <p class="section-id">Path</p>
+                <h2 id="start-title">Three ways in.</h2>
+              </div>
+            </div>
+            <ol class="article-start-grid">
+              {startHere.map(({ stage, post }) => (
+                <li>
+                  <a href={`#stage-${stage.id}`}>
+                    <span class="article-start-id">{stage.numeral} / {stage.label}</span>
+                    <strong>{stage.title}</strong>
+                    <span class="article-start-file">Start with file {fileNumber(post)}</span>
+                  </a>
+                </li>
+              ))}
+            </ol>
+          </nav>
+
+          {stages.map((stage) => {
+            const rows = published.filter((post) => post.data.stage === stage.id);
+            if (rows.length === 0) return null;
+            return (
+              <section class="section article-stage" id={`stage-${stage.id}`} aria-labelledby={`${stage.id}-title`}>
+                <div class="section-head split">
+                  <div>
+                    <p class="section-id">{stage.numeral} / {stage.label}</p>
+                    <h2 id={`${stage.id}-title`}>{stage.title}</h2>
+                  </div>
+                  <p class="prose">{stage.body}</p>
+                </div>
+                <ol class="article-docket">
+                  {rows.map((post) => (
+                    <li>
+                      <a class="article-row" href={withBase(`/articles/${post.id}/`)}>
+                        <span class="article-row-no" aria-hidden="true">{fileNumber(post)}</span>
+                        <span class="article-row-copy">
+                          <span class="article-row-title">{post.data.title}</span>
+                          <span class="article-row-summary">{post.data.description}</span>
+                        </span>
+                        <span class="article-row-go" aria-hidden="true">Open</span>
+                      </a>
+                    </li>
+                  ))}
+                </ol>
+              </section>
+            );
+          })}
+        </>
       )
     }
   </div>

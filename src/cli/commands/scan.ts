@@ -2,6 +2,7 @@ import { runScan } from "../../core/engine";
 import type { VibeDoctorConfig } from "../../core/config";
 import { parseFindingCategoryList, type Finding } from "../../core/finding";
 import { filterScanByCategories, type ScanOutput } from "../../core/engine";
+import type { ScanMode } from "../../core/scanPlanner";
 import { renderTerminalReport } from "../../reporters/terminal";
 import { renderJsonReport } from "../../reporters/json";
 import { renderHtmlReport } from "../../reporters/html";
@@ -58,7 +59,12 @@ export function determineExitCode(scan: Pick<ScanOutput, "score" | "findings"> &
     config.checks.correctness.enabled &&
     config.checks.correctness.failOnTypeErrors &&
     failingFindings.some(
-      (finding) => ["tsc", "pyright"].includes(finding.source) || (finding.category === "correctness" && isHighSeverity(finding))
+      (finding) =>
+        finding.source === "tsc" ||
+        finding.source === "pyright" ||
+        (finding.category === "correctness" &&
+          isHighSeverity(finding) &&
+          finding.source !== "flow-doctor")
     );
   const testFailure =
     config.checks.correctness.enabled &&
@@ -102,6 +108,16 @@ export function determineExitCode(scan: Pick<ScanOutput, "score" | "findings"> &
     : 0;
 }
 
+export function resolveScanMode(options: { changed?: boolean; quick?: boolean; full?: boolean }): ScanMode {
+  if (options.changed) {
+    return "changed";
+  }
+  if (options.quick) {
+    return "quick";
+  }
+  return "full";
+}
+
 export async function runScanCommand(
   root: string,
   options: {
@@ -112,7 +128,7 @@ export async function runScanCommand(
     report?: "terminal" | "json" | "html" | "agent" | "agent-json";
   }
 ): Promise<ScanCommandResult> {
-  const mode = options.changed ? "changed" : options.quick ? "quick" : options.full ? "full" : "default";
+  const mode = resolveScanMode(options);
   const scan = await runScan(root, mode);
   const categories = parseFindingCategoryList(options.category);
   const filteredScan = categories ? filterScanByCategories(scan, categories) : scan;

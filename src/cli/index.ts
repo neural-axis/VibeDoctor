@@ -55,10 +55,10 @@ async function main(): Promise<void> {
 
   program
     .command("scan")
-    .description("Run relevant checks and print a short health report")
-    .option("--changed", "Only report changed-file issues")
-    .option("--quick", "Quick mode")
-    .option("--full", "Full mode")
+    .description("Run the full applicable diagnosis and print a ranked health report")
+    .option("--changed", "Optimize for git-changed files")
+    .option("--quick", "Narrower opt-in profile")
+    .option("--full", "Alias for the default full applicable diagnosis")
     .option("--category <categories>", "Comma-separated finding categories")
     .option("--report <format>", "terminal|json|html|agent|agent-json", "terminal")
     .action(async (options) => {

@@ -17,13 +17,13 @@ import { withBase } from "../lib/paths";
         <h1>Give agents evidence, not intuition.</h1>
       </div>
       <p class="lede">
-        First produce a full report. Then hand the ranked plan to an agent.
-        Agents are told to recover incomplete scanners before they treat a score
+        Run one scan, read completeness, then fix the top-ranked issue.
+        Agents must recover incomplete scanners before they treat a score
         as authoritative.
       </p>
       <div class="stack" style="margin-top:1.15rem">
-        <Command command={commands.scanFull} />
-        <p class="note">No report, no honest plan. <code>agent-plan</code> reads what the last full scan wrote.</p>
+        <Command command={commands.scanAgentJson} />
+        <p class="note">That JSON is the simplest agent input: completeness, topIssues, rootCauseGroups, recoveryActions.</p>
       </div>
     </header>
 
@@ -44,12 +44,11 @@ import { withBase } from "../lib/paths";
       <p class="section-id">02 / Protocol</p>
       <h2 id="protocol-h">What an agent is supposed to do.</h2>
       <ol class="stack" style="margin-top:1.25rem; padding-left:1.2rem">
-        <li>Run <code>scan --full</code> (or recover scanners, then scan again).</li>
-        <li>Read <code>completeness.status</code>, <code>toolStatuses</code>, <code>skippedTools</code>, and <code>recoveryActions</code> in <code>report.json</code>.</li>
-        <li>Recover required scanners before treating findings or scores as authoritative.</li>
-        <li>Fix only the ranked, in-scope findings. Preserve unrelated user changes.</li>
-        <li>Run <code>vibedoctor verify</code> after edits.</li>
-        <li>Report remaining findings and any incomplete evidence. Never claim success from a PARTIAL or INVALID scan.</li>
+        <li>Read <code>completeness</code>. Recover tools if the scan is PARTIAL or INVALID.</li>
+        <li>Fix the top-ranked issue in <code>topIssues</code>. Use location, repair, and verification fields.</li>
+        <li>Preserve unrelated user changes.</li>
+        <li>Verify with the listed tests and <code>vibedoctor scan --changed --report agent-json</code>.</li>
+        <li>Continue down <code>recommendedOrder</code>. Never claim success from a PARTIAL or INVALID scan.</li>
       </ol>
     </section>
 

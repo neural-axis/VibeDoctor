@@ -24,7 +24,7 @@ export type ScanPlan = {
   outputFull: boolean;
 };
 
-const QUICK_ADAPTER_IDS = new Set([
+export const QUICK_ADAPTER_IDS = new Set([
   "ruff",
   "biome",
   "tsc",
@@ -43,8 +43,7 @@ function disabledReason(adapter: ToolAdapter, config: VibeDoctorConfig): string 
   switch (adapter.category) {
     case "security":
       return checks.security.enabled ? undefined : "checks.security.enabled is false";
-    case "correctness":
-      return checks.correctness.enabled ? undefined : "checks.correctness.enabled is false";
+
     case "dead_code":
       return checks.deadCode.enabled ? undefined : "checks.deadCode.enabled is false";
     case "leftovers":
@@ -58,6 +57,11 @@ function disabledReason(adapter: ToolAdapter, config: VibeDoctorConfig): string 
         return checks.dpdp.enabled ? undefined : "checks.dpdp.enabled is false";
       }
       return checks.privacy.enabled ? undefined : "checks.privacy.enabled is false";
+    case "correctness":
+      if (adapter.id === "flow-doctor" && checks.flowAnalysis.enabled === false) {
+        return "checks.flowAnalysis.enabled is false";
+      }
+      return checks.correctness.enabled ? undefined : "checks.correctness.enabled is false";
     default:
       return undefined;
   }
@@ -93,7 +97,7 @@ export async function createScanPlan(
       excluded.push({
         id: adapter.id,
         state: "not_selected",
-        reason: "Not part of the quick profile. Run `vibedoctor scan --full` to include it."
+        reason: "Not part of the quick profile. Run `vibedoctor scan` for the full applicable diagnosis."
       });
       continue;
     }
@@ -115,6 +119,6 @@ export async function createScanPlan(
     adapterIds: selected,
     excluded,
     changedOnly: mode === "changed",
-    outputFull: mode === "full"
+    outputFull: mode === "full" || mode === "default"
   };
 }

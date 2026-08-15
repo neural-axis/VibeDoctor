@@ -22,6 +22,10 @@ import { privacyDetectorAdapter } from "../adapters/privacyDetector";
 import { dpdpAdapter } from "../adapters/dpdp";
 import { customRefactorAdapter } from "../adapters/customRefactor";
 import { detectDeadChains } from "../adapters/customDeadChain";
+import { flowDoctorAdapter } from "../adapters/flowDoctor";
+import { buildAgentDiagnosis, type AgentDiagnosis } from "./agentDiagnosis";
+import { rankFindings } from "./riskRanker";
+import { buildScanContext } from "./scanContext";
 import { presidioAdapter } from "../adapters/presidio";
 import {
   defaultAgentPolicy,
@@ -81,21 +85,13 @@ const ALL_ADAPTERS = [
   presidioAdapter,
   telemetryDetectorAdapter,
   customLeftoversAdapter,
-  customRefactorAdapter
+  customRefactorAdapter,
+  flowDoctorAdapter
 ] as const;
 
-const categoryPriority: Record<FindingCategory, number> = {
-  security: 0,
-  tests: 1,
-  correctness: 2,
-  dependencies: 3,
-  privacy: 4,
-  dead_code: 5,
-  leftovers: 6,
-  refactor_readiness: 7,
-  maintainability: 8,
-  efficiency: 9
-};
+export function getScanAdapters(): typeof ALL_ADAPTERS {
+  return ALL_ADAPTERS;
+}
 
 export type AgentPlanTarget = "generic" | "codex" | "copilot" | "claude" | "cursor";
 
@@ -186,6 +182,8 @@ export type ScanOutput = {
   suppressedFindings: Finding[];
   /** Tool-by-tool proof of what resolved and ran, with paths and versions. */
   verifications: ToolVerification[];
+  /** Agent-first diagnosis: correlated, ranked, actionable. Present on live scans. */
+  diagnosis?: AgentDiagnosis;
 };
 
 export type SafeFixResult = {
@@ -289,7 +287,8 @@ export function withReportingDefaults(partial: Partial<ScanOutput> & Pick<ScanOu
     relevance: partial.relevance ?? emptyRelevanceReport,
     suppressions: partial.suppressions ?? emptySuppressionReport,
     suppressedFindings: partial.suppressedFindings ?? [],
-    verifications: partial.verifications ?? []
+    verifications: partial.verifications ?? [],
+    diagnosis: partial.diagnosis
   };
 }
 
@@ -309,38 +308,7 @@ type FilterScanOptions = {
 };
 
 function sortFindings(findings: Finding[]): Finding[] {
-  return [...findings].sort((left, right) => {
-    const categoryDelta = categoryPriority[left.category] - categoryPriority[right.category];
-    if (categoryDelta !== 0) {
-      return categoryDelta;
-    }
-
-    const severityDelta = severityRank[right.severity] - severityRank[left.severity];
-    if (severityDelta !== 0) {
-      return severityDelta;
-    }
-
-    if (left.isNew !== right.isNew) {
-      return left.isNew ? -1 : 1;
-    }
-
-    const fileDelta = (left.file ?? "").localeCompare(right.file ?? "");
-    if (fileDelta !== 0) {
-      return fileDelta;
-    }
-
-    const lineDelta = (left.startLine ?? 0) - (right.startLine ?? 0);
-    if (lineDelta !== 0) {
-      return lineDelta;
-    }
-
-    const titleDelta = left.title.localeCompare(right.title);
-    if (titleDelta !== 0) {
-      return titleDelta;
-    }
-
-    return left.id.localeCompare(right.id);
-  });
+  return rankFindings(findings);
 }
 
 function summarizeFindings(findings: Finding[]) {
@@ -512,7 +480,7 @@ function buildScanOutput(options: BuildScanOutputOptions): ScanOutput {
   const policy = options.policy ?? defaultAgentPolicy;
   const recoveryActions = buildRecoveryActions(options.toolStatuses, options.skippedTools);
 
-  return {
+  const output: ScanOutput = {
     root: options.root,
     mode: options.mode,
     score: options.score,
@@ -549,6 +517,9 @@ function buildScanOutput(options: BuildScanOutputOptions): ScanOutput {
     suppressedFindings: options.suppressedFindings,
     verifications: options.verifications
   };
+
+  output.diagnosis = buildAgentDiagnosis(output);
+  return output;
 }
 
 function firstUsefulLine(value: string): string | undefined {
@@ -768,7 +739,8 @@ async function retryWithNarrowedScope(
 async function verifySelectedTools(
   root: string,
   adapterIds: string[],
-  config: VibeDoctorConfig
+  config: VibeDoctorConfig,
+  toolRuntime?: import("./toolRuntime").ToolRuntime
 ): Promise<Map<string, ToolVerification>> {
   const entries = adapterIds.map(getToolEntry).filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
 
@@ -776,7 +748,7 @@ async function verifySelectedTools(
     return new Map();
   }
 
-  const verifications = await verifyTools(entries, root, "resolve");
+  const verifications = await verifyTools(entries, root, "resolve", toolRuntime);
   return new Map(verifications.map((verification) => [verification.id, verification]));
 }
 
@@ -863,13 +835,18 @@ function reasonForCapability(
   }
 }
 
-export async function runScan(root: string, mode: ScanMode = "default"): Promise<ScanOutput> {
+export async function runScan(
+  root: string,
+  mode: ScanMode = "default",
+  options?: { runtimeOptions?: import("./toolRuntime").ToolRuntimeOptions }
+): Promise<ScanOutput> {
   const [{ config, configPath }, { policy }] = await Promise.all([loadConfig(root), loadAgentPolicy(root)]);
-  const project = await detectProject(root, config.paths.exclude);
+  const scanContext = await buildScanContext(root, config, mode, options?.runtimeOptions);
+  const project = scanContext.repo;
   const plan = await createScanPlan(project, config, [...ALL_ADAPTERS], mode);
-  const ctx = { root, project, config, scanMode: mode } as const;
+  const ctx = { root, project, config, scanMode: mode, toolRuntime: scanContext.toolRuntime, scanContext } as const;
   const selectedAdapters = ALL_ADAPTERS.filter((adapter) => plan.adapterIds.includes(adapter.id));
-  const verifications = await verifySelectedTools(root, plan.adapterIds, config);
+  const verifications = await verifySelectedTools(root, plan.adapterIds, config, scanContext.toolRuntime);
 
   // A tool that failed verification is not launched: doing so produces a
   // confusing process error in place of the clear reason we already have.
@@ -998,7 +975,7 @@ export async function runScan(root: string, mode: ScanMode = "default"): Promise
         excluded.state === "deferred"
           ? `Remove ${excluded.id} from runtime.deferred_tools to run it again.`
           : excluded.state === "not_selected"
-            ? "Run `vibedoctor scan --full` to include it."
+            ? "Run `vibedoctor scan` for the full applicable diagnosis."
             : undefined,
       trust: "authoritative"
     });
@@ -1151,7 +1128,8 @@ export async function retryTool(root: string, toolId: string, timeoutSeconds?: n
     };
   }
 
-  const ctx = { root, project, config, scanMode: "full" } as const;
+  const scanContext = await buildScanContext(root, config, "full");
+  const ctx = { root, project, config, scanMode: "full" as const, toolRuntime: scanContext.toolRuntime, scanContext };
   const seconds = timeoutSeconds ?? Math.max(
     config.runtime.defaultTimeoutSeconds,
     (config.runtime.toolTimeouts[toolId] ?? config.runtime.defaultTimeoutSeconds) * 2
@@ -1380,7 +1358,8 @@ export async function safeFix(root: string): Promise<SafeFixResult> {
   const before = await runScan(root, "default");
   const { config } = await loadConfig(root);
   const project = await detectProject(root, config.paths.exclude);
-  const ctx = { root, project, config, scanMode: "default" as const };
+  const scanContext = await buildScanContext(root, config, "default");
+  const ctx = { root, project, config, scanMode: "default" as const, toolRuntime: scanContext.toolRuntime, scanContext };
   const fixableAdapters = ALL_ADAPTERS.filter((adapter) => adapter.buildFixCommand && adapter.detect);
   const results: Array<ToolResult & { id: string }> = [];
 

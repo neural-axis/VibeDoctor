@@ -25,7 +25,8 @@ export const FINDING_SOURCES = [
   "dpdp",
   "custom-leftovers",
   "custom-refactor",
-  "custom-dead-chain"
+  "custom-dead-chain",
+  "flow-doctor"
 ] as const;
 
 export const FINDING_CATEGORIES = [

@@ -4,6 +4,7 @@ import { describeSearchPaths, resolveExecutable } from "./executable";
 import { formatVersion, minimumSatisfying, parseVersion, satisfiesRange } from "./semverLite";
 import { installHintFor, readDeclaredNodeRequirement, type RuntimeEngine, type ToolRegistryEntry } from "./toolRegistry";
 import { runCommand } from "./toolRunner";
+import { isManagedTool, type ToolRuntime } from "./toolRuntime";
 
 /**
  * Proves a tool is usable rather than merely present.
@@ -231,6 +232,7 @@ export type VerifyToolOptions = {
   root: string;
   runtimes: RuntimeProbes;
   depth?: VerificationDepth;
+  toolRuntime?: ToolRuntime;
 };
 
 export async function verifyTool(entry: ToolRegistryEntry, options: VerifyToolOptions): Promise<ToolVerification> {
@@ -312,6 +314,61 @@ export async function verifyTool(entry: ToolRegistryEntry, options: VerifyToolOp
       remediation: "Add a probe to the tool registry so setup can verify this tool.",
       runtime
     };
+  }
+
+  if (options.toolRuntime && isManagedTool(entry.id)) {
+    const managed = await options.toolRuntime.resolve(entry.id, { projectRoot: root });
+    if (managed.executablePath) {
+      if (depth === "resolve") {
+        return {
+          id: entry.id,
+          state: "verified",
+          resolvedPath: managed.executablePath,
+          version: managed.version,
+          reason: managed.reason,
+          runtime
+        };
+      }
+      const probeArgs = entry.probeArgs ?? ["--version"];
+      const result = await runCommand({
+        cmd: managed.executablePath,
+        args: probeArgs,
+        cwd: root,
+        timeoutMs: PROBE_TIMEOUT_MS
+      });
+      const probeCommand = [managed.executablePath, ...probeArgs].join(" ");
+      if (result.status !== "ok") {
+        return {
+          id: entry.id,
+          state: "broken",
+          resolvedPath: managed.executablePath,
+          version: managed.version,
+          probeCommand,
+          reason: `Managed ${entry.id} at ${managed.executablePath} failed its version probe.`,
+          remediation: managed.remediation ?? installHintFor(entry),
+          runtime
+        };
+      }
+      return {
+        id: entry.id,
+        state: "verified",
+        resolvedPath: managed.executablePath,
+        version: extractVersion(`${result.stdout}\n${result.stderr}`, entry.versionPattern) ?? managed.version,
+        probeCommand,
+        reason: `Ran managed ${entry.id} at ${managed.executablePath}.`,
+        runtime
+      };
+    }
+    if (managed.status === "checksum_mismatch" || managed.status === "failed") {
+      return {
+        id: entry.id,
+        state: "broken",
+        version: managed.version,
+        reason: managed.reason,
+        remediation: managed.remediation,
+        runtime
+      };
+    }
   }
 
   const resolved = resolveExecutable(entry.executable, root);
@@ -439,13 +496,14 @@ async function saveVerificationCache(root: string, entries: CachedVerification[]
 export async function verifyTools(
   entries: ToolRegistryEntry[],
   root: string,
-  depth: VerificationDepth = "execute"
+  depth: VerificationDepth = "execute",
+  toolRuntime?: ToolRuntime
 ): Promise<ToolVerification[]> {
   const runtimes = await probeRuntimesFor(entries, root, depth);
 
   if (depth === "resolve") {
     // Resolution is a filesystem lookup; caching it would only add staleness.
-    return Promise.all(entries.map((entry) => verifyTool(entry, { root, runtimes, depth })));
+    return Promise.all(entries.map((entry) => verifyTool(entry, { root, runtimes, depth, toolRuntime })));
   }
 
   const cache = await loadVerificationCache(root);
@@ -461,7 +519,7 @@ export async function verifyTools(
         }
       }
 
-      const verification = await verifyTool(entry, { root, runtimes, depth });
+      const verification = await verifyTool(entry, { root, runtimes, depth, toolRuntime });
       const fingerprint = fingerprintFile(verification.resolvedPath);
       return {
         verification,

@@ -24,10 +24,12 @@ export const gitleaksAdapter: ToolAdapter = {
   },
   buildScanCommand(ctx) {
     return {
+      tool: "gitleaks",
       cmd: "gitleaks",
       args: ["detect", "--no-banner", "--redact", "--report-format", "json", "--report-path", "-"],
       cwd: ctx.root,
-      timeoutMs: 60_000
+      timeoutMs: 60_000,
+      runtime: ctx.toolRuntime
     };
   },
   parseResult(result, ctx) {
@@ -53,5 +55,5 @@ export const gitleaksAdapter: ToolAdapter = {
       scoreImpact: 0
     }));
   },
-  installHint: "Install Gitleaks from https://gitleaks.io/ or your package manager."
+  installHint: "VibeDoctor provisions a pinned Gitleaks into ~/.cache/vibedoctor when needed. To use a project-local copy, put gitleaks on PATH."
 };

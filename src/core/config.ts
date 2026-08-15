@@ -43,6 +43,14 @@ export type VibeDoctorConfig = {
     deferredTools: string[];
     /** Verify each tool resolves and runs before trusting its absence of findings. */
     verifyToolsBeforeScan: boolean;
+    /** Resolve/provision engines into a VibeDoctor-owned cache instead of mutating the repo. */
+    managedTools: {
+      enabled: boolean;
+      /** Override for ~/.cache/vibedoctor. */
+      cacheDir?: string;
+      allowNetwork: boolean;
+      preferProjectLocal: boolean;
+    };
   };
   relevance: {
     enabled: boolean;
@@ -130,6 +138,9 @@ export type VibeDoctorConfig = {
         enabled: boolean;
       };
     };
+    flowAnalysis: {
+      enabled: boolean;
+    };
     dpdp: {
       enabled: boolean;
       include: string[];
@@ -211,7 +222,12 @@ export const defaultConfig: VibeDoctorConfig = {
     onTimeout: "scoped_retry",
     scopedRetryTimeoutSeconds: 60,
     deferredTools: [],
-    verifyToolsBeforeScan: true
+    verifyToolsBeforeScan: true,
+    managedTools: {
+      enabled: true,
+      allowNetwork: true,
+      preferProjectLocal: true
+    }
   },
   relevance: {
     enabled: true,
@@ -289,6 +305,9 @@ export const defaultConfig: VibeDoctorConfig = {
         // Opt-out: try Presidio on normal privacy scans; skip gracefully if not installed.
         enabled: true
       }
+    },
+    flowAnalysis: {
+      enabled: true
     },
     dpdp: {
       enabled: true,
@@ -475,6 +494,7 @@ function normalizeRawConfig(raw: Partial<VibeDoctorConfig>): Partial<VibeDoctorC
   const rawPrivacy = rawChecks?.privacy as Record<string, unknown> | undefined;
   const rawPrivacyAi = (rawPrivacy?.ai ?? {}) as Record<string, unknown>;
   const rawPresidio = (rawPrivacy?.presidio ?? {}) as Record<string, unknown>;
+  const rawFlow = (rawChecks?.flowAnalysis ?? rawChecks?.flow_analysis) as Record<string, unknown> | undefined;
   const rawDpdp = rawChecks?.dpdp as Record<string, unknown> | undefined;
   const rawDpdpOrg = (rawDpdp?.organization ?? rawDpdp?.organisation ?? {}) as Record<string, unknown>;
 
@@ -518,7 +538,8 @@ function normalizeRawConfig(raw: Partial<VibeDoctorConfig>): Partial<VibeDoctorC
             verifyToolsBeforeScan:
               (rawRuntime.verifyToolsBeforeScan as boolean | undefined) ??
               (rawRuntime.verify_tools_before_scan as boolean | undefined) ??
-              defaultConfig.runtime.verifyToolsBeforeScan
+              defaultConfig.runtime.verifyToolsBeforeScan,
+            managedTools: normalizeManagedTools(rawRuntime.managedTools ?? rawRuntime.managed_tools)
           }
         }
       : {}),
@@ -730,6 +751,11 @@ function normalizeRawConfig(raw: Partial<VibeDoctorConfig>): Partial<VibeDoctorC
                   }
                 }
               : defaultConfig.checks.privacy,
+            flowAnalysis: rawFlow
+              ? {
+                  enabled: (rawFlow.enabled as boolean | undefined) ?? defaultConfig.checks.flowAnalysis.enabled
+                }
+              : defaultConfig.checks.flowAnalysis,
             dpdp: rawDpdp
               ? {
                   enabled: (rawDpdp.enabled as boolean | undefined) ?? defaultConfig.checks.dpdp.enabled,
@@ -798,6 +824,22 @@ function normalizeRawConfig(raw: Partial<VibeDoctorConfig>): Partial<VibeDoctorC
           }
         }
       : {})
+  };
+}
+
+function normalizeManagedTools(raw: unknown): VibeDoctorConfig["runtime"]["managedTools"] {
+  const defaults = defaultConfig.runtime.managedTools;
+  if (!isRecord(raw)) {
+    return { ...defaults };
+  }
+  return {
+    enabled: (raw.enabled as boolean | undefined) ?? defaults.enabled,
+    cacheDir: (raw.cacheDir as string | undefined) ?? (raw.cache_dir as string | undefined) ?? defaults.cacheDir,
+    allowNetwork: (raw.allowNetwork as boolean | undefined) ?? (raw.allow_network as boolean | undefined) ?? defaults.allowNetwork,
+    preferProjectLocal:
+      (raw.preferProjectLocal as boolean | undefined) ??
+      (raw.prefer_project_local as boolean | undefined) ??
+      defaults.preferProjectLocal
   };
 }
 

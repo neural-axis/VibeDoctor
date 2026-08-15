@@ -71,6 +71,12 @@ export const TOOL_REGISTRY: ToolRegistryEntry[] = [
     reason: "Finds personal-data and Privacy Review signals without sending data to an external service."
   },
   {
+    id: "flow-doctor",
+    ecosystem: "built-in",
+    priority: "essential",
+    reason: "High-confidence structural flow checks: route/method mismatches and swallowed error paths."
+  },
+  {
     id: "tsc",
     packageName: "typescript",
     executable: "tsc",
@@ -123,7 +129,8 @@ export const TOOL_REGISTRY: ToolRegistryEntry[] = [
     languages: ["python"],
     runtime: "python",
     probeArgs: ["--version"],
-    reason: "Python lint and safe-fix signal."
+    reason: "Python lint and safe-fix signal. VibeDoctor can provision a pinned managed copy.",
+    installHint: "VibeDoctor provisions Ruff into ~/.cache/vibedoctor. To pin a project-local copy, install ruff in the environment."
   },
   {
     id: "pyright",
@@ -186,8 +193,8 @@ export const TOOL_REGISTRY: ToolRegistryEntry[] = [
     ecosystem: "manual",
     priority: "essential",
     probeArgs: ["version"],
-    reason: "Secret detection across every repository.",
-    installHint: "Install Gitleaks from https://gitleaks.io/ or your OS package manager."
+    reason: "Secret detection across every repository. VibeDoctor can provision a pinned managed copy.",
+    installHint: "VibeDoctor provisions Gitleaks into ~/.cache/vibedoctor. To pin a project-local copy, install gitleaks on PATH."
   },
   {
     id: "osv-scanner",
@@ -196,8 +203,8 @@ export const TOOL_REGISTRY: ToolRegistryEntry[] = [
     priority: "essential",
     requiresLockfile: true,
     probeArgs: ["--version"],
-    reason: "Known-vulnerability detection for dependency lockfiles.",
-    installHint: "Install OSV-Scanner from https://google.github.io/osv-scanner/ or your OS package manager."
+    reason: "Known-vulnerability detection for dependency lockfiles. VibeDoctor can provision a pinned managed copy.",
+    installHint: "VibeDoctor provisions OSV-Scanner into ~/.cache/vibedoctor. To pin a project-local copy, install osv-scanner on PATH."
   },
   {
     id: "lizard",

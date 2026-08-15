@@ -29,13 +29,14 @@ import { withBase } from "../lib/paths";
           <span>second opinion.</span>
         </h1>
         <p class="lede">
-          Deterministic code-health analysis for software written by humans and AI.
-          No vibes about the diagnosis.
+          Give VibeDoctor a repository. It figures out what applies, runs the
+          diagnosis, and tells you or your coding agent what to fix first.
         </p>
-        <Command command={commands.scanFull} />
+        <Command command={commands.scan} />
         <p class="note">
-          Full-repository scan. Local by default. Missing scanners are incomplete
-          evidence, never a silent pass.
+          Full applicable diagnosis by default. Zero or minimal scanner setup.
+          One prioritized report, not raw tool logs. Built for humans and AI
+          coding agents.
         </p>
       </div>
 
@@ -213,18 +214,19 @@ import { withBase } from "../lib/paths";
         </div>
       </div>
       <div class="stack">
-        <Command command={commands.scanFull} />
+        <Command command={commands.scan} />
         <p>
-          That is a full-repository diagnosis. After you have a baseline, use
-          <code>verify</code> or <code>scan --changed</code> for later edits —
-          those modes are documented on
+          That is a full applicable diagnosis. VibeDoctor detects the repo,
+          runs the engines that apply, and ranks what to fix first. After you
+          have a baseline, use <code>verify</code> or <code>scan --changed</code>
+          — those modes are documented on
           <a href={withBase("/how-it-works/")}>How it works</a>.
         </p>
-        <p>First time on a machine, install the recommended scanners, then scan again:</p>
+        <p>Optional project-local setup if you want extra engines installed in the repo:</p>
         <pre><code>{`npx @neuralaxis/vibedoctor init
 npx @neuralaxis/vibedoctor setup
 npx @neuralaxis/vibedoctor setup --apply
-npx @neuralaxis/vibedoctor scan --full`}</code></pre>
+npx @neuralaxis/vibedoctor scan`}</code></pre>
         <p class="note">
           <code>setup --apply</code> installs supported recommended tools. Review the
           plan first. Global binary: <code>{commands.globalInstall}</code>

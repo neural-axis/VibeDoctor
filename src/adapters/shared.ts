@@ -2,6 +2,8 @@ import type { VibeDoctorConfig } from "../core/config";
 import type { Finding, FindingCategory } from "../core/finding";
 import type { ProjectContext } from "../core/projectDetector";
 import { filterPaths } from "../core/paths";
+import type { ScanContext } from "../core/scanContext";
+import type { ToolRuntime } from "../core/toolRuntime";
 import type { CommandSpec, ToolResult } from "../core/toolRunner";
 
 export type ToolAdapterContext = {
@@ -9,6 +11,8 @@ export type ToolAdapterContext = {
   project: ProjectContext;
   config: VibeDoctorConfig;
   scanMode: "default" | "changed" | "quick" | "full";
+  toolRuntime?: ToolRuntime;
+  scanContext?: ScanContext;
   /** Results already produced by the scan engine, available to dependent adapters for reuse. */
   sharedToolResults?: Record<string, SharedToolExecution>;
 };

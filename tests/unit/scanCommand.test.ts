@@ -90,6 +90,21 @@ describe("determineExitCode", () => {
     expect(determineExitCode(scan, defaultConfig)).toBe(0);
   });
 
+  it("does not fail CI on a Flow Doctor high via failOnTypeErrors", () => {
+    const scan = makeScan({
+      findings: [
+        makeFinding({
+          source: "flow-doctor",
+          category: "correctness",
+          severity: "high",
+          title: "HTTP call has no matching backend route"
+        })
+      ]
+    });
+
+    expect(determineExitCode(scan, defaultConfig)).toBe(0);
+  });
+
   it("fails on a new test failure", () => {
     const scan = makeScan({
       findings: [

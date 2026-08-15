@@ -1,7 +1,12 @@
+import { buildAgentDiagnosis } from "../core/agentDiagnosis";
 import type { AgentPlan, ScanOutput } from "../core/engine";
 
 function getPlan(input: Pick<ScanOutput, "agentPlan"> | AgentPlan): AgentPlan {
   return "agentPlan" in input ? input.agentPlan : input;
+}
+
+function isScanOutput(input: Pick<ScanOutput, "agentPlan"> | AgentPlan | ScanOutput): input is ScanOutput {
+  return "findings" in input && "completeness" in input && "score" in input;
 }
 
 export function renderAgentMarkdown(input: Pick<ScanOutput, "agentPlan"> | AgentPlan): string {
@@ -61,6 +66,9 @@ export function renderAgentMarkdown(input: Pick<ScanOutput, "agentPlan"> | Agent
   return `${lines.join("\n")}\n`;
 }
 
-export function renderAgentJson(input: Pick<ScanOutput, "agentPlan"> | AgentPlan): string {
+export function renderAgentJson(input: Pick<ScanOutput, "agentPlan"> | AgentPlan | ScanOutput): string {
+  if (isScanOutput(input)) {
+    return JSON.stringify(input.diagnosis ?? buildAgentDiagnosis(input), null, 2);
+  }
   return JSON.stringify(getPlan(input), null, 2);
 }

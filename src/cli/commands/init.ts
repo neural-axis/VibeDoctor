@@ -69,6 +69,10 @@ runtime:
   # implying they passed — use this for tools this environment cannot support.
   deferred_tools: []
   verify_tools_before_scan: true
+  managed_tools:
+    enabled: true
+    allow_network: true
+    prefer_project_local: true
 
 # Controls how much of what the tools report actually reaches the report.
 # Nothing is dropped silently: every filter states what it withheld and why.
@@ -114,6 +118,9 @@ checks:
     enabled: true
     fail_on_type_errors: true
     fail_on_test_failures: true
+
+  flow_analysis:
+    enabled: true
 
   dead_code:
     enabled: true

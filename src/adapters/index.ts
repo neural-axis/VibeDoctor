@@ -18,3 +18,4 @@ export { vultureAdapter } from "./vulture";
 export { privacyDetectorAdapter } from "./privacyDetector";
 export { dpdpAdapter } from "./dpdp";
 export { telemetryDetectorAdapter } from "./telemetryDetector";
+export { flowDoctorAdapter } from "./flowDoctor";

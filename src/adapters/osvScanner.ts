@@ -145,6 +145,7 @@ export const osvScannerAdapter: ToolAdapter = {
   },
   buildScanCommand(ctx) {
     return {
+      tool: "osv-scanner",
       cmd: "osv-scanner",
       args: [
         "scan",
@@ -156,7 +157,8 @@ export const osvScannerAdapter: ToolAdapter = {
         "error"
       ],
       cwd: ctx.root,
-      timeoutMs: 60_000
+      timeoutMs: 60_000,
+      runtime: ctx.toolRuntime
     };
   },
   parseResult(result, ctx) {
@@ -241,5 +243,5 @@ export const osvScannerAdapter: ToolAdapter = {
       } satisfies Finding;
     });
   },
-  installHint: "Install OSV-Scanner from https://google.github.io/osv-scanner/"
+  installHint: "VibeDoctor provisions a pinned OSV-Scanner into ~/.cache/vibedoctor when needed. To use a project-local copy, put osv-scanner on PATH."
 };
