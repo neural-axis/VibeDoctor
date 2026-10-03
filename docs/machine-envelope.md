@@ -36,7 +36,7 @@ vibedoctor scan --root ./repo --profile static --report envelope > envelope.json
 
 Any tool can recompute this to check that an envelope describes the files it has:
 
-1. Walk the root recursively. Skip symbolic links and directories named `.git`, `.vibedoctor`, `node_modules`, `.venv`, `venv`, `__pycache__` and `.world`.
+1. Walk the root recursively. Skip symbolic links and directories named `.git`, `.vibedoctor`, `node_modules`, `.venv`, `venv`, `__pycache__`, `.world`, `.ruff_cache`, `.mypy_cache` and `.pytest_cache`.
 2. For every regular file, take its path relative to the root with `/` separators, and the lowercase hex SHA-256 of its bytes.
 3. Sort the paths by code-unit order. If there are more than 50,000, keep the first 50,000 and set `truncated: true`.
 4. The value is the lowercase hex SHA-256 of the concatenation of `${path}\0${sha256}\n` for each file.

@@ -21,7 +21,12 @@ export const SKIPPED_DIRECTORIES = new Set([
   ".venv",
   "venv",
   "__pycache__",
-  ".world"
+  ".world",
+  // Tool caches are scratch output, not source; skipping them keeps identity stable when a
+  // scanner (for example ruff in the default profile) writes its cache into the repository.
+  ".ruff_cache",
+  ".mypy_cache",
+  ".pytest_cache"
 ]);
 export const MAX_FILES = 50_000;
 
