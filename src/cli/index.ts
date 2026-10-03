@@ -24,6 +24,7 @@ import { runReportCommand } from "./commands/report";
 import { runScanCommand } from "./commands/scan";
 import { runSetupCommand } from "./commands/setup";
 import { runToolRetryCommand } from "./commands/tool";
+import { profilePolicy, withExecutionPolicy, type ExecutionProfile } from "../core/executionPolicy";
 
 function getVersion(): string {
   try {
@@ -60,14 +61,48 @@ async function main(): Promise<void> {
     .option("--quick", "Narrower opt-in profile")
     .option("--full", "Alias for the default full applicable diagnosis")
     .option("--category <categories>", "Comma-separated finding categories")
-    .option("--report <format>", "terminal|json|html|agent|agent-json", "terminal")
+    .option("--report <format>", "terminal|json|html|agent|agent-json|envelope", "terminal")
+    .option("--root <dir>", "Repository to scan (default: the current directory)")
+    .option(
+      "--profile <name>",
+      "default|static|trusted. static runs only external read-only analysers: no project-local tools, tests, executable project config or network",
+      "default"
+    )
+    .option("--allow-network", "Allow network-backed tools (Semgrep registry, OSV) under --profile static|trusted")
     .action(async (options) => {
-      const result = await runScanCommand(process.cwd(), options);
-      process.stdout.write(result.output);
-      // Force exit: some child processes / native tool wrappers (especially on Windows)
-      // can leave event-loop handles open even after 'close'. Explicit exit guarantees
-      // the CLI terminates promptly for terminals and CI after printing the report.
-      process.exit(result.exitCode);
+      const root = path.resolve(options.root ?? process.cwd());
+      if (!["default", "static", "trusted"].includes(options.profile)) {
+        process.stderr.write(`Unknown --profile "${options.profile}". Use default, static or trusted.\n`);
+        process.exit(64);
+      }
+      if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) {
+        process.stderr.write(`--root is not a directory: ${root}\n`);
+        process.exit(64);
+      }
+      const profile = options.profile as ExecutionProfile;
+      const scan = () => runScanCommand(root, { ...options, version: getVersion() });
+      let result: Awaited<ReturnType<typeof runScanCommand>>;
+      try {
+        result =
+          profile === "default"
+            ? await scan()
+            : await withExecutionPolicy(
+                profilePolicy(profile, { targetRoot: root, allowNetwork: Boolean(options.allowNetwork) }),
+                scan
+              );
+      } catch (error) {
+        // In envelope mode a crash produces no envelope and a distinct exit code (70), so a
+        // caller never mistakes it for a completed scan whose policy gate failed (1).
+        if (options.report === "envelope") {
+          process.stderr.write(`vibedoctor: scan failed: ${error instanceof Error ? error.message : String(error)}\n`);
+          process.exit(70);
+        }
+        throw error;
+      }
+      // Force exit once stdout has flushed: some child processes / native tool wrappers
+      // (especially on Windows) can leave event-loop handles open even after 'close', and
+      // exiting before a large piped write drains would truncate the report.
+      process.stdout.write(result.output, () => process.exit(result.exitCode));
     });
 
   program

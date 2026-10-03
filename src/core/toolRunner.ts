@@ -3,6 +3,7 @@ import { spawn } from "node:child_process";
 import { execFile } from "node:child_process";
 import { buildCommandEnv, getLocalToolSearchPaths, resolveExecutable } from "./executable";
 import { createToolRuntime, type ToolRuntime } from "./toolRuntime";
+import { currentPolicy } from "./executionPolicy";
 
 export { buildCommandEnv, getLocalToolSearchPaths };
 
@@ -62,7 +63,9 @@ function resolveLaunchTarget(
     return { command: resolved.path, useShell: false, resolvedPath: resolved.path };
   }
 
-  if (process.platform === "win32" && !path.isAbsolute(command)) {
+  // Integration profiles never fall back to cmd.exe: its lookup searches the working directory,
+  // which is the target repository.
+  if (process.platform === "win32" && !path.isAbsolute(command) && currentPolicy().allowShellFallback) {
     // Not found via PATH/PATHEXT probing. Fall back to the shell so commands that
     // are only reachable through cmd.exe mechanisms (App Execution Aliases,
     // App Paths registry entries) still launch, matching the previous behavior.
@@ -126,6 +129,9 @@ export async function runCommand(spec: CommandSpec, installHint?: string): Promi
     ? { command: [resolved.command, ...spec.args.map(quoteForWindowsShell)].join(" "), args: [] as string[] }
     : { command: resolved.command, args: spec.args };
 
+  // Integration profiles bound captured output so a runaway tool cannot exhaust memory.
+  const maxBytes = currentPolicy().maxOutputBytes ?? Number.POSITIVE_INFINITY;
+
   return new Promise<ToolResult>((resolve) => {
     const child = spawn(launch.command, launch.args, {
       cwd: spec.cwd,
@@ -140,11 +146,11 @@ export async function runCommand(spec: CommandSpec, installHint?: string): Promi
     let timeoutHandle: NodeJS.Timeout | undefined;
 
     child.stdout.on("data", (chunk) => {
-      stdout += chunk.toString();
+      if (stdout.length < maxBytes) stdout += chunk.toString();
     });
 
     child.stderr.on("data", (chunk) => {
-      stderr += chunk.toString();
+      if (stderr.length < maxBytes) stderr += chunk.toString();
     });
 
     function cleanup() {

@@ -1,5 +1,6 @@
 import path from "node:path";
 import { accessSync, constants, existsSync, readdirSync, statSync } from "node:fs";
+import { allowedPathEntries, currentPolicy, isInside, policyEnv } from "./executionPolicy";
 
 /**
  * Executable discovery, shared by every code path that needs to know whether a
@@ -70,12 +71,14 @@ function getUserToolSearchPaths(env: NodeJS.ProcessEnv): string[] {
 }
 
 export function buildCommandEnv(cwd: string | undefined, overrides: NodeJS.ProcessEnv | undefined): NodeJS.ProcessEnv {
-  const env: NodeJS.ProcessEnv = { ...process.env, ...overrides };
+  const policy = currentPolicy();
+  // Integration profiles pass a minimal environment instead of inheriting every variable.
+  const env: NodeJS.ProcessEnv = { ...policyEnv(process.env, policy), ...overrides };
   const pathKey = getPathKey(env);
   const existingPath = env[pathKey];
-  env[pathKey] = [...getLocalToolSearchPaths(cwd), ...getUserToolSearchPaths(env), existingPath]
-    .filter(Boolean)
-    .join(path.delimiter);
+  const local = policy.allowProjectLocalTools ? getLocalToolSearchPaths(cwd) : [];
+  const entries = [...local, ...getUserToolSearchPaths(env), ...(existingPath ?? "").split(path.delimiter)].filter(Boolean);
+  env[pathKey] = allowedPathEntries(entries, policy).join(path.delimiter);
   return env;
 }
 
@@ -117,8 +120,14 @@ export function resolveExecutable(
   cwd?: string,
   env: NodeJS.ProcessEnv = buildCommandEnv(cwd, undefined)
 ): ResolvedExecutable | undefined {
+  const policy = currentPolicy();
+  // Nothing inside the target may be launched when project-local tools are not allowed.
+  const permitted = (candidate: string) =>
+    policy.allowProjectLocalTools || !policy.targetRoot || !isInside(policy.targetRoot, candidate);
   if (path.isAbsolute(command)) {
-    return isExecutableFile(command) ? { path: command, requiresShell: /\.(?:cmd|bat)$/i.test(command) } : undefined;
+    return isExecutableFile(command) && permitted(command)
+      ? { path: command, requiresShell: /\.(?:cmd|bat)$/i.test(command) }
+      : undefined;
   }
 
   const pathValue = env[getPathKey(env)] ?? "";
@@ -134,7 +143,7 @@ export function resolveExecutable(
   for (const directory of directories) {
     for (const extension of extensions) {
       const candidate = path.join(directory, `${command}${extension}`);
-      if (existsSync(candidate) && isExecutableFile(candidate)) {
+      if (existsSync(candidate) && isExecutableFile(candidate) && permitted(candidate)) {
         return { path: candidate, requiresShell: /\.(?:cmd|bat)$/i.test(candidate) };
       }
     }
