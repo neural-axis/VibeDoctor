@@ -1,6 +1,6 @@
 {
   "name": "@neuralaxis/vibedoctor",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Health diagnosis and fix planning for JS, TS, Python, and mixed repositories.",
   "type": "commonjs",
   "publishConfig": {
@@ -59,7 +59,7 @@
     "type": "git",
     "url": "git+https://github.com/neural-axis/VibeDoctor.git"
   },
-  "homepage": "https://github.com/neural-axis/VibeDoctor#readme",
+  "homepage": "https://vibedoctor.in",
   "bugs": {
     "url": "https://github.com/neural-axis/VibeDoctor/issues"
   },
