@@ -57,6 +57,7 @@ import { applyRelevance, renderRelevanceLines, type RelevanceReport } from "./re
 import { applySuppressions, loadSuppressions, renderSuppressionLines, type SuppressionReport } from "./suppressions";
 import { getToolEntry, installHintFor } from "./toolRegistry";
 import { isVerificationBlocking, verifyTools, type ToolVerification } from "./toolVerification";
+import { currentPolicy } from "./executionPolicy";
 import {
   loadPrivacyReview,
   mergePrivacyReviewIntoFindings,
@@ -841,7 +842,24 @@ export async function runScan(
   options?: { runtimeOptions?: import("./toolRuntime").ToolRuntimeOptions }
 ): Promise<ScanOutput> {
   const [{ config, configPath }, { policy }] = await Promise.all([loadConfig(root), loadAgentPolicy(root)]);
-  const scanContext = await buildScanContext(root, config, mode, options?.runtimeOptions);
+  // An integration execution profile outranks the target's configuration: repository settings
+  // cannot re-enable project-local tools, downloads, or DPDP's own Presidio/Semgrep launches.
+  const execution = currentPolicy();
+  let runtimeOptions = options?.runtimeOptions;
+  if (execution.profile !== "default") {
+    config.runtime.managedTools.preferProjectLocal = execution.allowProjectLocalTools;
+    config.runtime.managedTools.allowNetwork = execution.allowNetwork;
+    if (!execution.allowProjectExecution) {
+      config.checks.dpdp.usePresidio = false;
+      if (!execution.allowNetwork) config.checks.dpdp.useSemgrep = false;
+    }
+    runtimeOptions = {
+      ...runtimeOptions,
+      preferProjectLocal: execution.allowProjectLocalTools,
+      allowNetwork: execution.allowNetwork
+    };
+  }
+  const scanContext = await buildScanContext(root, config, mode, runtimeOptions);
   const project = scanContext.repo;
   const plan = await createScanPlan(project, config, [...ALL_ADAPTERS], mode);
   const ctx = { root, project, config, scanMode: mode, toolRuntime: scanContext.toolRuntime, scanContext } as const;

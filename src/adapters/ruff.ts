@@ -1,6 +1,7 @@
 import type { Finding } from "../core/finding";
 import { normalizeFilePath } from "../core/finding";
 import { adapterTargets, type ToolAdapter } from "./shared";
+import { currentPolicy } from "../core/executionPolicy";
 
 type RuffItem = {
   filename: string;
@@ -42,7 +43,15 @@ export const ruffAdapter: ToolAdapter = {
     return {
       tool: "ruff",
       cmd: "ruff",
-      args: ["check", ...targets, "--output-format", "json", ...excludePatterns],
+      // Explicit profiles leave the scanned repository unchanged: no .ruff_cache is written.
+      args: [
+        "check",
+        ...targets,
+        "--output-format",
+        "json",
+        ...excludePatterns,
+        ...(currentPolicy().profile === "default" ? [] : ["--no-cache"])
+      ],
       cwd: ctx.root,
       timeoutMs: 60_000,
       runtime: ctx.toolRuntime

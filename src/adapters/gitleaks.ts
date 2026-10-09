@@ -1,5 +1,6 @@
 import { normalizeFilePath } from "../core/finding";
 import type { ToolAdapter } from "./shared";
+import { currentPolicy } from "../core/executionPolicy";
 
 type GitleaksFinding = {
   RuleID?: string;
@@ -26,7 +27,18 @@ export const gitleaksAdapter: ToolAdapter = {
     return {
       tool: "gitleaks",
       cmd: "gitleaks",
-      args: ["detect", "--no-banner", "--redact", "--report-format", "json", "--report-path", "-"],
+      // The static profile scans files only (--no-git), so the target's git configuration is
+      // never consulted by gitleaks' internal `git log -p`.
+      args: [
+        "detect",
+        ...(currentPolicy().profile === "static" ? ["--no-git"] : []),
+        "--no-banner",
+        "--redact",
+        "--report-format",
+        "json",
+        "--report-path",
+        "-"
+      ],
       cwd: ctx.root,
       timeoutMs: 60_000,
       runtime: ctx.toolRuntime

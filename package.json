@@ -19,6 +19,7 @@
   },
   "files": [
     "dist",
+    "schemas",
     "README.md",
     "LICENSE",
     "package.json"

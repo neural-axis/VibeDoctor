@@ -169,6 +169,8 @@ CLI exit codes let people, agents, and CI distinguish health failures from missi
 | `0` | The scan completed and configured gates passed. |
 | `1` | One or more configured health gates failed. |
 | `2` | Required checks were incomplete. |
+| `64` | Invalid `scan` options (unknown `--profile`, `--root` not a directory). |
+| `70` | `--report envelope` only: the scan crashed before completing, so no envelope was written. |
 
 Skipped scanners are never treated as clean results. Privacy findings affect the privacy category score by default, but do not lower the overall score or fail CI unless you opt into privacy gates.
 
@@ -386,7 +388,25 @@ Human-review-only DPDP items do not fail CI. Configure `checks.dpdp.fail_on_seve
 | Generate an agent plan | `vibedoctor agent-plan --format markdown` |
 | Start MCP | `vibedoctor mcp` |
 
-`scan --report` supports `terminal`, `json`, `html`, `agent`, and `agent-json`. The separate `report` command performs a fresh full scan and can also render Markdown or SARIF to standard output.
+`scan --report` supports `terminal`, `json`, `html`, `agent`, `agent-json`, and `envelope`. The separate `report` command performs a fresh full scan and can also render Markdown or SARIF to standard output.
+
+### Scanning code you do not fully trust
+
+By default VibeDoctor behaves as it always has: project-local tools (for example `node_modules/.bin/tsc`) are preferred, and test runners can execute the project's tests. When you scan a repository you did not write (CI bots, other tools, downloaded code), choose an explicit profile:
+
+```bash
+vibedoctor scan --root ./some-repo --profile static --report envelope
+```
+
+| Profile | What runs |
+| --- | --- |
+| `default` | Everything applicable, as before. |
+| `static` | Only analysers that read files and run from outside the repository. No project-local executables, no project tests or scripts, no tools that load executable project config (vitest, jest, knip, coverage.py, Presidio), no network (Semgrep registry, OSV), a minimal child environment, and no Windows `cmd.exe` fallback. Excluded tools appear in the capability matrix with the reason. |
+| `trusted` | The project's own tools and tests may run; network stays off unless `--allow-network`. |
+
+`--allow-network` re-enables network-backed tools under `static` or `trusted`. The repository's `vibedoctor.yml` cannot re-enable a tool the profile excludes. Reports are still written to `.vibedoctor/` in every profile.
+
+`--report envelope` prints one versioned JSON document for integrations. It contains the unchanged `--report json` report plus the producer version, run identity, profile, a content fingerprint of the scanned files, git state, the configuration fingerprint, a stable fingerprint per finding, and the gate outcome. See [docs/machine-envelope.md](docs/machine-envelope.md) and [schemas/machine-envelope.v1.schema.json](schemas/machine-envelope.v1.schema.json).
 
 ## Network and data behavior
 

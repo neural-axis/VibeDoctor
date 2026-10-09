@@ -2,6 +2,7 @@ import type { ToolAdapter } from "../adapters/shared";
 import type { CapabilityState } from "./capability";
 import type { VibeDoctorConfig } from "./config";
 import type { ProjectContext } from "./projectDetector";
+import { policyExclusion } from "./executionPolicy";
 
 export type ScanMode = "default" | "changed" | "quick" | "full";
 
@@ -78,6 +79,13 @@ export async function createScanPlan(
   const deferred = new Set(config.runtime.deferredTools);
 
   for (const adapter of adapters) {
+    // The caller's execution profile outranks repository configuration: a target's
+    // vibedoctor.yml cannot re-enable a tool the profile excludes.
+    const excludedByPolicy = policyExclusion(adapter.id);
+    if (excludedByPolicy) {
+      excluded.push({ id: adapter.id, state: "disabled", reason: excludedByPolicy });
+      continue;
+    }
     const disabled = disabledReason(adapter, config);
     if (disabled) {
       excluded.push({ id: adapter.id, state: "disabled", reason: `Turned off in config: ${disabled}.` });

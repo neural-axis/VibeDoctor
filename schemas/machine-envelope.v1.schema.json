@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/neuralaxis/vibedoctor/schemas/machine-envelope.v1.schema.json",
+  "title": "VibeDoctor machine envelope v1",
+  "description": "Output of `vibedoctor scan --report envelope`. See docs/machine-envelope.md. Additive fields keep the major version.",
+  "type": "object",
+  "required": ["schema", "schemaVersion", "producer", "run", "repository", "config", "execution", "gate", "report"],
+  "properties": {
+    "schema": { "const": "vibedoctor.machine-envelope" },
+    "schemaVersion": { "type": "string", "pattern": "^1\\.\\d+\\.\\d+$" },
+    "producer": {
+      "type": "object",
+      "required": ["name", "version"],
+      "properties": { "name": { "type": "string" }, "version": { "type": "string" } }
+    },
+    "run": {
+      "type": "object",
+      "required": ["id", "startedAt", "finishedAt", "mode", "profile", "network", "categories"],
+      "properties": {
+        "id": { "type": "string" },
+        "startedAt": { "type": "string", "format": "date-time" },
+        "finishedAt": { "type": "string", "format": "date-time" },
+        "mode": { "type": "string" },
+        "profile": { "enum": ["default", "static", "trusted"] },
+        "network": { "type": "boolean" },
+        "categories": { "type": ["array", "null"], "items": { "type": "string" } }
+      }
+    },
+    "repository": {
+      "type": "object",
+      "required": ["root", "source", "git"],
+      "properties": {
+        "root": { "type": "string" },
+        "source": {
+          "type": "object",
+          "required": ["algorithm", "value", "files", "truncated"],
+          "properties": {
+            "algorithm": { "const": "sha256-tree-v1" },
+            "value": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+            "files": { "type": "integer", "minimum": 0 },
+            "truncated": { "type": "boolean" }
+          }
+        },
+        "git": {
+          "type": "object",
+          "required": ["head", "dirty", "changedFiles"],
+          "properties": {
+            "head": { "type": ["string", "null"] },
+            "dirty": { "type": ["boolean", "null"] },
+            "changedFiles": { "type": ["integer", "null"] }
+          }
+        }
+      }
+    },
+    "config": {
+      "type": "object",
+      "required": ["path", "fingerprint"],
+      "properties": {
+        "path": { "type": ["string", "null"] },
+        "fingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "required": ["status"],
+      "properties": { "status": { "const": "completed" } }
+    },
+    "gate": {
+      "type": "object",
+      "required": ["exitCode", "status"],
+      "properties": {
+        "exitCode": { "enum": [0, 1, 2] },
+        "status": { "enum": ["pass", "fail", "incomplete"] }
+      }
+    },
+    "report": {
+      "type": "object",
+      "description": "The `scan --report json` document. Findings additionally carry `fingerprint`.",
+      "required": ["score", "completeness", "findings", "capabilityMatrix"],
+      "properties": {
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "source", "category", "severity", "title", "fingerprint"],
+            "properties": { "fingerprint": { "type": "string" } }
+          }
+        }
+      }
+    }
+  }
+}

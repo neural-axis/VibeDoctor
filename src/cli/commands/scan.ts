@@ -9,6 +9,9 @@ import { renderHtmlReport } from "../../reporters/html";
 import { renderAgentJson, renderAgentMarkdown } from "../../reporters/agent";
 import { ensureOutputArtifacts, getConfig } from "./shared";
 import { evaluateDpdpFailureGate, findingToGateCandidate } from "../../dpdp/gates";
+import { currentPolicy } from "../../core/executionPolicy";
+import { buildMachineEnvelope } from "../../integration/envelope";
+import { sourceFingerprint } from "../../integration/sourceFingerprint";
 
 export type ScanCommandResult = {
   output: string;
@@ -125,18 +128,37 @@ export async function runScanCommand(
     quick?: boolean;
     full?: boolean;
     category?: string;
-    report?: "terminal" | "json" | "html" | "agent" | "agent-json";
+    report?: "terminal" | "json" | "html" | "agent" | "agent-json" | "envelope";
+    /** Producer version recorded in the machine envelope. */
+    version?: string;
   }
 ): Promise<ScanCommandResult> {
   const mode = resolveScanMode(options);
-  const scan = await runScan(root, mode);
   const categories = parseFindingCategoryList(options.category);
+  const startedAt = new Date();
+  // Fingerprint the snapshot before tools run, so the envelope names exactly what was scanned.
+  const source = options.report === "envelope" ? await sourceFingerprint(root) : null;
+  const scan = await runScan(root, mode);
   const filteredScan = categories ? filterScanByCategories(scan, categories) : scan;
   const { config } = await getConfig(root);
   await ensureOutputArtifacts(root, config, filteredScan);
   const exitCode = determineExitCode(filteredScan, config);
 
   switch (options.report) {
+    case "envelope": {
+      const envelope = await buildMachineEnvelope({
+        scan: filteredScan,
+        config,
+        policy: currentPolicy(),
+        version: options.version ?? "unknown",
+        startedAt,
+        finishedAt: new Date(),
+        exitCode,
+        categories: categories ?? null,
+        source: source!
+      });
+      return { output: `${JSON.stringify(envelope)}\n`, exitCode };
+    }
     case "json":
       return { output: renderJsonReport(filteredScan), exitCode };
     case "html":
