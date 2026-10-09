@@ -1,5 +1,6 @@
 ---
 title: "How to Secure a Lovable App Before You Deploy It"
+seoTitle: "How to Secure a Lovable App Before You Deploy"
 description: "Lovable security checklist: Edge Functions, Secrets, Supabase RLS, auth, public previews, and what to scan after you export the repo."
 pubDate: 2026-08-14
 draft: false

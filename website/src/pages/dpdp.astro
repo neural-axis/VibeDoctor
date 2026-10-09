@@ -5,8 +5,8 @@ import { product, commands } from "../data/product";
 import { dpdpAreas, dpdpControlCount } from "../data/checks";
 import { withBase } from "../lib/paths";
 
-const title = `DPDP Checklist for Developers: Scan Your Code Against ${dpdpControlCount} Technical Controls`;
-const description = `Map the personal data in your codebase and check ${dpdpControlCount} DPDP Act technical controls: consent, logs, LLM prompts, retention, erasure, children's data. Free and local. Technical readiness, not legal certification.`;
+const title = `DPDP Checklist for Developers: ${dpdpControlCount} Controls, Checked in Code`;
+const description = `Check your code against ${dpdpControlCount} DPDP Act technical controls: consent, logs, LLM prompts, retention, erasure, children's data. Free, local, open source.`;
 
 const kinds = [
   { kind: "Deterministic", meaning: "A concrete pattern in the code decides the result, such as personal data in a log call." },

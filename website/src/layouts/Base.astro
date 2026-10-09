@@ -4,6 +4,7 @@ import Footer from "../components/Footer.astro";
 import { product, links } from "../data/product";
 import { withBase } from "../lib/paths";
 import "@fontsource-variable/instrument-sans";
+import sansLatin from "@fontsource-variable/instrument-sans/files/instrument-sans-latin-wght-normal.woff2?url";
 import "@fontsource/ibm-plex-mono/400.css";
 import "@fontsource/ibm-plex-mono/500.css";
 import "../styles/global.css";
@@ -14,6 +15,7 @@ interface Props {
   path?: string;
   ogType?: "website" | "article";
   jsonLd?: Record<string, unknown> | Record<string, unknown>[];
+  noindex?: boolean;
 }
 
 const {
@@ -21,11 +23,14 @@ const {
   description,
   path = Astro.url.pathname,
   ogType = "website",
-  jsonLd: jsonLdOverride
+  jsonLd: jsonLdOverride,
+  noindex = false
 } = Astro.props;
 const canonical = new URL(path, Astro.site);
 const ogImage = new URL(withBase("og.png"), Astro.site);
-const pageTitle = title.includes(product.name) ? title : `${title} · ${product.name}`;
+// Search results cut titles at about 60 characters; only add the brand suffix when it fits.
+const suffixed = `${title} · ${product.name}`;
+const pageTitle = title.includes(product.name) || suffixed.length > 60 ? title : suffixed;
 // Every page carries the same site, maker, and app nodes (linked by @id) plus its own page nodes.
 const home = new URL(withBase("/"), Astro.site).toString();
 const siteGraph = [
@@ -91,8 +96,10 @@ const jsonLd = JSON.stringify({
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="preload" href={sansLatin} as="font" type="font/woff2" crossorigin />
     <title>{pageTitle}</title>
     <meta name="description" content={description} />
+    {noindex && <meta name="robots" content="noindex" />}
     <meta name="theme-color" content="#F5F3ED" />
     <link rel="canonical" href={canonical} />
     <link rel="icon" href={withBase("favicon-32.png")} type="image/png" sizes="32x32" />

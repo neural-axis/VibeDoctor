@@ -6,10 +6,34 @@ import HeroScan from "../components/HeroScan.astro";
 import CodeSample from "../components/CodeSample.astro";
 import { product, commands, completeness, links, media } from "../data/product";
 import { checks, dpdpControlCount } from "../data/checks";
+import { faq } from "../data/faq";
 import { sortArticles } from "../lib/articles";
 import { withBase } from "../lib/paths";
 
 const articles = sortArticles(await getCollection("articles", ({ data }) => !data.draft)).slice(0, 3);
+
+const home = new URL(withBase("/"), Astro.site).toString();
+const title = `${product.name}: a health check for AI-written code`;
+const description =
+  "Free scanner for vibe-coded JS, TypeScript and Python apps: leaked keys, broken API routes, swallowed errors, vulnerable packages, PII leaks. Ranked fixes.";
+const jsonLd = [
+  {
+    "@type": "WebPage",
+    name: title,
+    description,
+    url: home,
+    isPartOf: { "@id": `${home}#website` },
+    about: { "@id": `${home}#app` }
+  },
+  {
+    "@type": "FAQPage",
+    mainEntity: faq.map((item) => ({
+      "@type": "Question",
+      name: item.q,
+      acceptedAnswer: { "@type": "Answer", text: item.a }
+    }))
+  }
+];
 
 const agents = [
   { name: "Cursor", files: ".cursor/rules and MCP config" },
@@ -19,11 +43,7 @@ const agents = [
 ];
 ---
 
-<Base
-  title={`${product.name}: a health check for AI-written code`}
-  description="Scan vibe-coded JavaScript, TypeScript and Python apps for leaked keys, swallowed errors, broken API routes, vulnerable packages and personal-data leaks. One local command, ranked fixes."
-  path={withBase("/")}
->
+<Base title={title} description={description} path={withBase("/")} jsonLd={jsonLd}>
   <div class="site-wrap folio">
     <HeroScan />
 
@@ -192,6 +212,23 @@ const agents = [
             <p style="margin-top:0.45rem">{state.meaning}</p>
             <p class="note" style="margin-top:0.35rem">{state.action}</p>
           </article>
+        ))}
+      </div>
+    </section>
+
+    <section class="section" id="faq" aria-labelledby="faq-title">
+      <div class="section-head split">
+        <div>
+          <p class="section-id">Questions</p>
+          <h2 id="faq-title">Before you run it.</h2>
+        </div>
+      </div>
+      <div class="faq">
+        {faq.map((item, index) => (
+          <details open={index < 2}>
+            <summary><h3>{item.q}</h3></summary>
+            <p>{item.a}</p>
+          </details>
         ))}
       </div>
     </section>

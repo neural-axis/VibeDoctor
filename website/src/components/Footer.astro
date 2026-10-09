@@ -10,10 +10,12 @@ const year = new Date().getUTCFullYear();
     <div>
       <img
         class="footer-mark"
-        src={withBase("logo-portrait.png")}
+        src={withBase("logo-portrait.webp")}
         alt={`${product.name}, a ${product.maker} product`}
         width="220"
         height="161"
+        loading="lazy"
+        decoding="async"
       />
       <p class="muted" style="margin-top:0.75rem">
         {product.tagline} For JavaScript, TypeScript, Python, and mixed repositories.

@@ -540,9 +540,9 @@ const { fixNext, code, findings, blockers } = heroDiagnosis;
 
   /* ---------- Motion. Only applies when the head script opted in. ---------- */
 
+  /* Transform only: the headline is the page's largest paint, so it must be visible from frame one. */
   :global(.hs-motion) .h-word {
-    opacity: 0;
-    transform: translateY(0.35em);
+    transform: translateY(0.3em);
     animation: hs-rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
   }
 
@@ -557,7 +557,6 @@ const { fixNext, code, findings, blockers } = heroDiagnosis;
 
   @keyframes hs-rise {
     to {
-      opacity: 1;
       transform: none;
     }
   }
@@ -623,7 +622,7 @@ const { fixNext, code, findings, blockers } = heroDiagnosis;
   }
 
   :global(.hs-motion) .hs-line {
-    opacity: 0.38;
+    color: var(--muted);
   }
 
   :global(.hs-motion) .hs-line.is-hit {
@@ -637,8 +636,7 @@ const { fixNext, code, findings, blockers } = heroDiagnosis;
 
   :global(.hs-motion) .hs[data-state="scan"] .hs-line,
   :global(.hs-motion) .hs[data-state="done"] .hs-line {
-    opacity: 1;
-    transition: opacity 0.3s ease;
+    color: var(--ink);
   }
 
   :global(.hs-motion) .hs-line.is-hit.on {

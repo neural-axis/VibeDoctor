@@ -1,5 +1,6 @@
 ---
 title: "10 Security Mistakes AI Coding Agents Commonly Make"
+seoTitle: "10 Security Mistakes AI Coding Agents Make"
 description: "Ten AI coding security risks you’ll see in Cursor, Claude Code, Lovable, Bolt, Replit, and v0 — and how to catch them before production."
 pubDate: 2026-08-14
 draft: false

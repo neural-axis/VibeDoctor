@@ -1,5 +1,6 @@
 ---
 title: "Cursor Security Risks: What to Check in AI-Generated Code"
+seoTitle: "Cursor Security Risks: What to Check in AI Code"
 description: "Cursor AI security is the gap between code that compiles and code that is safe to ship: accepted diffs, .env in context, MCP, and leftovers."
 pubDate: 2026-08-14
 draft: false

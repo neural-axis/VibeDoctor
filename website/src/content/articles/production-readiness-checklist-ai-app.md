@@ -1,5 +1,6 @@
 ---
 title: "Your AI App Works. But Is It Production Ready? A Pre-Launch Checklist"
+seoTitle: "Production Readiness Checklist for AI-Built Apps"
 description: "A production readiness checklist for AI-built apps: security, headers, auth, dependencies, accessibility, performance, and a final local scan."
 pubDate: 2026-08-14
 draft: false

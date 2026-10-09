@@ -35,9 +35,9 @@ export const checks: Check[] = [
   {
     slug: "leaked-api-keys",
     name: "Leaked API keys",
-    seoTitle: "Find Leaked API Keys in AI-Generated Code Before You Push",
+    seoTitle: "Find Leaked API Keys in AI-Generated Code",
     description:
-      "AI coding tools paste keys inline to make the demo work. VibeDoctor runs gitleaks locally, checks whether each match looks like a real credential, and ranks it first.",
+      "AI coding tools paste keys inline to make a demo work. VibeDoctor runs gitleaks locally, flags which matches look like real credentials, and ranks them first.",
     h1: "Find the API keys your AI pasted into the code.",
     lede:
       "To make a demo work, an assistant will happily write the token straight into a config file. It compiles, it deploys, and now it is in git history.",
@@ -85,7 +85,7 @@ export const checks: Check[] = [
   {
     slug: "broken-api-routes",
     name: "Broken API routes",
-    seoTitle: "Broken API Routes in AI-Built Apps: Frontend Calls Your Backend Doesn't Answer",
+    seoTitle: "Find Broken API Routes in AI-Built Apps",
     description:
       "Flow Doctor matches your frontend fetch and axios calls against your backend routes and flags wrong methods and routes wired to handlers that do not exist.",
     h1: "Catch frontend calls your backend does not answer.",
@@ -144,7 +144,7 @@ export const checks: Check[] = [
   {
     slug: "swallowed-errors",
     name: "Errors returned as success",
-    seoTitle: "Swallowed Errors in AI-Generated Code: When Failures Return Success",
+    seoTitle: "Swallowed Errors and Fake Success in AI-Generated Code",
     description:
       "AI-written handlers often catch a failure and return { ok: true } anyway. VibeDoctor finds empty catch blocks and success responses sent after a caught error.",
     h1: "Find the errors your app reports as success.",
@@ -196,7 +196,7 @@ export const checks: Check[] = [
   {
     slug: "pii-in-llm-prompts",
     name: "Personal data in LLM prompts",
-    seoTitle: "Personal Data in LLM Prompts and Logs: Check Your AI App's Code",
+    seoTitle: "Personal Data in LLM Prompts and Logs: Find It in Code",
     description:
       "VibeDoctor flags code that puts emails, phone numbers and other personal data into OpenAI or Anthropic prompts, embeddings, vector stores, and application logs.",
     h1: "See where personal data reaches your LLM prompts and logs.",
@@ -267,9 +267,9 @@ export const checks: Check[] = [
   {
     slug: "vulnerable-packages",
     name: "Vulnerable packages",
-    seoTitle: "Vulnerable npm and PyPI Packages in AI-Built Apps: Check Your Lockfile",
+    seoTitle: "Find Vulnerable npm and PyPI Packages in AI-Built Apps",
     description:
-      "AI assistants add dependencies freely and pin versions from their training data. VibeDoctor checks your lockfile for known vulnerabilities and finds unused and missing packages.",
+      "AI assistants add packages freely and pin versions from training data. VibeDoctor checks your lockfile for known vulnerabilities and finds unused packages.",
     h1: "Check the packages your AI added for known holes.",
     lede:
       "Assistants add a package for every problem and pin the version they remember from training. Some of those versions have published vulnerabilities.",
@@ -319,7 +319,7 @@ export const checks: Check[] = [
   {
     slug: "ai-leftovers",
     name: "AI leftovers and dead code",
-    seoTitle: "AI Code Leftovers: Stale TODOs, Dead Code and Half-Removed Features",
+    seoTitle: "AI Code Leftovers: Stale TODOs and Dead Code",
     description:
       "Every prompt adds code; few remove it. VibeDoctor finds legacy fallbacks, commented-out code, stale flags, and isolated files nothing imports.",
     h1: "Clear out what the AI left behind.",

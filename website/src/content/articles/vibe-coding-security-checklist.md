@@ -1,5 +1,6 @@
 ---
 title: "Vibe Coding Security Checklist: 15 Things to Check Before You Ship"
+seoTitle: "Vibe Coding Security Checklist: 15 Checks Before You Ship"
 description: "A vibe coding security checklist for the hour before you deploy an AI-built app: secrets, auth, RLS, APIs, leftovers, and a local scan."
 pubDate: 2026-08-14
 draft: false

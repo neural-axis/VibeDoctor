@@ -1,5 +1,6 @@
 ---
 title: "How API Keys and Secrets Get Exposed in AI-Generated Apps"
+seoTitle: "How API Keys Get Exposed in AI-Generated Apps"
 description: "How an exposed API key happens in AI-generated code: .env in git, VITE_ prefixes, frontend bundles, chat logs, and what to rotate first."
 pubDate: 2026-08-14
 draft: false

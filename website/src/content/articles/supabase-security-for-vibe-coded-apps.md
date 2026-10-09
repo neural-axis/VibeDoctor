@@ -1,5 +1,6 @@
 ---
 title: "Supabase Security for Vibe-Coded Apps: RLS, Auth and the Mistakes That Matter"
+seoTitle: "Supabase Security for Vibe-Coded Apps: RLS and Auth"
 description: "Supabase RLS security for AI-built apps: anon vs service_role, policies that lie, storage, Edge Functions, and the tests that catch them."
 pubDate: 2026-08-14
 draft: false

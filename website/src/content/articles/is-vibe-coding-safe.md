@@ -1,5 +1,6 @@
 ---
 title: "Is Vibe Coding Safe? The Security Risks Nobody Notices Until Production"
+seoTitle: "Is Vibe Coding Safe? The Security Risks to Check"
 description: "Is vibe coding safe? The security risks in AI-built apps are not sci-fi. They are missing auth, open RLS, and secrets that only show up in production."
 pubDate: 2026-08-14
 draft: false

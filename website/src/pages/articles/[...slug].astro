@@ -93,7 +93,7 @@ const jsonLd = {
 ---
 
 <Base
-  title={post.data.title}
+  title={post.data.seoTitle ?? post.data.title}
   description={post.data.description}
   path={canonicalPath}
   ogType="article"

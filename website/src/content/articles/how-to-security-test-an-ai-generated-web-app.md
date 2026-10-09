@@ -1,5 +1,6 @@
 ---
 title: "How to Security-Test an AI-Generated Web App Before Launch"
+seoTitle: "How to Security-Test an AI-Generated Web App"
 description: "A practical website security test for AI-generated apps: export the repo, abuse the API, check secrets, then run a local VibeDoctor scan."
 pubDate: 2026-08-14
 draft: false
