@@ -3,6 +3,7 @@ import { getCollection, render } from "astro:content";
 import Base from "../../layouts/Base.astro";
 import Command from "../../components/Command.astro";
 import { product, commands } from "../../data/product";
+import { checksForArticle } from "../../data/checks";
 import { withBase } from "../../lib/paths";
 import {
   fileNumber,
@@ -32,6 +33,7 @@ const stage = stageMeta(post.data.stage);
 const minutes = readingMinutes(post.body ?? post.data.description);
 const { prev, next } = neighbors(published, post.id);
 const filed = formatFiled(post.data.pubDate);
+const catching = checksForArticle(post.id);
 
 const canonicalPath = withBase(`/articles/${post.id}/`);
 const canonical = new URL(canonicalPath, Astro.site);
@@ -172,6 +174,20 @@ const jsonLd = {
         are still sitting in the tree.
       </p>
       <Command command={commands.scanFull} />
+      {
+        catching.length > 0 && (
+          <ul class="check-links">
+            {catching.map((check) => (
+              <li>
+                <a href={withBase(`/checks/${check.slug}/`)}>
+                  <strong>{check.name}</strong>
+                  <span>{check.teaser}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        )
+      }
       <p class="note">
         Run that before opening another note.
         <a href={withBase("/how-it-works/")}>How a scan is scored</a>

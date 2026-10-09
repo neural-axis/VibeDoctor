@@ -1,0 +1,21 @@
+---
+import type { CodeFile } from "../data/checks";
+
+interface Props {
+  files: CodeFile[];
+  compact?: boolean;
+}
+
+const { files, compact = false } = Astro.props;
+---
+
+<div class:list={["code-sample", { "is-compact": compact }]}>
+  {files.map((file) => (
+    <figure>
+      <figcaption>{file.file}</figcaption>
+      <pre><code>{file.lines.map((line) => (
+        <span class:list={["cs-line", { "is-hit": line.hit }]}><span class="cs-n" aria-hidden="true">{line.n > 0 ? line.n : ""}</span>{line.text}</span>
+      ))}</code></pre>
+    </figure>
+  ))}
+</div>

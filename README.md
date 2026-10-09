@@ -4,10 +4,12 @@
   <img src="website/public/logo-lockup.png" alt="VibeDoctor, a NeuralAxis product" width="360" />
 </p>
 
-**A local health check for code you did not write line by line.**
+**A health check for AI-written code. Your AI says it's done. Is it?**
 **Give VibeDoctor a repository. It figures out what applies, runs the diagnosis, and tells you or your coding agent what to fix first.**
 
-VibeDoctor scans JavaScript, TypeScript, Python, and mixed repositories for code-health, security, privacy, testing, and maintainability problems. It combines engine output into one ranked report, one normalized finding format, and a fix-next plan that humans and coding agents can use without interpreting a wall of unrelated logs.
+Website: **[vibedoctor.in](https://vibedoctor.in/)** · [What it checks](https://vibedoctor.in/checks/) · [DPDP readiness scan](https://vibedoctor.in/dpdp/)
+
+VibeDoctor scans vibe-coded JavaScript, TypeScript, Python, and mixed repositories for leaked keys, broken API routes, swallowed errors, vulnerable packages, personal data in logs and LLM prompts, and the usual code-health, testing, and maintainability problems. Works with Cursor, Claude Code, Codex, and GitHub Copilot. It combines engine output into one ranked report, one normalized finding format, and a fix-next plan that humans and coding agents can use without interpreting a wall of unrelated logs.
 
 ```bash
 npx @neuralaxis/vibedoctor scan
@@ -15,7 +17,7 @@ npx @neuralaxis/vibedoctor scan
 
 That is the default path: full applicable diagnosis, local by default. Missing or failed scanners are reported as incomplete evidence, never silently counted as a clean result.
 
-The public product site lives in [`website/`](website/README.md) and deploys from GitHub Pages.
+The public product site, [vibedoctor.in](https://vibedoctor.in/), lives in [`website/`](website/README.md) and deploys from GitHub Pages.
 
 ## Start here
 

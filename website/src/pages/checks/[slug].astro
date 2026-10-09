@@ -1,0 +1,194 @@
+---
+import { getCollection } from "astro:content";
+import Base from "../../layouts/Base.astro";
+import Command from "../../components/Command.astro";
+import CodeSample from "../../components/CodeSample.astro";
+import { product, commands } from "../../data/product";
+import { checks, type Check } from "../../data/checks";
+import { withBase } from "../../lib/paths";
+
+export function getStaticPaths() {
+  return checks.map((check) => ({ params: { slug: check.slug }, props: { check } }));
+}
+
+const { check } = Astro.props as { check: Check };
+const published = await getCollection("articles", ({ data }) => !data.draft);
+const articles = check.articles
+  .map((id) => published.find((entry) => entry.id === id))
+  .filter((entry): entry is (typeof published)[number] => Boolean(entry));
+const others = checks.filter((other) => other.slug !== check.slug);
+
+const path = withBase(`/checks/${check.slug}/`);
+const url = (href: string) => new URL(withBase(href), Astro.site).toString();
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebPage",
+      name: check.seoTitle,
+      description: check.description,
+      url: url(`/checks/${check.slug}/`),
+      about: { "@id": `${url("/")}#app` },
+      isPartOf: { "@id": `${url("/")}#website` }
+    },
+    {
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: product.name, item: url("/") },
+        { "@type": "ListItem", position: 2, name: "Checks", item: url("/checks/") },
+        { "@type": "ListItem", position: 3, name: check.name, item: url(`/checks/${check.slug}/`) }
+      ]
+    }
+  ]
+};
+---
+
+<Base title={check.seoTitle} description={check.description} path={path} jsonLd={jsonLd}>
+  <div class="site-wrap folio check-page">
+    <header class="page-hero">
+      <div>
+        <nav class="article-crumbs" aria-label="Breadcrumb" style="margin-bottom:0.9rem">
+          <a href={withBase("/checks/")}>Checks</a>
+          <span aria-hidden="true">/</span>
+          <span>{check.name}</span>
+        </nav>
+        <h1>{check.h1}</h1>
+      </div>
+      <div class="stack">
+        <p class="lede">{check.lede}</p>
+        <Command command={commands.scan} />
+      </div>
+    </header>
+
+    <section class="section" aria-labelledby="looks-h">
+      <div class="section-head split">
+        <div>
+          <p class="section-id">What it looks like</p>
+          <h2 id="looks-h">It compiles. It ships. It’s wrong.</h2>
+        </div>
+        <div class="prose">
+          {check.why.map((paragraph) => <p>{paragraph}</p>)}
+        </div>
+      </div>
+      <CodeSample files={check.example} />
+      <p class="note" style="margin-top:0.75rem">Example: {check.exampleSource}</p>
+    </section>
+
+    <section class="section" aria-labelledby="reports-h">
+      <div class="section-head split">
+        <div>
+          <p class="section-id">What {product.name} reports</p>
+          <h2 id="reports-h">A ranked finding with the exact location.</h2>
+        </div>
+        {
+          check.understands && (
+            <div class="prose">
+              <ul>
+                {check.understands.map((item) => <li>{item}</li>)}
+              </ul>
+            </div>
+          )
+        }
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Finding</th><th>Severity</th><th>Evidence</th><th>From</th></tr>
+          </thead>
+          <tbody>
+            {check.reports.map((row) => (
+              <tr>
+                <td>
+                  <strong style="font-weight:560">{row.title}</strong>
+                  <div class="note" style="margin-top:0.2rem">{row.note}</div>
+                </td>
+                <td class="mono">{row.severity}</td>
+                <td class="mono">{row.grade}</td>
+                <td class="mono">{row.source}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p class="note" style="margin-top:0.75rem">
+        Evidence grades say how sure the finding is.
+        <a href={withBase("/how-it-works/")}>What verified, observed and heuristic mean →</a>
+      </p>
+    </section>
+
+    <section class="section" aria-labelledby="fix-h">
+      <div class="compare">
+        <article>
+          <p class="kicker"><span>How to fix it</span></p>
+          <ol class="fix-list">
+            {check.fix.map((step) => <li>{step}</li>)}
+          </ol>
+        </article>
+        <article>
+          <p class="kicker"><span>What this check can’t see</span></p>
+          <ul>
+            {check.misses.map((item) => <li>{item}</li>)}
+          </ul>
+        </article>
+      </div>
+      <h2 id="fix-h" class="visually-hidden">Fixing it, and the limits of this check</h2>
+    </section>
+
+    <section class="section" aria-labelledby="run-h">
+      <p class="section-id">Run it</p>
+      <h2 id="run-h">Check your repo now.</h2>
+      <div class="stack" style="margin-top:1.25rem">
+        <Command command={commands.scan} />
+        <p class="note">
+          Runs locally on JavaScript, TypeScript and Python repos. Hand the result to Cursor,
+          Claude Code, Codex or Copilot with <code>agent-plan</code>.
+          <a href={withBase("/agents/")}>Agent setup →</a>
+        </p>
+      </div>
+    </section>
+
+    {
+      articles.length > 0 && (
+        <nav class="section" aria-labelledby="read-h">
+          <p class="section-id">Read more</p>
+          <h2 id="read-h">Related articles.</h2>
+          <ol class="article-docket article-docket-compact" style="margin-top:1.25rem">
+            {articles.map((entry) => (
+              <li>
+                <a class="article-row" href={withBase(`/articles/${entry.id}/`)}>
+                  <span class="article-row-no" aria-hidden="true">→</span>
+                  <span class="article-row-copy">
+                    <span class="article-row-title">{entry.data.title}</span>
+                    <span class="article-row-summary">{entry.data.description}</span>
+                  </span>
+                  <span class="article-row-go" aria-hidden="true">Read</span>
+                </a>
+              </li>
+            ))}
+          </ol>
+        </nav>
+      )
+    }
+
+    <nav class="section" aria-labelledby="other-h">
+      <p class="section-id">Other checks</p>
+      <h2 id="other-h">What else the same scan finds.</h2>
+      <ul class="check-links">
+        {others.map((other) => (
+          <li>
+            <a href={withBase(`/checks/${other.slug}/`)}>
+              <strong>{other.name}</strong>
+              <span>{other.teaser}</span>
+            </a>
+          </li>
+        ))}
+        <li>
+          <a href={withBase("/dpdp/")}>
+            <strong>DPDP technical readiness</strong>
+            <span>India’s DPDP Act, checked against your code.</span>
+          </a>
+        </li>
+      </ul>
+    </nav>
+  </div>
+</Base>

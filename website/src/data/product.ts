@@ -1,18 +1,48 @@
 /**
  * Verified product facts for the marketing site.
- * Sourced from package.json, README, CLI --help, and src/ as of @neuralaxis/vibedoctor@0.2.1.
- * Do not invent capabilities here.
+ * Sourced from package.json, README, CLI --help, and src/. Do not invent capabilities here.
  */
+
+// The version is read from the CLI's own package.json so the site cannot drift behind a release.
+import cliPackage from "../../../package.json";
+import { dpdpControlCount } from "./checks";
 
 export const product = {
   name: "VibeDoctor",
   package: "@neuralaxis/vibedoctor",
-  version: "0.2.1",
+  version: cliPackage.version,
   license: "GPL-3.0-or-later",
-  tagline: "Give VibeDoctor a repository. It figures out what applies, runs the diagnosis, and tells you or your coding agent what to fix first.",
+  tagline: "A health check for AI-written code. It finds what your coding agent missed and tells you, or the agent, what to fix first.",
   cliTagline: "Brutally simple repo health diagnosis.",
   description:
     "Health diagnosis and fix planning for JS, TS, Python, and mixed repositories.",
+  seoDescription:
+    "A free, local health check for AI-written code. Scans vibe-coded JavaScript, TypeScript and Python apps for leaked keys, swallowed errors, broken API routes, vulnerable packages and personal-data leaks, then ranks what to fix first.",
+  features: [
+    "Leaked API key and secret detection",
+    "Frontend-to-backend route checks (Flow Doctor)",
+    "Swallowed errors and success returned after a failure",
+    "Personal data in LLM prompts and application logs",
+    "Known-vulnerable npm and PyPI packages",
+    "AI leftovers and dead code",
+    `DPDP Act technical readiness scan (${dpdpControlCount} controls)`,
+    "Agent instructions for Cursor, Claude Code, Codex and GitHub Copilot",
+    "MCP server"
+  ],
+  keywords: [
+    "vibe coding security",
+    "AI-generated code scanner",
+    "secret scanning",
+    "API route checks",
+    "PII in LLM prompts",
+    "DPDP checklist",
+    "Cursor",
+    "Claude Code",
+    "Codex",
+    "GitHub Copilot",
+    "Lovable",
+    "Bolt.new"
+  ],
   maker: "NeuralAxis",
   productIndex: "01",
   node: ">=18"
@@ -339,8 +369,17 @@ export const artifacts = [
 ] as const;
 
 export const nav = [
-  { href: "/how-it-works/", label: "How it works" },
+  { href: "/checks/", label: "Checks" },
+  { href: "/dpdp/", label: "DPDP" },
   { href: "/agents/", label: "Agents" },
-  { href: "/privacy/", label: "Privacy" },
+  { href: "/how-it-works/", label: "How it works" },
   { href: "/articles/", label: "Articles" }
 ] as const;
+
+/**
+ * Optional homepage video. Put the file in public/ (e.g. public/media/hook.mp4 plus a poster)
+ * and set the paths here; the Watch section renders only when `video` is set.
+ */
+export const media: { video?: string; poster?: string; videoTitle: string } = {
+  videoTitle: "Your AI says it’s done. Is it?"
+};

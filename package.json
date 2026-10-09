@@ -33,7 +33,14 @@
     "cli",
     "static-analysis",
     "technical-debt",
-    "agent-tools"
+    "agent-tools",
+    "vibe-coding",
+    "ai-generated-code",
+    "security",
+    "secrets",
+    "privacy",
+    "dpdp",
+    "mcp"
   ],
   "scripts": {
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",

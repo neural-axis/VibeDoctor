@@ -14,7 +14,7 @@ Built the public VibeDoctor marketing site as a static Astro 5 project under `we
 
 Taken from `package.json`, README, CLI `--help`, `src/core/finding.ts`, `src/core/toolRegistry.ts`, `src/mcp/tools`, `src/agentPack`, and `tests/snapshots/`:
 
-- Package `@neuralaxis/vibedoctor@0.2.1`, Node `>=18`, license GPL-3.0-or-later.
+- Package `@neuralaxis/vibedoctor` (version read from the root `package.json` at build time), Node `>=18`, license GPL-3.0-or-later.
 - Languages: JavaScript, TypeScript, Python, mixed repositories.
 - Commands: `init`, `setup` / `--apply`, `scan --changed|--quick|--full`, `report`, `fix --safe`, `verify`, `explain`, `agent-plan`, `agent init|doctor|plugin`, `privacy-review`, `dpdp *`, `mcp`, `tool retry`, `baseline create`.
 - Completeness states COMPLETE / PARTIAL / INVALID and exit codes 0 / 1 / 2.

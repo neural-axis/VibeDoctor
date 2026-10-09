@@ -1,7 +1,7 @@
 ---
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
-import { product } from "../data/product";
+import { product, links } from "../data/product";
 import { withBase } from "../lib/paths";
 import "@fontsource-variable/instrument-sans";
 import "@fontsource/ibm-plex-mono/400.css";
@@ -26,30 +26,64 @@ const {
 const canonical = new URL(path, Astro.site);
 const ogImage = new URL(withBase("og.png"), Astro.site);
 const pageTitle = title.includes(product.name) ? title : `${title} · ${product.name}`;
-const defaultJsonLd = {
-  "@context": "https://schema.org",
-  "@type": "SoftwareApplication",
-  name: product.name,
-  applicationCategory: "DeveloperApplication",
-  operatingSystem: "Windows, macOS, Linux",
-  softwareVersion: product.version,
-  license: "https://www.gnu.org/licenses/gpl-3.0.html",
-  description,
-  url: canonical.toString(),
-  author: {
+// Every page carries the same site, maker, and app nodes (linked by @id) plus its own page nodes.
+const home = new URL(withBase("/"), Astro.site).toString();
+const siteGraph = [
+  {
     "@type": "Organization",
+    "@id": `${home}#org`,
     name: product.maker,
-    url: "https://neuralaxis.ai"
+    url: links.neuralaxis,
+    logo: new URL(withBase("logo-icon.png"), Astro.site).toString()
   },
-  image: ogImage.toString(),
-  logo: new URL(withBase("logo-lockup.png"), Astro.site).toString(),
-  offers: {
-    "@type": "Offer",
-    price: "0",
-    priceCurrency: "USD"
+  {
+    "@type": "WebSite",
+    "@id": `${home}#website`,
+    name: product.name,
+    url: home,
+    publisher: { "@id": `${home}#org` }
+  },
+  {
+    "@type": "SoftwareApplication",
+    "@id": `${home}#app`,
+    name: product.name,
+    description: product.seoDescription,
+    url: home,
+    applicationCategory: "DeveloperApplication",
+    applicationSubCategory: "Code security and quality scanner",
+    operatingSystem: "Windows, macOS, Linux",
+    softwareRequirements: `Node.js ${product.node}`,
+    softwareVersion: product.version,
+    license: "https://www.gnu.org/licenses/gpl-3.0.html",
+    isAccessibleForFree: true,
+    offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+    downloadUrl: links.npm,
+    image: ogImage.toString(),
+    featureList: product.features,
+    keywords: product.keywords.join(", "),
+    author: { "@id": `${home}#org` },
+    publisher: { "@id": `${home}#org` },
+    sameAs: [links.github, links.npm]
   }
-};
-const jsonLd = JSON.stringify(jsonLdOverride ?? defaultJsonLd);
+];
+const ownNodes = jsonLdOverride
+  ? (Array.isArray(jsonLdOverride) ? jsonLdOverride : [jsonLdOverride]).flatMap((node) =>
+      Array.isArray(node["@graph"]) ? (node["@graph"] as Record<string, unknown>[]) : [node]
+    )
+  : [
+      {
+        "@type": "WebPage",
+        name: pageTitle,
+        description,
+        url: canonical.toString(),
+        isPartOf: { "@id": `${home}#website` },
+        about: { "@id": `${home}#app` }
+      }
+    ];
+const jsonLd = JSON.stringify({
+  "@context": "https://schema.org",
+  "@graph": [...siteGraph, ...ownNodes.map(({ "@context": _context, ...node }) => node)]
+});
 ---
 
 <!doctype html>

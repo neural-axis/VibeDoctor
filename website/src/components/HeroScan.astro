@@ -1,0 +1,798 @@
+---
+/**
+ * Homepage hero. The panel replays a real `vibedoctor scan` of a demo app built from
+ * fixtures/ (see heroDiagnosis). The HTML is the finished state, so crawlers, no-JS,
+ * and reduced-motion visitors get the full result; the script only animates toward it.
+ */
+import Command from "./Command.astro";
+import { commands } from "../data/product";
+import { heroDiagnosis } from "../data/checks";
+import { withBase } from "../lib/paths";
+
+const claim = "Done ✓ Your app is ready to ship.";
+const { fixNext, code, findings, blockers } = heroDiagnosis;
+---
+
+<script is:inline>
+  (function () {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    var root = document.documentElement;
+    root.classList.add("hs-motion");
+    // If the animation script never runs, show the finished state rather than an empty panel.
+    window.setTimeout(function () {
+      if (!root.classList.contains("hs-started")) root.classList.remove("hs-motion");
+    }, 2500);
+  })();
+</script>
+
+<section class="hero" aria-labelledby="hero-title" data-hero>
+  <div class="hero-copy">
+    <p class="kicker">
+      <span>Health check for AI-written code</span>
+      <span>Free · Open source · Runs locally</span>
+    </p>
+    <h1 id="hero-title">
+      <span class="h-line"><span class="h-word">Your</span> <span class="h-word">AI</span> <span class="h-word">says</span> <span class="h-word">it’s</span> <span class="h-word done">done<span class="strike" aria-hidden="true"></span></span><span class="h-word">.</span></span>
+      <span class="h-line h-ask"><span class="h-word">Is</span> <span class="h-word">it?</span></span>
+    </h1>
+    <p class="lede">
+      VibeDoctor scans vibe-coded JavaScript, TypeScript and Python apps for leaked keys,
+      broken API routes, swallowed errors, vulnerable packages, and personal data leaking
+      into logs and LLM prompts. Then it tells you, or your coding agent, what to fix first.
+    </p>
+    <Command command={commands.scan} />
+    <p class="works">
+      Works with <strong>Cursor</strong>, <strong>Claude Code</strong>, <strong>Codex</strong> and
+      <strong>GitHub Copilot</strong>. Scan apps from <strong>Lovable</strong> and
+      <strong>Bolt.new</strong> once the code is in a repo.
+    </p>
+  </div>
+
+  <figure class="hs" data-hs>
+    <div class="hs-claim" aria-hidden="true">
+      <span class="hs-avatar">AI</span>
+      <p class="hs-bubble"><span data-type={claim}>{claim}</span></p>
+    </div>
+
+    <div class="hs-panel">
+      <div class="hs-bar">
+        <span>Diagnosis</span>
+        <svg class="hs-ekg" viewBox="0 0 120 20" preserveAspectRatio="none" aria-hidden="true">
+          <polyline points="0,10 30,10 36,10 40,3 44,17 48,10 70,10 76,10 80,1 84,19 88,10 120,10" />
+        </svg>
+        <span class="hs-status"><span data-phase-label>Not done</span></span>
+      </div>
+
+      <p class="hs-term" aria-hidden="true">
+        <span class="hs-prompt">$</span>
+        <span data-type="npx @neuralaxis/vibedoctor scan">npx @neuralaxis/vibedoctor scan</span><span class="hs-caret"></span>
+      </p>
+
+      <div class="hs-code" aria-hidden="true">
+        <ol>
+          {code.map((line) => (
+            <li class:list={["hs-line", { "is-hit": line.hit >= 0 }]} data-hit={line.hit}>
+              <span class="hs-file">{line.file}:{line.n}</span>
+              <code>{line.text}</code>
+            </li>
+          ))}
+        </ol>
+        <span class="hs-sweep"></span>
+      </div>
+
+      <div class="hs-fix">
+        <p class="hs-fix-head">
+          <span>Fix next</span>
+          <span><b data-count={findings}>{findings}</b> findings · <b data-count={blockers}>{blockers}</b> blockers</span>
+        </p>
+        <ol>
+          {fixNext.map((row, index) => (
+            <li class="hs-row" data-row={index}>
+              <span class:list={["sev", `sev-${row.severity}`]}>{row.severity}</span>
+              <a href={withBase(`/checks/${row.check}/`)}>{row.title}</a>
+              <span class="hs-where">{row.where}</span>
+            </li>
+          ))}
+        </ol>
+      </div>
+
+      <div class="hs-stamp" aria-hidden="true">
+        <span>Not done</span>
+        <small>{blockers} blockers</small>
+      </div>
+    </div>
+
+    <figcaption>
+      <span>Real <code>vibedoctor scan</code> output on a demo app built from our test fixtures.</span>
+      <button type="button" class="hs-replay" data-replay>Replay</button>
+    </figcaption>
+  </figure>
+</section>
+
+<style>
+  .hero {
+    padding-top: clamp(1.75rem, 4vw, 3rem);
+    padding-bottom: clamp(2.5rem, 6vw, 4rem);
+    display: grid;
+    gap: 2.5rem;
+  }
+
+  @media (min-width: 960px) {
+    .hero {
+      grid-template-columns: minmax(0, 1fr) minmax(24rem, 0.95fr);
+      align-items: center;
+      gap: 3rem;
+    }
+  }
+
+  .hero-copy {
+    display: grid;
+    gap: 1.25rem;
+    align-content: start;
+  }
+
+  h1 {
+    max-width: none;
+    font-size: clamp(2.6rem, 6.4vw, 4.6rem);
+    line-height: 1;
+  }
+
+  .h-line {
+    display: block;
+  }
+
+  .h-word {
+    display: inline-block;
+  }
+
+  .h-ask {
+    color: var(--accent-ink);
+    margin-top: 0.08em;
+  }
+
+  .done {
+    position: relative;
+  }
+
+  .strike {
+    position: absolute;
+    left: -0.06em;
+    right: -0.06em;
+    top: 54%;
+    height: 0.09em;
+    background: var(--accent);
+    transform-origin: left center;
+    transform: scaleX(0);
+  }
+
+  .hero[data-verdict] .strike,
+  :global(html:not(.hs-motion)) .strike {
+    transform: scaleX(1);
+  }
+
+  .hero[data-verdict] .done {
+    color: var(--muted);
+  }
+
+  .lede {
+    max-width: 44ch;
+  }
+
+  .works {
+    font-size: 0.92rem;
+    color: var(--muted);
+    max-width: 50ch;
+  }
+
+  .works strong {
+    color: var(--ink);
+    font-weight: 560;
+  }
+
+  /* Panel */
+  .hs {
+    margin: 0;
+    position: relative;
+    padding-top: 2.4rem;
+    min-width: 0;
+  }
+
+  .hs-claim {
+    position: absolute;
+    top: 0;
+    left: -0.5rem;
+    z-index: 3;
+    display: flex;
+    align-items: flex-end;
+    gap: 0.5rem;
+    max-width: calc(100% - 1rem);
+  }
+
+  .hs-avatar {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    background: var(--ink);
+    color: var(--paper);
+    font-family: var(--mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.08em;
+  }
+
+  .hs-bubble {
+    background: var(--ink);
+    color: var(--paper);
+    padding: 0.55rem 0.8rem;
+    border-radius: 14px 14px 14px 3px;
+    font-size: 0.92rem;
+    line-height: 1.3;
+    box-shadow: 0 10px 24px -14px rgb(23 23 23 / 0.6);
+    min-height: 2.2rem;
+  }
+
+  .hs-panel {
+    position: relative;
+    border: 1px solid var(--ink);
+    background: #fffdf8;
+    box-shadow: 10px 10px 0 -1px var(--paper-3), 10px 10px 0 0 var(--rule-strong);
+    overflow: hidden;
+  }
+
+  .hs-bar {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--ink);
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .hs-ekg {
+    width: 100%;
+    height: 1.1rem;
+    overflow: visible;
+  }
+
+  .hs-ekg polyline {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 1.4;
+    vector-effect: non-scaling-stroke;
+    stroke-linejoin: round;
+  }
+
+  .hs-status {
+    color: var(--accent-ink);
+  }
+
+  .hs-term {
+    margin: 0;
+    max-width: none;
+    padding: 0.6rem 0.75rem;
+    font-family: var(--mono);
+    font-size: 0.74rem;
+    border-bottom: 1px solid var(--rule);
+    background: var(--paper-2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .hs-prompt {
+    color: var(--accent-ink);
+  }
+
+  .hs-caret {
+    display: inline-block;
+    width: 0.5em;
+    height: 1em;
+    margin-left: 2px;
+    vertical-align: -0.15em;
+    background: var(--ink);
+    opacity: 0;
+  }
+
+  .hs-code {
+    position: relative;
+    border-bottom: 1px solid var(--rule);
+    overflow: hidden;
+  }
+
+  .hs-code ol {
+    list-style: none;
+    margin: 0;
+    padding: 0.35rem 0;
+  }
+
+  .hs-line {
+    display: grid;
+    grid-template-columns: 6.6rem minmax(0, 1fr);
+    gap: 0.6rem;
+    margin: 0;
+    padding: 0.16rem 0.75rem;
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    line-height: 1.5;
+    position: relative;
+    transition: background-color 0.25s ease, color 0.25s ease;
+  }
+
+  .hs-line + .hs-line {
+    margin-top: 0;
+  }
+
+  .hs-line code {
+    font-size: inherit;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .hs-file {
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .hs-line.is-hit {
+    background: color-mix(in srgb, var(--accent) 11%, transparent);
+    box-shadow: inset 2px 0 0 var(--accent);
+  }
+
+  .hs-line.is-hit .hs-file {
+    color: var(--accent-ink);
+  }
+
+  .hs-sweep {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 2.4rem;
+    pointer-events: none;
+    background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--accent) 16%, transparent) 70%, var(--accent) 100%);
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+
+  .hs-fix-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    max-width: none;
+    padding: 0.55rem 0.75rem 0.4rem;
+    font-family: var(--mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .hs-fix-head b {
+    color: var(--accent-ink);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .hs-fix ol {
+    list-style: none;
+    margin: 0;
+    padding: 0 0 0.35rem;
+    counter-reset: fix;
+  }
+
+  .hs-row {
+    counter-increment: fix;
+    display: grid;
+    grid-template-columns: 1.3rem 4.4rem minmax(0, 1fr);
+    grid-template-areas: "n sev title" ". . where";
+    column-gap: 0.5rem;
+    align-items: baseline;
+    margin: 0;
+    padding: 0.42rem 0.75rem;
+    border-top: 1px solid var(--rule);
+    font-size: 0.86rem;
+    line-height: 1.25;
+  }
+
+  .hs-row::before {
+    grid-area: n;
+    content: counter(fix, decimal-leading-zero);
+    font-family: var(--mono);
+    font-size: 0.62rem;
+    color: var(--muted);
+  }
+
+  .hs-row a {
+    grid-area: title;
+    text-decoration: none;
+    font-weight: 540;
+  }
+
+  .hs-row a:hover {
+    text-decoration: underline;
+  }
+
+  .hs-where {
+    grid-area: where;
+    font-family: var(--mono);
+    font-size: 0.66rem;
+    color: var(--muted);
+  }
+
+  .sev {
+    grid-area: sev;
+    justify-self: start;
+    font-family: var(--mono);
+    font-size: 0.58rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.08rem 0.32rem;
+    border: 1px solid currentColor;
+  }
+
+  .sev-critical {
+    color: #fffdf8;
+    background: var(--accent-ink);
+    border-color: var(--accent-ink);
+  }
+
+  .sev-high {
+    color: var(--accent-ink);
+  }
+
+  .sev-medium {
+    color: var(--warn);
+  }
+
+  .hs-stamp {
+    position: absolute;
+    right: 1rem;
+    bottom: 6.4rem;
+    z-index: 2;
+    display: grid;
+    justify-items: center;
+    padding: 0.35rem 0.8rem 0.4rem;
+    border: 3px solid var(--accent);
+    color: var(--accent);
+    background: transparent;
+    font-family: var(--mono);
+    text-transform: uppercase;
+    transform: rotate(-9deg);
+    pointer-events: none;
+    mix-blend-mode: multiply;
+  }
+
+  .hs-stamp span {
+    font-size: 1.35rem;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    line-height: 1.1;
+  }
+
+  .hs-stamp small {
+    font-size: 0.62rem;
+    letter-spacing: 0.2em;
+  }
+
+  figcaption {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 1.1rem;
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+
+  .hs-replay {
+    appearance: none;
+    flex: none;
+    border: 1px solid var(--rule-strong);
+    background: transparent;
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 0.45rem 0.7rem;
+    min-height: 2.25rem;
+    cursor: pointer;
+    visibility: hidden;
+  }
+
+  .hs-replay:hover {
+    background: var(--ink);
+    color: var(--paper);
+  }
+
+  .hs[data-state="done"] .hs-replay {
+    visibility: visible;
+  }
+
+  @media (max-width: 520px) {
+    .hs-line {
+      grid-template-columns: 5.4rem minmax(0, 1fr);
+    }
+
+    .hs-row {
+      grid-template-columns: 1.2rem minmax(0, 1fr);
+      grid-template-areas: "n sev" "n title" "n where";
+      row-gap: 0.2rem;
+    }
+
+    .hs-stamp {
+      right: 0.6rem;
+      bottom: 1.4rem;
+    }
+
+    .hs-stamp span {
+      font-size: 1.1rem;
+    }
+  }
+
+  /* ---------- Motion. Only applies when the head script opted in. ---------- */
+
+  :global(.hs-motion) .h-word {
+    opacity: 0;
+    transform: translateY(0.35em);
+    animation: hs-rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+  }
+
+  :global(.hs-motion) .h-line:first-child .h-word:nth-child(1) { animation-delay: 0.05s; }
+  :global(.hs-motion) .h-line:first-child .h-word:nth-child(2) { animation-delay: 0.1s; }
+  :global(.hs-motion) .h-line:first-child .h-word:nth-child(3) { animation-delay: 0.15s; }
+  :global(.hs-motion) .h-line:first-child .h-word:nth-child(4) { animation-delay: 0.2s; }
+  :global(.hs-motion) .h-line:first-child .h-word:nth-child(5) { animation-delay: 0.25s; }
+  :global(.hs-motion) .h-line:first-child .h-word:nth-child(6) { animation-delay: 0.25s; }
+  :global(.hs-motion) .h-ask .h-word:nth-child(1) { animation-delay: 0.55s; }
+  :global(.hs-motion) .h-ask .h-word:nth-child(2) { animation-delay: 0.65s; }
+
+  @keyframes hs-rise {
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  :global(.hs-motion) .hero[data-verdict] .strike {
+    transition: transform 0.45s cubic-bezier(0.7, 0, 0.2, 1);
+  }
+
+  :global(.hs-motion) .hero[data-verdict] .done {
+    transition: color 0.4s ease 0.3s;
+  }
+
+  :global(.hs-motion) .hs-claim {
+    opacity: 0;
+    transform: translateY(10px) scale(0.94);
+    transform-origin: left bottom;
+    transition: opacity 0.35s ease, transform 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.3);
+  }
+
+  :global(.hs-motion) .hs[data-state] .hs-claim {
+    opacity: 1;
+    transform: none;
+  }
+
+  :global(.hs-motion) .hs-ekg polyline {
+    stroke: var(--ink);
+    stroke-dasharray: 60 180;
+    animation: hs-ekg 1.6s linear infinite;
+  }
+
+  :global(.hs-motion) .hs[data-state="scan"] .hs-ekg polyline {
+    stroke: var(--accent);
+    animation-duration: 0.7s;
+  }
+
+  :global(.hs-motion) .hs[data-state="done"] .hs-ekg polyline {
+    stroke: var(--accent);
+    animation-duration: 1.1s;
+  }
+
+  @keyframes hs-ekg {
+    from { stroke-dashoffset: 240; }
+    to { stroke-dashoffset: 0; }
+  }
+
+  :global(.hs-motion) .hs-status {
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  :global(.hs-motion) .hs[data-state="done"] .hs-status {
+    opacity: 1;
+  }
+
+  :global(.hs-motion) .hs[data-state="cmd"] .hs-caret,
+  :global(.hs-motion) .hs[data-state="claim"] .hs-caret {
+    opacity: 1;
+    animation: hs-blink 0.9s steps(1) infinite;
+  }
+
+  @keyframes hs-blink {
+    50% { opacity: 0; }
+  }
+
+  :global(.hs-motion) .hs-line {
+    opacity: 0.38;
+  }
+
+  :global(.hs-motion) .hs-line.is-hit {
+    background: transparent;
+    box-shadow: none;
+  }
+
+  :global(.hs-motion) .hs-line.is-hit .hs-file {
+    color: var(--muted);
+  }
+
+  :global(.hs-motion) .hs[data-state="scan"] .hs-line,
+  :global(.hs-motion) .hs[data-state="done"] .hs-line {
+    opacity: 1;
+    transition: opacity 0.3s ease;
+  }
+
+  :global(.hs-motion) .hs-line.is-hit.on {
+    background: color-mix(in srgb, var(--accent) 11%, transparent);
+    box-shadow: inset 2px 0 0 var(--accent);
+    animation: hs-flash 0.5s ease-out;
+  }
+
+  :global(.hs-motion) .hs-line.is-hit.on .hs-file {
+    color: var(--accent-ink);
+  }
+
+  @keyframes hs-flash {
+    0% { background: color-mix(in srgb, var(--accent) 45%, transparent); }
+    100% { background: color-mix(in srgb, var(--accent) 11%, transparent); }
+  }
+
+  :global(.hs-motion) .hs[data-state="scan"] .hs-sweep {
+    animation: hs-sweep var(--sweep, 2.4s) linear forwards;
+  }
+
+  @keyframes hs-sweep {
+    0% { opacity: 1; transform: translateY(-100%); }
+    92% { opacity: 1; }
+    100% { opacity: 0; transform: translateY(var(--sweep-end, 12rem)); }
+  }
+
+  :global(.hs-motion) .hs-row {
+    opacity: 0;
+    transform: translateX(-14px);
+    transition: opacity 0.3s ease, transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  :global(.hs-motion) .hs-row.in {
+    opacity: 1;
+    transform: none;
+  }
+
+  :global(.hs-motion) .hs-stamp {
+    opacity: 0;
+    transform: rotate(-22deg) scale(2.6);
+  }
+
+  :global(.hs-motion) .hs[data-state="done"] .hs-stamp {
+    opacity: 1;
+    transform: rotate(-9deg) scale(1);
+    transition: opacity 0.12s ease, transform 0.32s cubic-bezier(0.3, 1.6, 0.5, 1);
+  }
+
+  :global(.hs-motion) .hs[data-state="done"] .hs-panel {
+    animation: hs-thud 0.35s ease 0.18s;
+  }
+
+  @keyframes hs-thud {
+    0%, 100% { transform: none; }
+    25% { transform: translate(2px, 3px); }
+    55% { transform: translate(-2px, -1px); }
+    80% { transform: translate(1px, 1px); }
+  }
+</style>
+
+<script>
+  const wait = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms));
+
+  async function type(el: HTMLElement, speed: number, token: () => boolean) {
+    const text = el.dataset.type ?? "";
+    el.textContent = "";
+    for (const char of text) {
+      if (!token()) return;
+      el.textContent += char;
+      await wait(speed + Math.random() * speed * 0.6);
+    }
+  }
+
+  function countUp(el: HTMLElement, duration: number) {
+    const target = Number(el.dataset.count ?? 0);
+    const start = performance.now();
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / duration);
+      el.textContent = String(Math.round(target * (1 - Math.pow(1 - t, 3))));
+      if (t < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }
+
+  const root = document.documentElement;
+  const hero = document.querySelector<HTMLElement>("[data-hero]");
+  const hs = document.querySelector<HTMLElement>("[data-hs]");
+
+  if (hero && hs && root.classList.contains("hs-motion")) {
+    root.classList.add("hs-started");
+    const lines = Array.from(hs.querySelectorAll<HTMLElement>(".hs-line"));
+    const rows = Array.from(hs.querySelectorAll<HTMLElement>(".hs-row"));
+    const typed = Array.from(hs.querySelectorAll<HTMLElement>("[data-type]"));
+    const counts = Array.from(hs.querySelectorAll<HTMLElement>("[data-count]"));
+    const code = hs.querySelector<HTMLElement>(".hs-code");
+    let run = 0;
+
+    const reset = () => {
+      delete hs.dataset.state;
+      delete hero.dataset.verdict;
+      lines.forEach((line) => line.classList.remove("on"));
+      rows.forEach((row) => row.classList.remove("in"));
+      typed.forEach((el) => (el.textContent = ""));
+      counts.forEach((el) => (el.textContent = "0"));
+    };
+
+    const play = async () => {
+      const id = ++run;
+      const live = () => id === run;
+      reset();
+      await wait(700);
+      if (!live()) return;
+
+      hs.dataset.state = "claim";
+      await wait(250);
+      await type(typed[0], 28, live);
+      await wait(550);
+      if (!live()) return;
+
+      hs.dataset.state = "cmd";
+      await type(typed[1], 22, live);
+      await wait(300);
+      if (!live()) return;
+
+      const sweep = 2600;
+      const height = code?.offsetHeight ?? 200;
+      hs.style.setProperty("--sweep", `${sweep}ms`);
+      hs.style.setProperty("--sweep-end", `${height}px`);
+      hs.dataset.state = "scan";
+      counts.forEach((el) => countUp(el, sweep));
+
+      // Light each line as the sweep passes it; a hit line drops its row into the list.
+      lines.forEach((line) => {
+        const at = ((line.offsetTop + line.offsetHeight) / height) * sweep;
+        window.setTimeout(() => {
+          if (!live()) return;
+          line.classList.add("on");
+          const hit = Number(line.dataset.hit);
+          if (hit >= 0) rows[hit]?.classList.add("in");
+        }, at);
+      });
+
+      await wait(sweep + 350);
+      if (!live()) return;
+      hs.dataset.state = "done";
+      await wait(380);
+      if (live()) hero.dataset.verdict = "";
+    };
+
+    hs.querySelector<HTMLButtonElement>("[data-replay]")?.addEventListener("click", () => {
+      play();
+    });
+
+    play();
+  }
+</script>

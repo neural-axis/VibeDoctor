@@ -1,0 +1,206 @@
+---
+import Base from "../layouts/Base.astro";
+import Command from "../components/Command.astro";
+import { product, commands } from "../data/product";
+import { dpdpAreas, dpdpControlCount } from "../data/checks";
+import { withBase } from "../lib/paths";
+
+const title = `DPDP Checklist for Developers: Scan Your Code Against ${dpdpControlCount} Technical Controls`;
+const description = `Map the personal data in your codebase and check ${dpdpControlCount} DPDP Act technical controls: consent, logs, LLM prompts, retention, erasure, children's data. Free and local. Technical readiness, not legal certification.`;
+
+const kinds = [
+  { kind: "Deterministic", meaning: "A concrete pattern in the code decides the result, such as personal data in a log call." },
+  { kind: "Signal", meaning: "The code suggests a control exists or is missing, such as a consent or deletion route." },
+  { kind: "Human review", meaning: "Code can’t answer it. It goes to the review queue as a question." },
+  { kind: "Declared", meaning: "Evidence you record yourself, such as processor contracts, in .vibedoctor/dpdp/." }
+];
+
+const artifacts = [
+  { file: "data-map.json", use: "Where personal data is collected, stored, logged, and sent." },
+  { file: "control-matrix.json", use: `Status of all ${dpdpControlCount} controls, with evidence.` },
+  { file: "evidence-ledger.json", use: "Every piece of evidence, with file and line." },
+  { file: "review-queue.md", use: "Questions for product, security, or legal." },
+  { file: "agent-handoff.md", use: "Ordered fixes for a coding agent." },
+  { file: "readiness-report.html", use: "A readable report for the whole team. JSON and Markdown too." }
+];
+
+const url = (href: string) => new URL(withBase(href), Astro.site).toString();
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebPage",
+      name: title,
+      description,
+      url: url("/dpdp/"),
+      inLanguage: "en-IN",
+      about: { "@id": `${url("/")}#app` },
+      isPartOf: { "@id": `${url("/")}#website` }
+    },
+    {
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: product.name, item: url("/") },
+        { "@type": "ListItem", position: 2, name: "DPDP", item: url("/dpdp/") }
+      ]
+    }
+  ]
+};
+---
+
+<Base title={title} description={description} path={withBase("/dpdp/")} jsonLd={jsonLd}>
+  <div class="site-wrap folio">
+    <header class="page-hero">
+      <div>
+        <p class="section-id">DPDP technical readiness</p>
+        <h1>Check your code against India’s DPDP Act.</h1>
+      </div>
+      <div class="stack">
+        <p class="lede">
+          Policies say what a team intends to do with personal data. The code shows what it
+          actually does. {product.name} maps that data and checks {dpdpControlCount} technical
+          controls, locally, in one command.
+        </p>
+        <Command command={commands.dpdpScan} />
+      </div>
+    </header>
+
+    <aside class="disclaimer" aria-label="Scope">
+      <strong>Technical readiness, not legal certification.</strong>
+      This is an engineering assessment of what the code shows. It is not legal advice and
+      not a DPDP compliance certificate. Static analysis can’t establish whether the Act
+      applies to you, how production behaves, or whether your notices and contracts are adequate.
+    </aside>
+
+    <section class="section" aria-labelledby="who-h">
+      <div class="section-head split">
+        <div>
+          <p class="section-id">Who it’s for</p>
+          <h2 id="who-h">Developers who got asked “are we DPDP ready?”</h2>
+        </div>
+        <div class="prose">
+          <p>
+            If your app handles personal data of people in India, the Digital Personal Data
+            Protection Act, 2023 and the DPDP Rules, 2025 apply to how it collects, stores,
+            shares, and deletes that data. Most checklists are questionnaires. This one reads
+            your code.
+          </p>
+          <p>
+            It gives engineering, product, security, and legal the same evidence, and it
+            separates what the code proves from what a person still has to answer.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="get-h">
+      <div class="section-head split">
+        <div>
+          <p class="section-id">What you get</p>
+          <h2 id="get-h">Evidence files, written to <code>.vibedoctor/dpdp/</code>.</h2>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>File</th><th>What it’s for</th></tr></thead>
+          <tbody>
+            {artifacts.map((row) => (
+              <tr><td class="mono">{row.file}</td><td>{row.use}</td></tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="controls-h">
+      <div class="section-head split">
+        <div>
+          <p class="section-id">The checklist</p>
+          <h2 id="controls-h">All {dpdpControlCount} controls.</h2>
+        </div>
+        <div class="prose">
+          <p>
+            Each control is VERIFIED, VIOLATED, PARTIAL, NOT_OBSERVED, NEEDS_CONTEXT, or
+            NOT_APPLICABLE. A missing piece of evidence is never marked verified, and a skipped
+            scanner is never a pass.
+          </p>
+        </div>
+      </div>
+      <dl class="kind-legend">
+        {kinds.map((item) => (
+          <div>
+            <dt>{item.kind}</dt>
+            <dd>{item.meaning}</dd>
+          </div>
+        ))}
+      </dl>
+      <div class="control-areas">
+        {dpdpAreas.map((group) => (
+          <section class="control-area" aria-label={group.area}>
+            <h3>{group.area} <span>{group.controls.length}</span></h3>
+            <ul>
+              {group.controls.map((control) => (
+                <li>
+                  <span class="mono control-id">DPDP-{control.id}</span>
+                  <span class="control-title">{control.title}</span>
+                  <span class="control-kind">{control.kind}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="cmd-h">
+      <div class="section-head split">
+        <div>
+          <p class="section-id">Commands</p>
+          <h2 id="cmd-h">Scan, explain, fix, verify.</h2>
+        </div>
+        <div class="prose">
+          <p>
+            The same tools are available over MCP, so a coding agent can run the scan, read
+            the control matrix, and verify its own fixes.
+            <a href={withBase("/agents/")}>Agent setup →</a>
+          </p>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Command</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">dpdp init</td><td>Scaffold optional organisation context and declared evidence.</td></tr>
+            <tr><td class="mono">dpdp scan --full</td><td>Full technical-readiness scan.</td></tr>
+            <tr><td class="mono">dpdp scan --changed</td><td>Evidence from changed files only.</td></tr>
+            <tr><td class="mono">dpdp map</td><td>Print the personal-data map.</td></tr>
+            <tr><td class="mono">dpdp review-queue</td><td>Questions that need a person.</td></tr>
+            <tr><td class="mono">dpdp report</td><td>JSON, HTML, or Markdown report.</td></tr>
+            <tr><td class="mono">dpdp handoff</td><td>Ordered fixes for a coding agent.</td></tr>
+            <tr><td class="mono">dpdp verify</td><td>Re-check after changes.</td></tr>
+            <tr><td class="mono">dpdp explain &lt;id&gt;</td><td>Explain a control or finding.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <nav class="section" aria-labelledby="next-h">
+      <p class="section-id">Related</p>
+      <h2 id="next-h">Start with the most common violation.</h2>
+      <ul class="check-links">
+        <li>
+          <a href={withBase("/checks/pii-in-llm-prompts/")}>
+            <strong>Personal data in LLM prompts and logs</strong>
+            <span>DPDP-SEC-001 and SEC-002, with a real example.</span>
+          </a>
+        </li>
+        <li>
+          <a href={withBase("/privacy/")}>
+            <strong>What stays on your machine</strong>
+            <span>Local-first scanning and the Privacy Review.</span>
+          </a>
+        </li>
+      </ul>
+    </nav>
+  </div>
+</Base>

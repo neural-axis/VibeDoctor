@@ -1,250 +1,260 @@
 ---
+import { getCollection } from "astro:content";
 import Base from "../layouts/Base.astro";
 import Command from "../components/Command.astro";
-import {
-  product,
-  commands,
-  languages,
-  specimen,
-  links
-} from "../data/product";
+import HeroScan from "../components/HeroScan.astro";
+import CodeSample from "../components/CodeSample.astro";
+import { product, commands, completeness, links, media } from "../data/product";
+import { checks, dpdpControlCount } from "../data/checks";
+import { sortArticles } from "../lib/articles";
 import { withBase } from "../lib/paths";
+
+const articles = sortArticles(await getCollection("articles", ({ data }) => !data.draft)).slice(0, 3);
+
+const agents = [
+  { name: "Cursor", files: ".cursor/rules and MCP config" },
+  { name: "Claude Code", files: ".claude/skills and a plugin" },
+  { name: "Codex", files: "AGENTS.md, skills, and a plugin" },
+  { name: "GitHub Copilot", files: ".github/copilot-instructions.md" }
+];
 ---
 
 <Base
-  title={`${product.name} · Deterministic code-health analysis`}
-  description="VibeDoctor is a local, deterministic code-health system for JavaScript, TypeScript, Python, and mixed repositories. Evidence-backed findings for humans and coding agents."
+  title={`${product.name}: a health check for AI-written code`}
+  description="Scan vibe-coded JavaScript, TypeScript and Python apps for leaked keys, swallowed errors, broken API routes, vulnerable packages and personal-data leaks. One local command, ranked fixes."
   path={withBase("/")}
 >
   <div class="site-wrap folio">
-    <section class="hero" aria-labelledby="hero-title">
-      <div class="hero-copy">
-        <p class="kicker">
-          <span>00 / Diagnosis</span>
-          <span>Doc VD-WEB · v{product.version}</span>
-        </p>
-        <h1 id="hero-title">
-          <span>Your code has</span>
-          <span>an opinionated</span>
-          <span>second opinion.</span>
-        </h1>
-        <p class="lede">
-          Give VibeDoctor a repository. It figures out what applies, runs the
-          diagnosis, and tells you or your coding agent what to fix first.
-        </p>
-        <Command command={commands.scan} />
-        <p class="note">
-          Full applicable diagnosis by default. Zero or minimal scanner setup.
-          One prioritized report, not raw tool logs. Built for humans and AI
-          coding agents.
-        </p>
-      </div>
+    <HeroScan />
 
-      <aside class="specimen" aria-label="Specimen diagnosis from a test fixture">
-        <div class="specimen-bar">
-          <span>Current diagnosis</span>
-          <span>{specimen.label}</span>
-        </div>
-        <div class="specimen-stats">
-          <div class="stat">
-            <div class="stat-label">Health</div>
-            <div class="stat-value warn">{specimen.health}</div>
+    {
+      media.video && (
+        <section class="section" id="watch" aria-labelledby="watch-title">
+          <div class="section-head split">
+            <div>
+              <p class="section-id">Watch</p>
+              <h2 id="watch-title">{media.videoTitle}</h2>
+            </div>
           </div>
-          <div class="stat">
-            <div class="stat-label">Completeness</div>
-            <div class="stat-value warn">{specimen.completeness}</div>
-          </div>
-          <div class="stat">
-            <div class="stat-label">Blockers</div>
-            <div class="stat-value bad">{String(specimen.blockers).padStart(2, "0")}</div>
-          </div>
-          <div class="stat">
-            <div class="stat-label">Fix next</div>
-            <div class="stat-value">{String(specimen.fixNext).padStart(2, "0")}</div>
-          </div>
-        </div>
-        <div class="finding">
-          <div class="finding-id">Finding / {specimen.findingId}</div>
-          <p class="finding-title">{specimen.title}</p>
-          <dl class="kv">
-            <dt>Severity</dt>
-            <dd>{specimen.severity}</dd>
-            <dt>Confidence</dt>
-            <dd>{specimen.confidence}</dd>
-            <dt>Category</dt>
-            <dd>{specimen.category}</dd>
-            <dt>Source</dt>
-            <dd>{specimen.source}</dd>
-            <dt>Location</dt>
-            <dd>{specimen.file}:{specimen.startLine}</dd>
-          </dl>
-          <pre class="snippet"><code>{specimen.snippet}</code></pre>
-        </div>
-      </aside>
-    </section>
+          <video
+            class="feature-video"
+            src={withBase(media.video)}
+            poster={media.poster ? withBase(media.poster) : undefined}
+            controls
+            preload="none"
+            playsinline
+          />
+        </section>
+      )
+    }
 
-    <section class="section" id="problem" aria-labelledby="problem-title">
+    <section class="section" id="problems" aria-labelledby="problems-title">
       <div class="section-head split">
         <div>
-          <p class="section-id">01 / The problem</p>
-          <h2 id="problem-title">A passing build does not mean healthy code.</h2>
+          <p class="section-id">What it finds</p>
+          <h2 id="problems-title">Six ways AI-written code looks done and isn’t.</h2>
         </div>
         <div class="prose">
           <p>
-            AI writes faster than humans can review. Inherited repositories hide decay
-            that compilation never sees: leftover flags, isolated files, committed
-            credentials, personal-data fields, and unused exports.
-          </p>
-          <p>
-            {product.name} is a local health check for code you did not write line by line.
-            One ranked report. One finding format. A fix-next plan a person or an agent
-            can follow.
+            None of these fail a build. Most pass the tests the same agent wrote. Each one
+            has its own page with a real example, what {product.name} reports, and what it
+            can’t see.
           </p>
         </div>
       </div>
-      <div class="compare">
-        <article>
-          <p class="kicker"><span>Build passed</span><span>What it proves</span></p>
-          <h3>The compiler and tests finished.</h3>
-          <ul>
-            <li>Types may check. Suites may be green.</li>
-            <li>A secret in config still compiles.</li>
-            <li>Dead files do not fail the build.</li>
-            <li>A leftover <code>LEGACY_AUTH_ENABLED</code> branch is still “working code.”</li>
-          </ul>
-        </article>
-        <article>
-          <p class="kicker"><span>{product.name}</span><span>What it adds</span></p>
-          <h3>Evidence, location, and a next action.</h3>
-          <ul>
-            <li>Normalized findings with IDs, severity, and confidence.</li>
-            <li>A coverage table so “installed” is not confused with “completed.”</li>
-            <li>COMPLETE / PARTIAL / INVALID — skipped tools are never clean.</li>
-            <li>An ordered repair plan for a person or a coding agent.</li>
-          </ul>
-        </article>
-      </div>
+      <ul class="problem-grid">
+        {checks.map((check) => (
+          <li>
+            <a class="problem-card" href={withBase(`/checks/${check.slug}/`)}>
+              {check.frame ? (
+                <img src={withBase(check.frame)} alt="" loading="lazy" width="640" height="360" />
+              ) : (
+                <CodeSample files={check.example.slice(0, 1)} compact />
+              )}
+              <span class="problem-copy">
+                <strong>{check.name}</strong>
+                <span>{check.teaser}</span>
+              </span>
+              <span class="problem-go" aria-hidden="true">See the check →</span>
+            </a>
+          </li>
+        ))}
+      </ul>
     </section>
 
-    <section class="section" id="specimen" aria-labelledby="specimen-title">
+    <section class="section" id="unique" aria-labelledby="unique-title">
       <div class="section-head split">
         <div>
-          <p class="section-id">02 / Sample diagnosis</p>
-          <h2 id="specimen-title">Show the evidence, not the adjective.</h2>
+          <p class="section-id">Beyond the linter</p>
+          <h2 id="unique-title">The checks a linter won’t run.</h2>
         </div>
         <div class="prose">
           <p>
-            This specimen is taken from the project’s own test fixture
-            <span class="mono">fixtures/broken-security/src/config.ts</span>
-            and the snapshot report. Same tree, same finding ID.
+            {product.name} runs the usual tools for you: gitleaks, osv-scanner, TypeScript,
+            Ruff, Biome, knip. These three are its own, and they look at the mistakes
+            AI agents make most.
           </p>
         </div>
       </div>
-      <div class="compare">
+      <div class="feature-trio">
         <article>
-          <dl class="kv">
-            <dt>Finding</dt>
-            <dd class="mono">{specimen.findingId}</dd>
-            <dt>Severity</dt>
-            <dd>{specimen.severity}</dd>
-            <dt>Confidence</dt>
-            <dd>{specimen.confidence}</dd>
-            <dt>Category</dt>
-            <dd>{specimen.category}</dd>
-            <dt>Rule / source</dt>
-            <dd>{specimen.source}</dd>
-            <dt>Location</dt>
-            <dd>{specimen.file}:{specimen.startLine}</dd>
-          </dl>
+          <p class="kicker"><span>Flow Doctor</span><span>Built in</span></p>
+          <h3>Frontend and backend that don’t agree.</h3>
+          <p>
+            Matches your <code>fetch</code> and <code>axios</code> calls to Express, Next.js,
+            FastAPI and Flask routes. Flags wrong methods, routes wired to handlers that
+            don’t exist, and catch blocks that return success after a failure.
+          </p>
+          <p class="feature-links">
+            <a href={withBase("/checks/broken-api-routes/")}>Broken API routes</a>
+            <a href={withBase("/checks/swallowed-errors/")}>Errors returned as success</a>
+          </p>
         </article>
-        <article class="stack">
-          <div>
-            <p class="kicker"><span>Why</span></p>
-            <p>{specimen.why}</p>
-          </div>
-          <div>
-            <p class="kicker"><span>Evidence</span></p>
-            <ul>
-              {specimen.evidence.map((item) => <li>{item}</li>)}
-            </ul>
-          </div>
-          <div>
-            <p class="kicker"><span>Prescription</span></p>
-            <p>{specimen.prescription}</p>
-          </div>
-          <p class="note">{specimen.note}</p>
+        <article>
+          <p class="kicker"><span>Privacy</span><span>Stays local</span></p>
+          <h3>Personal data in prompts and logs.</h3>
+          <p>
+            Finds emails, phone numbers and other personal fields going into OpenAI or
+            Anthropic prompts, embeddings and vector stores, and whole user objects written
+            to logs. The scan never leaves your machine.
+          </p>
+          <p class="feature-links">
+            <a href={withBase("/checks/pii-in-llm-prompts/")}>Personal data in LLM prompts</a>
+          </p>
+        </article>
+        <article>
+          <p class="kicker"><span>DPDP Act</span><span>{dpdpControlCount} controls</span></p>
+          <h3>India’s DPDP Act, checked in code.</h3>
+          <p>
+            Maps the personal data your code collects and checks {dpdpControlCount} technical
+            controls: consent, logging, retention, erasure, children’s data, and processors.
+            You get a data map, a control matrix, and a review queue for the questions code
+            can’t answer.
+          </p>
+          <p class="feature-links">
+            <a href={withBase("/dpdp/")}>The DPDP technical readiness scan</a>
+          </p>
         </article>
       </div>
     </section>
 
-    <section class="section" id="looks-for" aria-labelledby="looks-title">
+    <section class="section" id="agents" aria-labelledby="agents-title">
       <div class="section-head split">
         <div>
-          <p class="section-id">03 / What a full scan covers</p>
-          <h2 id="looks-title">The report you get from one command.</h2>
+          <p class="section-id">Works with your tools</p>
+          <h2 id="agents-title">Hand the fix list to the agent that wrote the code.</h2>
         </div>
         <div class="prose">
           <p>
-            Languages: {languages.join(" · ")}. The engine detects the repository
-            and runs the applicable local tools. Built-in detectors cover leftovers,
-            dead chains, refactor-readiness, and privacy even when no extra binary
-            is installed.
+            One command writes instructions your coding agent reads on its own: scan, fix the
+            top issue, verify, repeat. There is also an MCP server for agents that call tools.
           </p>
-          <p>
-            Secrets, types, lint, tests, unused code, vulnerable dependencies,
-            complexity, and personal-data signals land in one ranked list — with a
-            completeness grade so a skipped scanner cannot look like a clean bill
-            of health.
-          </p>
-          <p>
-            <a href={withBase("/how-it-works/")}>How scoring and the tool matrix work →</a>
-          </p>
+          <Command command={commands.agentInit} />
         </div>
+      </div>
+      <ul class="agent-grid">
+        {agents.map((agent) => (
+          <li>
+            <strong>{agent.name}</strong>
+            <span>{agent.files}</span>
+          </li>
+        ))}
+      </ul>
+      <p class="note agent-note">
+        Built it in Lovable or Bolt.new? Push the project to GitHub, clone it, and run the scan.
+        <a href={withBase("/articles/how-to-secure-a-lovable-app/")}>Securing a Lovable app</a>
+        {" · "}
+        <a href={withBase("/articles/how-to-secure-a-bolt-new-app/")}>Securing a Bolt.new app</a>
+        {" · "}
+        <a href={withBase("/agents/")}>Agent setup</a>
+      </p>
+    </section>
+
+    <section class="section" id="honest" aria-labelledby="honest-title">
+      <div class="section-head split">
+        <div>
+          <p class="section-id">No false all-clear</p>
+          <h2 id="honest-title">A scanner that didn’t run is never “clean”.</h2>
+        </div>
+        <div class="prose">
+          <p>
+            Every report says whether each check actually finished. If one was missing or
+            timed out, the scan is marked partial and tells you how to recover, instead of
+            showing a clean score it didn’t earn.
+          </p>
+          <p><a href={withBase("/how-it-works/")}>How scans are scored →</a></p>
+        </div>
+      </div>
+      <div class="states">
+        {completeness.map((state) => (
+          <article class="state">
+            <span class:list={["badge", state.status.toLowerCase()]}>{state.status}</span>
+            <p style="margin-top:0.45rem">{state.meaning}</p>
+            <p class="note" style="margin-top:0.35rem">{state.action}</p>
+          </article>
+        ))}
       </div>
     </section>
 
     <section class="section" id="install" aria-labelledby="install-title">
       <div class="section-head split">
         <div>
-          <p class="section-id">04 / Run it</p>
-          <h2 id="install-title">This is the command.</h2>
+          <p class="section-id">Run it</p>
+          <h2 id="install-title">One command, in the repo you’re about to ship.</h2>
         </div>
         <div class="prose">
-          <p>Requires Node.js {product.node}. Package {product.package}@{product.version}.</p>
+          <p>
+            Needs Node.js 18 or later. Free and open source under {product.license}.
+            Version {product.version}.
+          </p>
         </div>
       </div>
       <div class="stack">
         <Command command={commands.scan} />
         <p>
-          That is a full applicable diagnosis. VibeDoctor detects the repo,
-          runs the engines that apply, and ranks what to fix first. After you
-          have a baseline, use <code>verify</code> or <code>scan --changed</code>
-          — those modes are documented on
-          <a href={withBase("/how-it-works/")}>How it works</a>.
+          It detects your languages, runs the checks that apply, and writes a ranked report to
+          <code>.vibedoctor/</code>. After a fix, <code>vibedoctor verify</code> re-checks only
+          what changed.
         </p>
-        <p>Optional project-local setup if you want extra engines installed in the repo:</p>
-        <pre><code>{`npx @neuralaxis/vibedoctor init
-npx @neuralaxis/vibedoctor setup
-npx @neuralaxis/vibedoctor setup --apply
-npx @neuralaxis/vibedoctor scan`}</code></pre>
         <p class="note">
-          <code>setup --apply</code> installs supported recommended tools. Review the
-          plan first. Global binary: <code>{commands.globalInstall}</code>
-        </p>
-        <p>
-          After the report:
-          <a href={withBase("/agents/")}>hand it to an agent</a>
-          {" · "}
-          <a href={withBase("/privacy/")}>what stays on the machine</a>
-          {" · "}
-          <a href={withBase("/articles/")}>pre-ship checklists</a>
+          Want the extra engines installed in the project? Run <code>{commands.setup}</code> to
+          see the plan, then <code>setup --apply</code>. Global install:
+          <code>{commands.globalInstall}</code>
         </p>
         <p>
           <a href={links.github} rel="noreferrer">GitHub</a>
           {" · "}
           <a href={links.npm} rel="noreferrer">npm</a>
+          {" · "}
+          <a href={withBase("/privacy/")}>What stays on your machine</a>
         </p>
       </div>
+    </section>
+
+    <section class="section" id="read" aria-labelledby="read-title">
+      <div class="section-head split">
+        <div>
+          <p class="section-id">Before you ship</p>
+          <h2 id="read-title">Checklists for vibe-coded apps.</h2>
+        </div>
+        <div class="prose">
+          <p><a href={withBase("/articles/")}>All articles →</a></p>
+        </div>
+      </div>
+      <ol class="article-docket article-docket-compact">
+        {articles.map((entry) => (
+          <li>
+            <a class="article-row" href={withBase(`/articles/${entry.id}/`)}>
+              <span class="article-row-no" aria-hidden="true">→</span>
+              <span class="article-row-copy">
+                <span class="article-row-title">{entry.data.title}</span>
+                <span class="article-row-summary">{entry.data.description}</span>
+              </span>
+              <span class="article-row-go" aria-hidden="true">Read</span>
+            </a>
+          </li>
+        ))}
+      </ol>
     </section>
   </div>
 </Base>

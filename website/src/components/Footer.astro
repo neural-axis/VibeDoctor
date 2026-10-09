@@ -16,8 +16,7 @@ const year = new Date().getUTCFullYear();
         height="161"
       />
       <p class="muted" style="margin-top:0.75rem">
-        {product.tagline} Deterministic, evidence-backed diagnostics for JavaScript,
-        TypeScript, Python, and mixed repositories.
+        {product.tagline} For JavaScript, TypeScript, Python, and mixed repositories.
       </p>
       <div class="footer-lockup">
         <span class="kicker" style="justify-content:flex-start">A NeuralAxis product</span>
@@ -33,6 +32,7 @@ const year = new Date().getUTCFullYear();
           {nav.map((item) => (
             <li><a href={withBase(item.href)}>{item.label}</a></li>
           ))}
+          <li><a href={withBase("/privacy/")}>Privacy</a></li>
           <li><a href={withBase("/products/")}>Other products</a></li>
           <li><a href={withBase("/company/")}>Company</a></li>
         </ul>
@@ -51,6 +51,6 @@ const year = new Date().getUTCFullYear();
   </div>
   <div class="site-wrap footer-end">
     <span>© {year} NeuralAxis. {product.name} is {product.license}.</span>
-    <span>Build {product.version} · Doc VD-WEB</span>
+    <span>Version {product.version}</span>
   </div>
 </footer>

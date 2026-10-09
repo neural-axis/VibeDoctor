@@ -1,0 +1,65 @@
+---
+import Base from "../../layouts/Base.astro";
+import Command from "../../components/Command.astro";
+import CodeSample from "../../components/CodeSample.astro";
+import { product, commands } from "../../data/product";
+import { checks, dpdpControlCount } from "../../data/checks";
+import { withBase } from "../../lib/paths";
+---
+
+<Base
+  title="What VibeDoctor checks in AI-generated code"
+  description="Leaked API keys, broken API routes, errors returned as success, personal data in LLM prompts, vulnerable packages, and AI leftovers: what VibeDoctor finds in vibe-coded apps."
+  path={withBase("/checks/")}
+>
+  <div class="site-wrap folio">
+    <header class="page-hero">
+      <div>
+        <p class="section-id">Checks</p>
+        <h1>What one scan finds.</h1>
+      </div>
+      <div class="stack">
+        <p class="lede">
+          The problems AI-written apps ship with most, in plain terms. Each page shows a real
+          example, what {product.name} reports, and what it can’t see.
+        </p>
+        <Command command={commands.scan} />
+      </div>
+    </header>
+
+    <ul class="problem-grid">
+      {checks.map((check) => (
+        <li>
+          <a class="problem-card" href={withBase(`/checks/${check.slug}/`)}>
+            <CodeSample files={check.example.slice(0, 1)} compact />
+            <span class="problem-copy">
+              <strong>{check.name}</strong>
+              <span>{check.teaser}</span>
+            </span>
+            <span class="problem-go" aria-hidden="true">See the check →</span>
+          </a>
+        </li>
+      ))}
+    </ul>
+
+    <section class="section" aria-labelledby="dpdp-h" style="margin-top:3rem">
+      <div class="section-head split">
+        <div>
+          <p class="section-id">Also in the box</p>
+          <h2 id="dpdp-h">DPDP technical readiness, {dpdpControlCount} controls.</h2>
+        </div>
+        <div class="prose">
+          <p>
+            For apps that handle personal data of people in India: a data map, a control
+            matrix, and a review queue built from your code.
+            <a href={withBase("/dpdp/")}>The DPDP scan →</a>
+          </p>
+        </div>
+      </div>
+      <p class="note">
+        Types, lint, tests, duplication and complexity are covered too.
+        <a href={withBase("/how-it-works/")}>The full tool matrix →</a>
+      </p>
+    </section>
+  </div>
+</Base>
