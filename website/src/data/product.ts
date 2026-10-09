@@ -381,5 +381,7 @@ export const nav = [
  * and set the paths here; the Watch section renders only when `video` is set.
  */
 export const media: { video?: string; poster?: string; videoTitle: string } = {
+  video: "/media/vibedoctor-promo.mp4",
+  poster: "/media/vibedoctor-promo-poster.jpg",
   videoTitle: "Your AI says it’s done. Is it?"
 };
