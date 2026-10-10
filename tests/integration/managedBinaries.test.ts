@@ -114,5 +114,6 @@ runtime:
       lock: await hashIfExists(root, "package-lock.json")
     };
     expect(after).toEqual(before);
-  });
+    // Windows process startup and scanner probes can exceed a minute on cold runs.
+  }, process.platform === "win32" ? 180_000 : 60_000);
 });

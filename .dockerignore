@@ -1,0 +1,12 @@
+**
+!package.json
+!package-lock.json
+!tsconfig.json
+!tsconfig.build.json
+!src/
+!src/**
+!schemas/
+!schemas/**
+!README.md
+!LICENSE
+!Dockerfile

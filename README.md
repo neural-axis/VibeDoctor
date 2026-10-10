@@ -247,6 +247,17 @@ vibedoctor mcp
 
 It exposes structured operations for changed and full scans, report retrieval, finding explanations, safe fixes, repair plans, verification, privacy review, and DPDP technical readiness. Generated agent configs include MCP wiring where the target supports it.
 
+The stdio transport uses newline-delimited JSON, as required by MCP. Existing clients using VibeDoctor's earlier `Content-Length` framing are still supported.
+
+For container-based MCP introspection (including Glama), build the repository's Dockerfile and run it with stdin attached:
+
+```sh
+docker build -t vibedoctor-mcp .
+docker run --rm -i vibedoctor-mcp
+```
+
+The container runs as a non-root user in an empty `/workspace`. To scan a project, mount that project at `/workspace` with permissions appropriate to the operations you intend to use. Optional external scanners are not bundled; scan coverage reports any unavailable engines.
+
 ## Privacy Review
 
 Privacy Review is deterministic-first and advisory by default. Evidence stored in reports is masked or classified instead of preserving raw PII.
