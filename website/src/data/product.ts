@@ -57,8 +57,8 @@ export const links = {
 } as const;
 
 export const commands = {
-  scan: "npx @neuralaxis/vibedoctor scan",
-  scanAgentJson: "npx @neuralaxis/vibedoctor scan --report agent-json",
+  scan: "npx @neuralaxis/vibedoctor scan --full",
+  scanAgentJson: "npx @neuralaxis/vibedoctor scan --full --report agent-json",
   scanChanged: "npx @neuralaxis/vibedoctor scan --changed",
   scanQuick: "npx @neuralaxis/vibedoctor scan --quick",
   scanFull: "npx @neuralaxis/vibedoctor scan --full",

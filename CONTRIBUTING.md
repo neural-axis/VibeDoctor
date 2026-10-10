@@ -12,7 +12,7 @@ npm run check
 Use `npm run dev -- <command>` to run the CLI from source, for example:
 
 ```bash
-npm run dev -- scan --quick
+npm run dev -- scan --full
 npm run health   # dogfood scan using root vibedoctor.yml (integrated in `npm run check`)
 ```
 

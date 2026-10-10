@@ -13,15 +13,25 @@ function current(href: string): boolean {
 
 <header class="site-header">
   <div class="site-wrap header-inner">
-    <a class="brand" href={withBase("/")}>
-      <img
-        class="brand-mark"
-        src={withBase("logo-lockup.webp")}
-        alt={`${product.name}, a ${product.maker} product`}
-        width="240"
-        height="68"
-      />
-    </a>
+    <div class="brand-group">
+      <a class="brand" href={withBase("/")}>
+        <img
+          class="brand-mark"
+          src={withBase("logo-lockup.webp")}
+          alt={`${product.name}, a ${product.maker} product`}
+          width="240"
+          height="68"
+        />
+      </a>
+      <a class="maker-mark" href={links.neuralaxis} rel="noreferrer" title={`A ${product.maker} product`}>
+        <img
+          src={withBase("neuralaxis-mark.webp")}
+          alt={product.maker}
+          width="128"
+          height="128"
+        />
+      </a>
+    </div>
     <nav class="nav" aria-label="Primary">
       {nav.map((item) => (
         <a href={withBase(item.href)} aria-current={current(item.href) ? "page" : undefined}>

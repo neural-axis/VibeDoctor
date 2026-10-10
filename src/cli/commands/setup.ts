@@ -373,7 +373,7 @@ function renderPlan({ plan, include, installResults = [], postInstall }: SetupRe
     lines.push("  - Manually install lizard or semgrep (shown above with one-line hints) for deeper complexity + rule-based checks");
     lines.push("  - Add jscpd (npm) if you want duplication heatmaps for large refactors");
     lines.push("");
-    lines.push("Tip: Re-run `vibedoctor scan --quick` (or `scan --full`) after changes to see updated health + findings.");
+    lines.push("Tip: Re-run `vibedoctor scan --full` (or `scan --quick` for a narrower pass) after changes to see updated health + findings.");
   }
 
   return `${lines.join("\n")}\n`;

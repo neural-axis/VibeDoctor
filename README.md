@@ -12,7 +12,7 @@ Website: **[vibedoctor.in](https://vibedoctor.in/)** · [What it checks](https:/
 VibeDoctor scans vibe-coded JavaScript, TypeScript, Python, and mixed repositories for leaked keys, broken API routes, swallowed errors, vulnerable packages, personal data in logs and LLM prompts, and the usual code-health, testing, and maintainability problems. Works with Cursor, Claude Code, Codex, and GitHub Copilot. It combines engine output into one ranked report, one normalized finding format, and a fix-next plan that humans and coding agents can use without interpreting a wall of unrelated logs.
 
 ```bash
-npx @neuralaxis/vibedoctor scan
+npx @neuralaxis/vibedoctor scan --full
 ```
 
 That is the default path: full applicable diagnosis, local by default. Missing or failed scanners are reported as incomplete evidence, never silently counted as a clean result.
@@ -22,7 +22,7 @@ The public product site, [vibedoctor.in](https://vibedoctor.in/), lives in [`web
 ## Start here
 
 ```bash
-npx @neuralaxis/vibedoctor scan
+npx @neuralaxis/vibedoctor scan --full
 ```
 
 That is enough for a first diagnosis. VibeDoctor detects the repository, runs the capabilities that apply, correlates overlapping evidence, and ranks what to fix first.
@@ -30,7 +30,7 @@ That is enough for a first diagnosis. VibeDoctor detects the repository, runs th
 For an AI coding agent:
 
 ```bash
-npx @neuralaxis/vibedoctor scan --report agent-json
+npx @neuralaxis/vibedoctor scan --full --report agent-json
 ```
 
 Optional narrower runs:
@@ -39,7 +39,6 @@ Optional narrower runs:
 | --- | --- |
 | Fast profile | `npx @neuralaxis/vibedoctor scan --quick` |
 | Git-changed files | `npx @neuralaxis/vibedoctor scan --changed` |
-| Explicit full alias | `npx @neuralaxis/vibedoctor scan --full` |
 | Agent repair plan file | `npx @neuralaxis/vibedoctor agent-plan --format markdown` |
 | India DPDP technical readiness | `npx @neuralaxis/vibedoctor dpdp scan --full` |
 
@@ -389,8 +388,8 @@ Human-review-only DPDP items do not fail CI. Configure `checks.dpdp.fail_on_seve
 | --- | --- |
 | Initialize configuration | `vibedoctor init` |
 | Plan or apply scanner setup | `vibedoctor setup` / `vibedoctor setup --apply` |
-| Full applicable diagnosis | `vibedoctor scan` |
-| Quick, changed, or explicit full | `vibedoctor scan --quick` / `--changed` / `--full` |
+| Full applicable diagnosis (default) | `vibedoctor scan --full` |
+| Narrower quick or changed-files run | `vibedoctor scan --quick` / `--changed` |
 | Scan selected categories | `vibedoctor scan --category dead_code,leftovers` |
 | Render a fresh full report | `vibedoctor report --json`, `--html`, `--markdown`, `--sarif`, or `--agent` |
 | Apply supported safe fixes | `vibedoctor fix --safe` |
@@ -439,7 +438,7 @@ npm pack --dry-run
 Useful local commands:
 
 ```bash
-npm run dev -- scan --quick
+npm run dev -- scan --full
 npm run dev -- agent init --targets all
 npm run dev -- agent plugin --targets all --force
 ```

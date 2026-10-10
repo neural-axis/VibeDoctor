@@ -277,6 +277,27 @@ code {
   padding-block: 0.7rem 0.65rem;
 }
 
+.brand-group {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.maker-mark {
+  flex: none;
+  display: flex;
+  padding-left: 0.85rem;
+  border-left: 1px solid var(--rule);
+}
+
+.maker-mark img {
+  display: block;
+  width: 2.15rem;
+  height: 2.15rem;
+  border-radius: 0.4rem;
+}
+
 .brand {
   text-decoration: none;
   display: flex;
