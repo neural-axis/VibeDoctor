@@ -1,0 +1,141 @@
+---
+import Command from './Command.astro';
+import { commands } from '../data/product';
+---
+<div class="arcade" data-arcade>
+  <div class="temptation"><button type="button" class="forbidden" data-open aria-haspopup="dialog" aria-controls="ship-it-dialog">DO NOT PRESS</button><span>Everything is fine. Probably.</span></div>
+  <dialog id="ship-it-dialog" aria-labelledby="arcade-title">
+    <header><strong id="arcade-title">SHIP IT! <small>/ 15 seconds of bad decisions</small></strong><div><button type="button" data-sound aria-pressed="false" aria-label="Turn game sound on">♪ OFF</button><button type="button" data-close aria-label="Close game">✕</button></div></header>
+    <div class="arena" data-arena>
+      <div class="fake-app" aria-hidden="true"><div class="fake-nav">my perfect app <span>● LIVE</span></div><div class="fake-card"><strong>It worked on my machine.</strong><div></div><div></div><div></div></div><div class="fake-tiles"><i></i><i></i><i></i></div><div class="fake-error">500: CONFIDENCE NOT FOUND</div></div>
+      <div class="hud" data-hud hidden><span>BUGS <b data-score>0</b></span><span data-streak>GO!</span><span><b data-time>15</b>s</span></div>
+      <div class="warning" data-warning hidden>IT WAS NOT FINE. TAP THE BUGS!</div>
+      <div class="bug-layer" data-bugs hidden aria-label="Catch the moving bugs"></div>
+      <div class="results" data-results hidden aria-live="polite"><p class="report" data-record>RELEASE REPORT</p><h2><em data-final>0</em> BUGS</h2><strong class="rank" data-rank></strong><p data-best></p><div class="actions"><button type="button" class="again" data-replay>↻ ONE MORE ROUND</button><button type="button" data-share>↗ CHALLENGE A FRIEND</button></div><p>Real bugs don't have legs. Catch them before you ship.</p><Command command={commands.scan} label="Copy scan" /><p class="status" data-status role="status"></p></div>
+    </div>
+    <footer>Golden bug = 3 points. Space or Enter catches a focused bug. Just a game, not a code scan.</footer>
+  </dialog>
+</div>
+<style>
+.arcade{--paper:#faf5ea;--ink:#25221e;--red:#d9432b;--yellow:#f7cc60;color:var(--ink)}
+.temptation{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:16px;margin:0 0 28px}.temptation span{font-size:12px;opacity:.7}
+.arcade button{font:700 12px 'IBM Plex Mono',monospace;cursor:pointer;touch-action:manipulation;color:var(--ink)}.forbidden{color:white!important;background:var(--red);border:2px solid var(--ink);box-shadow:3px 3px 0 var(--ink);padding:12px 18px;transform:rotate(-3deg)}.forbidden:hover{transform:rotate(2deg)}.arcade button:focus-visible{outline:3px solid #246aab;outline-offset:4px}
+dialog{padding:0;width:min(850px,calc(100vw - 24px));max-height:calc(100dvh - 24px);overflow:auto;color:var(--ink);background:var(--paper);border:2px solid var(--ink);box-shadow:7px 7px 0 var(--ink)}dialog::backdrop{background:#25221ed9}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-bottom:2px solid var(--ink)}header strong{font-size:20px;letter-spacing:-.04em}header small{font:11px monospace;letter-spacing:0}header>div{display:flex;gap:8px}header button{min-height:36px;min-width:36px;padding:6px;border:1px solid var(--ink);background:var(--paper)}
+.arena{position:relative;height:480px;overflow:hidden;isolation:isolate;background:radial-gradient(#d8d0c1 1px,transparent 1px);background-size:16px 16px}.fake-app{position:absolute;inset:0;padding:110px 28px 24px;pointer-events:none}.fake-nav{display:flex;justify-content:space-between;font-weight:800;margin-bottom:24px}.fake-nav span{font:11px monospace;color:#397452}.fake-card{border:2px solid #d4cdc0;background:#fff9ef;padding:22px;width:85%}.fake-card strong{font-size:clamp(20px,4vw,34px);letter-spacing:-.05em}.fake-card div{height:10px;width:75%;margin-top:15px;background:#dcd4c5}.fake-card div:last-child{width:40%}.fake-tiles{display:flex;gap:18px;margin-top:20px}.fake-tiles i{display:block;width:25%;height:70px;border:2px solid #d4cdc0;background:#ede4d4}.fake-error{display:none;color:var(--red);font:900 clamp(18px,3vw,28px) monospace;margin-top:25px}
+.chaos .fake-card{transform:rotate(-5deg);box-shadow:8px 8px 0 #d9432b33}.chaos .fake-tiles i:nth-child(1){transform:rotate(14deg) translateY(12px)}.chaos .fake-tiles i:nth-child(2){transform:rotate(-19deg) translateY(24px)}.chaos .fake-tiles i:nth-child(3){transform:rotate(25deg)}.chaos .fake-error{display:block;transform:rotate(-4deg)}
+.hud{position:absolute;top:14px;left:12px;right:12px;z-index:2;display:flex;justify-content:space-between;gap:6px;pointer-events:none}.hud span{border:2px solid var(--ink);background:#fffdf4;padding:8px 12px;box-shadow:3px 3px 0 var(--ink);font:700 13px monospace}.hud span:nth-child(2){background:var(--yellow)}.hud b{font-size:22px}.warning{position:absolute;top:75px;left:50%;transform:translateX(-50%) rotate(-2deg);z-index:2;background:var(--red);color:white;padding:7px 12px;font:700 clamp(11px,2.4vw,18px) monospace;white-space:nowrap;pointer-events:none}.bug-layer{position:absolute;inset:0;z-index:3}
+.bug-layer :global(.bug){position:absolute;width:56px;height:56px;border:0;background:transparent;padding:0;user-select:none;-webkit-tap-highlight-color:transparent;cursor:crosshair}.bug-layer :global(.bug-body){position:absolute;inset:7px 8px;border:2px solid var(--ink);border-radius:45% 45% 35% 35%;background:var(--bug-color);box-shadow:2px 3px 0 #25221e44;font:900 18px monospace;color:var(--ink);text-align:center;padding-top:4px}.bug-layer :global(.bug-body::before){content:'';position:absolute;inset:8px -8px;border-top:3px solid var(--ink);border-bottom:3px solid var(--ink);z-index:-1;transform:rotate(15deg)}.bug-layer :global(.bug-body::after){content:'⌣';display:block;font-size:15px;line-height:8px}.bug-layer :global(.gold .bug-body){box-shadow:inset 0 0 0 3px #fff4b0,2px 3px 0 #25221e44}.bug-layer :global(.pop){position:absolute;pointer-events:none;font:900 20px monospace;color:var(--red);animation:pop .55s ease-out forwards}
+.results{position:absolute;inset:0;z-index:4;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;background:var(--paper);text-align:center}.report{background:var(--ink);color:white;font:12px monospace;padding:6px 12px;transform:rotate(-3deg)}.results h2{font-size:clamp(50px,9vw,85px);letter-spacing:-.07em;line-height:1;margin:15px 0 8px}.results em{color:var(--red);font-style:normal}.rank{font-size:clamp(18px,4vw,28px)}.results p{font-size:13px;margin:10px 0}.actions{display:flex;justify-content:center;flex-wrap:wrap;gap:10px;margin:8px 0}.actions button{border:2px solid var(--ink);background:#fffdf4;padding:12px;box-shadow:3px 3px 0 var(--ink)}.actions .again{background:var(--red);color:white}.results :global(.cmd){max-width:100%;text-align:left;font-size:12px}.status{min-height:18px;overflow-wrap:anywhere}footer{font-size:11px;padding:10px 14px;margin:0;border-top:1px solid #d4cdc0}[hidden]{display:none!important}
+@keyframes pop{to{transform:translateY(-35px) rotate(8deg);opacity:0}}
+@media(max-width:600px){header small{display:none}.arena{height:min(560px,calc(100dvh - 150px));min-height:360px}.hud span{padding:6px 8px}.hud b{font-size:18px}.warning{top:66px}.results h2{margin-top:12px}.actions button{padding:10px;font-size:11px}}
+@media(prefers-reduced-motion:reduce){.forbidden:hover{transform:none}.bug-layer :global(.pop){animation:none}}
+</style>
+<script>
+const root = document.querySelector<HTMLElement>('[data-arcade]');
+if (root) {
+  const get = <T extends HTMLElement>(name: string) => root.querySelector<T>(`[data-${name}]`)!;
+  const dialog = root.querySelector<HTMLDialogElement>('dialog')!;
+  const arena = get<HTMLDivElement>('arena'), layer = get<HTMLDivElement>('bugs');
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const duration = 15_000, bestKey = 'vibedoctor-ship-arcade-best';
+  const colors = ['#df7966','#a0c6b5','#baa5dc','#9ac4e6','#b4d76c'];
+  type Bug = { element: HTMLButtonElement; x: number; y: number; vx: number; vy: number; expires: number; gold: boolean };
+  let bugs: Bug[] = [];
+  let running = false, score = 0, best = 0, streak = 0, lastHit = 0;
+  let frame = 0, startAt = 0, lastFrame = 0, lastSpawn = 0, pausedAt = 0;
+  let sound = false, audio: AudioContext | undefined;
+  try { best = Math.max(0, Number(localStorage.getItem(bestKey)) || 0); } catch { /* Storage is optional. */ }
+  function chirp(frequency: number) {
+    if (!sound) return;
+    try {
+      audio ??= new AudioContext();
+      if (audio.state === 'suspended') void audio.resume().catch(() => {});
+      const oscillator = audio.createOscillator(), gain = audio.createGain();
+      oscillator.type = 'triangle'; oscillator.frequency.setValueAtTime(frequency, audio.currentTime);
+      gain.gain.setValueAtTime(.05, audio.currentTime); gain.gain.exponentialRampToValueAtTime(.001, audio.currentTime + .1);
+      oscillator.connect(gain).connect(audio.destination); oscillator.start(); oscillator.stop(audio.currentTime + .1);
+    } catch { /* Silent play still works. */ }
+  }
+  function remove(bug: Bug) { bug.element.remove(); bugs = bugs.filter(item => item !== bug); }
+  function hit(bug: Bug) {
+    if (!running || pausedAt || !bugs.includes(bug)) return;
+    const now = performance.now();
+    if (now - startAt >= duration) { finish(); return; }
+    streak = now - lastHit < 1200 ? streak + 1 : 1; lastHit = now; score += bug.gold ? 3 : 1;
+    get('score').textContent = String(score); get('streak').textContent = streak >= 3 ? `${streak} IN A ROW!` : 'POP!';
+    const pop = document.createElement('span'); pop.className = 'pop'; pop.textContent = bug.gold ? '+3 ★' : '+1';
+    pop.style.left = `${bug.x}px`; pop.style.top = `${bug.y}px`; layer.append(pop); window.setTimeout(() => pop.remove(), 600);
+    chirp(bug.gold ? 880 : 440 + Math.min(streak, 8) * 40); remove(bug);
+  }
+  function spawn(now: number) {
+    if (bugs.length >= 22) return;
+    const gold = Math.random() < .12, element = document.createElement('button');
+    element.type = 'button'; element.className = `bug${gold ? ' gold' : ''}`;
+    element.setAttribute('aria-label', gold ? 'Catch golden bug for 3 points' : 'Catch bug for 1 point');
+    element.style.setProperty('--bug-color', gold ? '#fbd54f' : colors[Math.floor(Math.random() * colors.length)]);
+    const body = document.createElement('span'); body.className = 'bug-body'; body.textContent = gold ? '★' : '••'; body.setAttribute('aria-hidden','true'); element.append(body);
+    const bug: Bug = { element, gold, x:4 + Math.random() * Math.max(1,arena.clientWidth - 64), y:108 + Math.random() * Math.max(1,arena.clientHeight - 172), vx:(Math.random()-.5)*150, vy:(Math.random()-.5)*150, expires:now+4500 };
+    element.style.transform = `translate(${bug.x}px,${bug.y}px)`;
+    // Native click covers touch, mouse, Enter and Space without double counting.
+    element.addEventListener('click', () => hit(bug));
+    bugs.push(bug); layer.append(element);
+  }
+  function stop() { running = false; cancelAnimationFrame(frame); bugs = []; layer.replaceChildren(); pausedAt = 0; }
+  function start() {
+    stop(); score = 0; streak = 0; lastHit = 0; running = true;
+    startAt = lastFrame = lastSpawn = performance.now();
+    get('score').textContent='0'; get('time').textContent='15'; get('streak').textContent='GO!';
+    get('results').hidden=true; get('hud').hidden=false; get('warning').hidden=false; layer.hidden=false; get('status').textContent=''; arena.classList.add('chaos');
+    for (let i=0;i<6;i++) spawn(startAt);
+    bugs[0]?.element.focus({preventScroll:true}); chirp(230); frame=requestAnimationFrame(tick);
+  }
+  function finish() {
+    stop(); arena.classList.remove('chaos'); layer.hidden=true; get('hud').hidden=true; get('warning').hidden=true;
+    const record=score>best; best=Math.max(score,best);
+    try { localStorage.setItem(bestKey,String(best)); } catch { /* Storage is optional. */ }
+    get('final').textContent=String(score); get('record').textContent=record?'★ NEW PERSONAL BEST':'RELEASE REPORT / 15 SECONDS';
+    get('best').textContent=`Your best: ${best} · Golden bugs count as 3`;
+    get('rank').textContent=score>=22?'BUG EXTERMINATOR 🏆':score>=13?'CHAOS TAMER ⚡':score>=6?'JUNIOR BUG HUNTER 🪲':'THE BUGS WON 👾';
+    get('results').hidden=false; get<HTMLButtonElement>('replay').focus({preventScroll:true}); chirp(660);
+  }
+  function tick(now: number) {
+    if (!running || pausedAt) return;
+    const elapsed=now-startAt;
+    if (elapsed>=duration) { finish(); return; }
+    const dt=Math.min(.04,(now-lastFrame)/1000); lastFrame=now;
+    get('time').textContent=String(Math.ceil((duration-elapsed)/1000));
+    if (now-lastHit>1200) get('streak').textContent='GO!';
+    if (now-lastSpawn>Math.max(190,500-elapsed/60)) { spawn(now); lastSpawn=now; }
+    for (const bug of [...bugs]) {
+      if (now>=bug.expires) { remove(bug); continue; }
+      // A focused target holds still for keyboard players; reduced motion holds all targets still.
+      if (!reducedMotion.matches && document.activeElement!==bug.element) { bug.x+=bug.vx*dt; bug.y+=bug.vy*dt; }
+      const maxX=Math.max(4,arena.clientWidth-60), maxY=Math.max(108,arena.clientHeight-60);
+      if (bug.x<4 || bug.x>maxX) bug.vx*=-1;
+      if (bug.y<108 || bug.y>maxY) bug.vy*=-1;
+      bug.x=Math.max(4,Math.min(maxX,bug.x)); bug.y=Math.max(108,Math.min(maxY,bug.y));
+      bug.element.style.transform=`translate(${bug.x}px,${bug.y}px)`;
+    }
+    frame=requestAnimationFrame(tick);
+  }
+  get('open').addEventListener('click',()=>{dialog.showModal();start();});
+  get('close').addEventListener('click',()=>dialog.close());
+  dialog.addEventListener('close',()=>{stop();get('open').focus({preventScroll:true});});
+  get('replay').addEventListener('click',start);
+  get('sound').addEventListener('click',()=>{sound=!sound;get('sound').textContent=sound?'♫ ON':'♪ OFF';get('sound').setAttribute('aria-pressed',String(sound));get('sound').setAttribute('aria-label',`Turn game sound ${sound?'off':'on'}`);chirp(660);});
+  // Pause the countdown and target lifetimes while the tab is hidden.
+  document.addEventListener('visibilitychange',()=>{
+    if (!running) return;
+    const now=performance.now();
+    if (document.hidden) { pausedAt=now;cancelAnimationFrame(frame); }
+    else if (pausedAt) { const pause=now-pausedAt;startAt+=pause;lastSpawn+=pause;lastHit+=pause;bugs.forEach(bug=>bug.expires+=pause);pausedAt=0;lastFrame=now;frame=requestAnimationFrame(tick); }
+  });
+  get('share').addEventListener('click',async()=>{
+    const url=new URL(window.location.href);url.search='';url.hash='';
+    const text=`I caught ${score} bugs in 15 seconds. Can you beat me? Press DO NOT PRESS on VibeDoctor. ${url}`;
+    try { if (navigator.share) await navigator.share({title:'SHIP IT! · VibeDoctor',text});else {await navigator.clipboard.writeText(text);get('status').textContent='Challenge copied. Send it to a brave friend.';} }
+    catch (error) {if (!(error instanceof DOMException && error.name==='AbortError')) get('status').textContent=text;}
+  });
+}
+</script>

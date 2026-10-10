@@ -448,3 +448,17 @@ npm run dev -- agent plugin --targets all --force
 ## License
 
 VibeDoctor is licensed under GPL-3.0-or-later.
+
+### Homepage arcade
+
+The homepage includes a small **DO NOT PRESS** button that opens SHIP IT!, a
+15-second bug-catching game. It needs no login, backend, or extra dependencies.
+Golden bugs earn three points; a personal best is stored locally when available.
+Sound is off by default. Keyboard controls, reduced motion, and pausing while the
+tab is hidden are supported. The result screen offers replay, a friend challenge,
+and the real scan command. The arcade is implemented in
+`website/src/components/ShipItArcade.astro`; the homepage imports it below the hero.
+
+Validate website changes with `npm run check`, `npm run test:arcade`, and
+`npm run build` in `website/`. The arcade test exercises game logic with a
+deterministic clock and minimal DOM; it does not replace browser layout checks.

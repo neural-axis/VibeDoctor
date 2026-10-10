@@ -3,6 +3,7 @@ import { getCollection } from "astro:content";
 import Base from "../layouts/Base.astro";
 import Command from "../components/Command.astro";
 import HeroScan from "../components/HeroScan.astro";
+import ShipItArcade from "../components/ShipItArcade.astro";
 import CodeSample from "../components/CodeSample.astro";
 import { product, commands, completeness, links, media } from "../data/product";
 import { checks, dpdpControlCount } from "../data/checks";
@@ -46,6 +47,7 @@ const agents = [
 <Base title={title} description={description} path={withBase("/")} jsonLd={jsonLd}>
   <div class="site-wrap folio">
     <HeroScan />
+    <ShipItArcade />
 
     {
       media.video && (
